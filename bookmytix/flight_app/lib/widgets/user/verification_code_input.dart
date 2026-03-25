@@ -1,0 +1,399 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flight_app/ui/themes/theme_text.dart';
+import 'package:flight_app/ui/themes/theme_spacing.dart';
+import 'package:flight_app/ui/themes/theme_button.dart';
+import 'package:get/route_manager.dart';
+import 'dart:async';
+
+class VerificationCodeInput extends StatefulWidget {
+  final String email;
+  final VoidCallback onVerified;
+
+  const VerificationCodeInput({
+    super.key,
+    required this.email,
+    required this.onVerified,
+  });
+
+  @override
+  State<VerificationCodeInput> createState() => _VerificationCodeInputState();
+}
+
+class _VerificationCodeInputState extends State<VerificationCodeInput> {
+  final List<TextEditingController> _controllers = List.generate(
+    6,
+    (index) => TextEditingController(),
+  );
+  final List<FocusNode> _focusNodes = List.generate(
+    6,
+    (index) => FocusNode(),
+  );
+
+  int _secondsRemaining = 60;
+  Timer? _timer;
+  bool _isVerifying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    for (var controller in _controllers) {
+      controller.dispose();
+    }
+    for (var node in _focusNodes) {
+      node.dispose();
+    }
+    super.dispose();
+  }
+
+  void _startTimer() {
+    _secondsRemaining = 60;
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_secondsRemaining > 0) {
+        setState(() {
+          _secondsRemaining--;
+        });
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  void _resendCode() {
+    // TODO: Implement actual resend logic
+    Get.snackbar(
+      '📧 Code Resent',
+      'A new verification code has been sent to ${widget.email}',
+      backgroundColor: Colors.green.shade600,
+      colorText: Colors.white,
+      snackPosition: SnackPosition.TOP,
+      duration: const Duration(seconds: 2),
+      icon: const Icon(Icons.email_outlined, color: Colors.white),
+      borderRadius: 10,
+      margin: const EdgeInsets.all(10),
+    );
+    _startTimer();
+  }
+
+  void _verifyCode() async {
+    final code = _controllers.map((c) => c.text).join();
+    if (code.length != 6) {
+      Get.snackbar(
+        '⚠️ Invalid Code',
+        'Please enter the complete 6-digit code',
+        backgroundColor: Colors.orange.shade600,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 2),
+        icon: const Icon(Icons.warning_outlined, color: Colors.white),
+        borderRadius: 10,
+        margin: const EdgeInsets.all(10),
+      );
+      return;
+    }
+
+    setState(() {
+      _isVerifying = true;
+    });
+
+    // Simulate API call
+    await Future.delayed(const Duration(seconds: 2));
+
+    setState(() {
+      _isVerifying = false;
+    });
+
+    // For demo, accept "123456" as valid code
+    if (code == '123456') {
+      Get.snackbar(
+        '✅ Verified',
+        'Email verified successfully!',
+        backgroundColor: Colors.green.shade600,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 2),
+        icon: const Icon(Icons.check_circle, color: Colors.white),
+        borderRadius: 10,
+        margin: const EdgeInsets.all(10),
+      );
+      widget.onVerified();
+    } else {
+      Get.snackbar(
+        '❌ Invalid Code',
+        'The verification code you entered is incorrect',
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 2),
+        icon: const Icon(Icons.error_outline, color: Colors.white),
+        borderRadius: 10,
+        margin: const EdgeInsets.all(10),
+      );
+      // Clear all fields
+      for (var controller in _controllers) {
+        controller.clear();
+      }
+      _focusNodes[0].requestFocus();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      backgroundColor: colorScheme.surface,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(spacingUnit(3)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(height: spacingUnit(3)),
+
+              // Illustration
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colorScheme.primary.withValues(alpha: 0.2),
+                      colorScheme.secondary.withValues(alpha: 0.2),
+                    ],
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.email_outlined,
+                    size: 60,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ),
+
+              SizedBox(height: spacingUnit(4)),
+
+              // Title
+              Text(
+                'Verify Your Email',
+                style: ThemeText.title.copyWith(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              SizedBox(height: spacingUnit(1)),
+
+              // Subtitle
+              Text(
+                'We sent a verification code to',
+                style: ThemeText.paragraph.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: spacingUnit(0.5)),
+              Text(
+                widget.email,
+                style: ThemeText.subtitle.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+
+              SizedBox(height: spacingUnit(5)),
+
+              // Code Input Boxes
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(6, (index) {
+                  return Padding(
+                    padding: EdgeInsets.symmetric(horizontal: spacingUnit(0.5)),
+                    child: _CodeInputBox(
+                      controller: _controllers[index],
+                      focusNode: _focusNodes[index],
+                      onChanged: (value) {
+                        if (value.isNotEmpty && index < 5) {
+                          _focusNodes[index + 1].requestFocus();
+                        }
+                        if (value.isEmpty && index > 0) {
+                          _focusNodes[index - 1].requestFocus();
+                        }
+                        // Auto-verify when all 6 digits are entered
+                        if (index == 5 && value.isNotEmpty) {
+                          _verifyCode();
+                        }
+                      },
+                    ),
+                  );
+                }),
+              ),
+
+              SizedBox(height: spacingUnit(4)),
+
+              // Timer and Resend
+              _secondsRemaining > 0
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.schedule,
+                          size: 18,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Resend code in $_secondsRemaining seconds',
+                          style: ThemeText.caption.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    )
+                  : TextButton.icon(
+                      onPressed: _resendCode,
+                      icon: const Icon(Icons.refresh, size: 20),
+                      label: const Text(
+                        'Resend Code',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+
+              SizedBox(height: spacingUnit(4)),
+
+              // Verify Button
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: FilledButton(
+                  onPressed: _isVerifying ? null : _verifyCode,
+                  style: ThemeButton.btnBig.merge(ThemeButton.primary),
+                  child: _isVerifying
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'VERIFY CODE',
+                          style: ThemeText.subtitle,
+                        ),
+                ),
+              ),
+
+              SizedBox(height: spacingUnit(3)),
+
+              // Demo hint
+              Container(
+                padding: EdgeInsets.all(spacingUnit(2)),
+                decoration: BoxDecoration(
+                  color: colorScheme.primaryContainer.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: colorScheme.primary.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.lightbulb_outline,
+                      color: colorScheme.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Demo: Use code 123456 to verify',
+                        style: ThemeText.caption.copyWith(
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CodeInputBox extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onChanged;
+
+  const _CodeInputBox({
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: 50,
+      height: 60,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: focusNode.hasFocus
+              ? colorScheme.primary
+              : colorScheme.outline.withValues(alpha: 0.3),
+          width: focusNode.hasFocus ? 2 : 1,
+        ),
+      ),
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        textAlign: TextAlign.center,
+        keyboardType: TextInputType.number,
+        maxLength: 1,
+        style: ThemeText.title.copyWith(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+        ),
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+        ],
+        decoration: const InputDecoration(
+          counterText: '',
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.zero,
+        ),
+        onChanged: onChanged,
+      ),
+    );
+  }
+}

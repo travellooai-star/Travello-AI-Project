@@ -1,0 +1,2 @@
+C:/Users/lenovo/Documents/Experanzsa/bookmytix/flight_app/android/app/.cxx/RelWithDebInfo/3y1k21a2/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/lenovo/Documents/Experanzsa/bookmytix/flight_app/android/app/.cxx/RelWithDebInfo/3y1k21a2/armeabi-v7a/CMakeFiles/rebuild_cache.dir

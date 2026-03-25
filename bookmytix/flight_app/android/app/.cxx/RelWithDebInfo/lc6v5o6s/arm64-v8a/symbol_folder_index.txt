@@ -1,0 +1,1 @@
+/Users/retinam2/Documents/Experanza/bookmytix/flight_app/build/app/intermediates/cxx/RelWithDebInfo/lc6v5o6s/obj/arm64-v8a

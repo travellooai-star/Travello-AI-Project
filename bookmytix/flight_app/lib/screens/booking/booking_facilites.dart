@@ -1,0 +1,1803 @@
+import 'package:flight_app/app/app_link.dart';
+import 'package:flight_app/widgets/app_button/ds_button.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flight_app/screens/flight/flight_results_screen.dart';
+import 'package:flight_app/ui/themes/theme_palette.dart';
+import 'package:flight_app/ui/themes/theme_spacing.dart';
+import 'package:flight_app/ui/themes/theme_text.dart';
+import 'package:flight_app/widgets/booking/flight_seat_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Cabin class baggage policy
+//  Economy  → carry-on 7 kg  + 1 checked bag 20 kg  (industry standard)
+//  Business → carry-on 10 kg + 2 checked bags 30 kg
+//  First    → carry-on 12 kg + 2 checked bags 40 kg
+// ─────────────────────────────────────────────────────────────────────────────
+final Map<String, Map<String, dynamic>> _cabinPolicy = {
+  'Economy': {
+    'carryOn': '7 kg',
+    'checked': '20 kg',
+    'checkedKg': 20,
+    'checkedBags': 1,
+    'color': Colors.blue,
+  },
+  'Premium Economy': {
+    'carryOn': '8 kg',
+    'checked': '25 kg',
+    'checkedKg': 25,
+    'checkedBags': 1,
+    'color': Colors.orange,
+  },
+  'Business': {
+    'carryOn': '10 kg',
+    'checked': '30 kg',
+    'checkedKg': 30,
+    'checkedBags': 2,
+    'color': Colors.purple,
+  },
+  'First': {
+    'carryOn': '12 kg',
+    'checked': '40 kg',
+    'checkedKg': 40,
+    'checkedBags': 2,
+    'color': Colors.amber,
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Screen
+// ─────────────────────────────────────────────────────────────────────────────
+class BookingFacilites extends StatefulWidget {
+  const BookingFacilites({super.key});
+
+  @override
+  State<BookingFacilites> createState() => _BookingFacilitesState();
+}
+
+class _BookingFacilitesState extends State<BookingFacilites> {
+  // ── args ──
+  late FlightResult _flight;
+  late List<Map<String, dynamic>> _passengers;
+  Map<String, dynamic> _rawArgs = {};
+
+  // Round trip support
+  bool _isRoundTrip = false;
+  FlightResult? _outboundFlight;
+  FlightResult? _returnFlight;
+
+  // ── per-passenger bag weight controllers ──
+  // Each passenger starts with 1 bag. User can add/remove bags.
+  late List<List<TextEditingController>> _passengerBags;
+
+  // Overweight surcharge rate (PKR per kg above free allowance)
+  static const double _overweightRatePerKg = 200;
+
+  // ── seat selections ──
+  List<Map<String, dynamic>> _seatSelections = [];
+  double _seatTotal = 0.0;
+
+  // Round trip seat selection tracking
+  int _currentJourneyIndex = 0; // 0 = outbound, 1 = return
+  List<Map<String, dynamic>> _outboundSeatSelections = [];
+  List<Map<String, dynamic>> _returnSeatSelections = [];
+
+  // ── Ground Transfer ──
+  bool _transferAdded = false;
+  String _transferVehicleType = 'Sedan';
+  final TextEditingController _transferPickupCtrl = TextEditingController();
+
+  // ── stepper ──
+  // step index 1 = FACILITIES
+  final List<String> _steps = [
+    'PASSENGERS',
+    'FACILITIES',
+    'CHECKOUT',
+    'PAYMENT',
+    'DONE',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _rawArgs = (Get.arguments as Map<String, dynamic>?) ?? {};
+
+    // Round trip detection
+    _isRoundTrip = _rawArgs['isRoundTrip'] as bool? ?? false;
+    _outboundFlight = _rawArgs['outboundFlight'] as FlightResult?;
+    _returnFlight = _rawArgs['returnFlight'] as FlightResult?;
+
+    // Use outbound flight for round trip, or single flight
+    _flight =
+        (_isRoundTrip ? _outboundFlight : _rawArgs['flight']) as FlightResult;
+    final raw = (_rawArgs['passengers'] as List<dynamic>?) ?? [];
+    _passengers = raw.map((p) => Map<String, dynamic>.from(p as Map)).toList();
+    if (_passengers.isEmpty) {
+      _passengers = [
+        {'firstName': 'Passenger', 'lastName': '1', 'idNumber': '', 'phone': ''}
+      ];
+    }
+    _passengerBags = List.generate(
+      _passengers.length,
+      (_) => [TextEditingController(text: '0')],
+    );
+    _loadSavedBaggage();
+
+    // Restore seat selections if user navigated back from checkout
+    if (_isRoundTrip) {
+      final rawOutbound =
+          (_rawArgs['outboundSeatSelections'] as List<dynamic>?) ?? [];
+      _outboundSeatSelections =
+          rawOutbound.map((s) => Map<String, dynamic>.from(s as Map)).toList();
+
+      final rawReturn =
+          (_rawArgs['returnSeatSelections'] as List<dynamic>?) ?? [];
+      _returnSeatSelections =
+          rawReturn.map((s) => Map<String, dynamic>.from(s as Map)).toList();
+
+      // Restore journey index: if outbound is complete but return isn't, show return journey
+      if (_outboundSeatSelections.isNotEmpty && _returnSeatSelections.isEmpty) {
+        _currentJourneyIndex = 1; // Show return journey selection
+      }
+    } else {
+      final rawSeats = (_rawArgs['seatSelections'] as List<dynamic>?) ?? [];
+      _seatSelections =
+          rawSeats.map((s) => Map<String, dynamic>.from(s as Map)).toList();
+    }
+
+    // Restore seat total if present
+    _seatTotal = (_rawArgs['seatTotal'] as double?) ?? 0.0;
+  }
+
+  @override
+  void dispose() {
+    for (final bags in _passengerBags) {
+      for (final c in bags) {
+        c.dispose();
+      }
+    }
+    _transferPickupCtrl.dispose();
+    super.dispose();
+  }
+
+  // ── helpers ──
+  String _passengerName(int i) {
+    final p = _passengers[i];
+    final first = (p['firstName'] ?? '').toString().trim();
+    final last = (p['lastName'] ?? '').toString().trim();
+    final full = '$first $last'.trim();
+    return full.isEmpty ? 'Passenger ${i + 1}' : full;
+  }
+
+  String _resolvedCabin() {
+    // Use outbound flight for round trips, otherwise use main flight
+    final flight = _isRoundTrip ? _outboundFlight : _flight;
+    final c = flight?.cabinClass ?? _flight.cabinClass;
+    if (c.contains('Premium')) return 'Premium Economy';
+    if (c.contains('Business')) return 'Business';
+    if (c.contains('First')) return 'First';
+    return 'Economy';
+  }
+
+  Map<String, dynamic> _policy() =>
+      _cabinPolicy[_resolvedCabin()] ?? _cabinPolicy['Economy']!;
+
+  double _passengerOverweight(int i) {
+    final freeKg = (_policy()['checkedKg'] as int).toDouble();
+    final totalEntered = _passengerBags[i]
+        .fold<double>(0, (s, c) => s + (double.tryParse(c.text) ?? 0));
+    return (totalEntered - freeKg).clamp(0, double.infinity);
+  }
+
+  double _extraBaggageTotal() {
+    double total = 0;
+    for (int i = 0; i < _passengers.length; i++) {
+      total += _passengerOverweight(i) * _overweightRatePerKg;
+    }
+    return total;
+  }
+
+  double _flightTotal() {
+    if (_isRoundTrip && _outboundFlight != null && _returnFlight != null) {
+      return (_outboundFlight!.price + _returnFlight!.price) *
+          _passengers.length;
+    }
+    return _flight.price * _passengers.length;
+  }
+
+  // ── Seat selection helpers ──
+  void _onSeatsSelected(List<Map<String, dynamic>> selections) {
+    setState(() {
+      if (_isRoundTrip) {
+        // For round trip, store in appropriate journey
+        if (_currentJourneyIndex == 0) {
+          _outboundSeatSelections = selections;
+        } else {
+          _returnSeatSelections = selections;
+        }
+
+        // Calculate total from BOTH journeys for round trip
+        final outboundTotal = _outboundSeatSelections.fold(
+            0.0, (sum, s) => sum + (s['price'] as double? ?? 0.0));
+        final returnTotal = _returnSeatSelections.fold(
+            0.0, (sum, s) => sum + (s['price'] as double? ?? 0.0));
+        _seatTotal = outboundTotal + returnTotal;
+      } else {
+        // For one-way, use legacy behavior
+        _seatSelections = selections;
+        _seatTotal = selections.fold(
+            0.0, (sum, s) => sum + (s['price'] as double? ?? 0.0));
+      }
+    });
+  }
+
+  // Check if all required seats are actually selected (have non-empty seatName)
+  bool _areAllSeatsSelected() {
+    if (_isRoundTrip) {
+      // For round trip, check current journey
+      final currentSelections = _currentJourneyIndex == 0
+          ? _outboundSeatSelections
+          : _returnSeatSelections;
+
+      if (currentSelections.isEmpty) return false;
+
+      final selectedCount = currentSelections.where((s) {
+        final seatName = s['seatName'] as String? ?? '';
+        return seatName.isNotEmpty;
+      }).length;
+
+      return selectedCount == _passengers.length;
+    } else {
+      // For one-way
+      if (_seatSelections.isEmpty) return false;
+
+      final selectedCount = _seatSelections.where((s) {
+        final seatName = s['seatName'] as String? ?? '';
+        return seatName.isNotEmpty;
+      }).length;
+
+      return selectedCount == _passengers.length;
+    }
+  }
+
+  // Check if all journeys (outbound + return for round trip) are complete
+  bool _areAllJourneysComplete() {
+    if (!_isRoundTrip) {
+      return _areAllSeatsSelected();
+    }
+
+    // For round trip, both journeys must be complete
+    final outboundComplete = _outboundSeatSelections.where((s) {
+          final seatName = s['seatName'] as String? ?? '';
+          return seatName.isNotEmpty;
+        }).length ==
+        _passengers.length;
+
+    final returnComplete = _returnSeatSelections.where((s) {
+          final seatName = s['seatName'] as String? ?? '';
+          return seatName.isNotEmpty;
+        }).length ==
+        _passengers.length;
+
+    return outboundComplete && returnComplete;
+  }
+
+  // ── Baggage persistence helpers ──
+  Future<void> _loadSavedBaggage() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (int i = 0; i < _passengerBags.length; i++) {
+      final count = prefs.getInt('bag_p${i}_count') ?? 1;
+      // add extra controllers if passenger had more than 1 bag saved
+      while (_passengerBags[i].length < count) {
+        _passengerBags[i].add(TextEditingController(text: '0'));
+      }
+      for (int j = 0; j < _passengerBags[i].length; j++) {
+        final saved = prefs.getString('bag_p${i}_b$j');
+        if (saved != null) {
+          _passengerBags[i][j].text = saved;
+        }
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _saveBaggage() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (int i = 0; i < _passengerBags.length; i++) {
+      await prefs.setInt('bag_p${i}_count', _passengerBags[i].length);
+      for (int j = 0; j < _passengerBags[i].length; j++) {
+        await prefs.setString('bag_p${i}_b$j', _passengerBags[i][j].text);
+      }
+    }
+  }
+
+  void _onContinue() {
+    final policy = _policy();
+    final freeKg = (policy['checkedKg'] as int).toDouble();
+    final baggageData = List.generate(_passengers.length, (i) {
+      final bags =
+          _passengerBags[i].map((c) => double.tryParse(c.text) ?? 0).toList();
+      final totalEntered = bags.fold<double>(0, (s, w) => s + w);
+      final overweight = (totalEntered - freeKg).clamp(0, double.infinity);
+      return {
+        'passengerName': _passengerName(i),
+        'freeKg': freeKg,
+        'bags': bags,
+        'totalKg': totalEntered,
+        'overweightKg': overweight,
+        'extraPrice': overweight * _overweightRatePerKg,
+      };
+    });
+    _saveBaggage(); // persist bag weights so back-navigation restores them
+
+    // Validate seat selection (optional but recommended),
+    // User can proceed without seats but we'll show a warning
+    if (_isRoundTrip) {
+      if (!_areAllJourneysComplete()) {
+        final hasOutbound = _outboundSeatSelections
+            .where((s) => (s['seatName'] as String? ?? '').isNotEmpty)
+            .isNotEmpty;
+        final hasReturn = _returnSeatSelections
+            .where((s) => (s['seatName'] as String? ?? '').isNotEmpty)
+            .isNotEmpty;
+
+        if (!hasOutbound && !hasReturn) {
+          // No seats selected at all - show info message but allow continuation
+          Get.snackbar(
+            'No Seats Selected',
+            'Seats will be assigned at check-in. Select now to choose your preferred seats.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.blue.shade100,
+            colorText: Colors.blue.shade900,
+            duration: const Duration(seconds: 3),
+          );
+        } else if (hasOutbound &&
+            !_areAllSeatsSelected() &&
+            _currentJourneyIndex == 0) {
+          // Outbound incomplete - don't allow continuing
+          Get.snackbar(
+            'Incomplete Selection',
+            'Please complete seat selection for all passengers on the outbound flight',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.orange.shade100,
+            colorText: Colors.orange.shade900,
+            duration: const Duration(seconds: 3),
+          );
+          return;
+        } else if (!hasReturn && hasOutbound && _currentJourneyIndex == 0) {
+          // Outbound complete, need to select return - switch to return journey
+          setState(() {
+            _currentJourneyIndex = 1;
+          });
+          Get.snackbar(
+            'Select Return Seats',
+            'Now select seats for your return flight',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green.shade100,
+            colorText: Colors.green.shade900,
+            duration: const Duration(seconds: 2),
+          );
+          return;
+        }
+      }
+
+      // Proceed with both seat selections (or empty if none selected)
+      Get.toNamed(AppLink.bookingStep3, arguments: {
+        ..._rawArgs,
+        'baggageData': baggageData,
+        'baggageExtraTotal': _extraBaggageTotal(),
+        'outboundSeatSelections': _outboundSeatSelections,
+        'returnSeatSelections': _returnSeatSelections,
+        'seatTotal': _seatTotal,
+        'transferAdded': _transferAdded,
+        'transferVehicleType': _transferVehicleType,
+        'transferPickupLocation': _transferPickupCtrl.text.trim(),
+      });
+    } else {
+      // One-way trip
+      if (_seatSelections.isEmpty || !_areAllSeatsSelected()) {
+        final hasAnySeats = _seatSelections
+            .where((s) => (s['seatName'] as String? ?? '').isNotEmpty)
+            .isNotEmpty;
+
+        if (hasAnySeats && !_areAllSeatsSelected()) {
+          // Some but not all seats selected
+          Get.snackbar(
+            'Incomplete Selection',
+            'Please select seats for all passengers or clear all selections',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.orange.shade100,
+            colorText: Colors.orange.shade900,
+            duration: const Duration(seconds: 3),
+          );
+          return;
+        } else if (!hasAnySeats) {
+          // No seats selected - show info but allow continuation
+          Get.snackbar(
+            'No Seats Selected',
+            'Seats will be assigned at check-in. Select now to choose your preferred seats.',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.blue.shade100,
+            colorText: Colors.blue.shade900,
+            duration: const Duration(seconds: 2),
+          );
+        }
+      }
+
+      Get.toNamed(AppLink.bookingStep3, arguments: {
+        ..._rawArgs,
+        'baggageData': baggageData,
+        'baggageExtraTotal': _extraBaggageTotal(),
+        'seatSelections': _seatSelections,
+        'seatTotal': _seatTotal,
+        'transferAdded': _transferAdded,
+        'transferVehicleType': _transferVehicleType,
+        'transferPickupLocation': _transferPickupCtrl.text.trim(),
+      });
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  BUILD
+  // ─────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFAFAFA), // Light background
+      appBar: _buildAppBar(context),
+      body: Column(
+        children: [
+          _buildStepper(context),
+          Container(height: 1, color: const Color(0xFFE0E0E0)), // Light divider
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.all(spacingUnit(2)),
+              children: [
+                // ── Departure Section ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Departure', style: ThemeText.sectionHeading),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE0E0E0), // Light container
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Text(
+                        'Non-Stop - Duration: ${_isRoundTrip ? _outboundFlight!.duration : _flight.duration}',
+                        style: ThemeText.durationBadge,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: spacingUnit(1.2)),
+                _buildFlightCard(context),
+                SizedBox(height: spacingUnit(2)),
+
+                // Return flight card for round trips
+                if (_isRoundTrip && _returnFlight != null) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Return', style: ThemeText.sectionHeading),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0E0E0), // Light container
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Text(
+                          'Non-Stop - Duration: ${_returnFlight!.duration}',
+                          style: ThemeText.durationBadge,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: spacingUnit(1.2)),
+                  _buildReturnFlightCard(context),
+                  SizedBox(height: spacingUnit(2)),
+                ],
+                _buildBaggagePolicyBanner(context),
+                SizedBox(height: spacingUnit(2)),
+                _buildPassengerBaggageSection(context),
+                SizedBox(height: spacingUnit(3)),
+
+                // ── Seat Selection Section ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.airline_seat_recline_normal,
+                            color: colorScheme(context).primary, size: 22),
+                        SizedBox(width: spacingUnit(1)),
+                        const Text(
+                          'Select Your Seats',
+                          style: TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.black87,
+                              letterSpacing: 0.3),
+                        ),
+                      ],
+                    ),
+                    if (_isRoundTrip)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _currentJourneyIndex == 0
+                              ? Colors.green.shade700
+                              : Colors.orange.shade700,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          _currentJourneyIndex == 0 ? 'OUTBOUND' : 'RETURN',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                SizedBox(height: spacingUnit(1.5)),
+
+                // Optional info banner
+                Container(
+                  padding: EdgeInsets.all(spacingUnit(1.5)),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.info_outline,
+                          color: Colors.blue.shade700, size: 18),
+                      SizedBox(width: spacingUnit(1)),
+                      Expanded(
+                        child: Text(
+                          'Seat selection is optional. If not selected, seats will be assigned during check-in. '
+                          'Select now to choose your preferred seats (PKR 2,000 per seat).',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade900,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: spacingUnit(2)),
+
+                FlightSeatPicker(
+                  key: ValueKey('journey_$_currentJourneyIndex'),
+                  totalPassengers: _passengers.length,
+                  passengers: _passengers,
+                  cabinClass: _resolvedCabin(), // Pass cabin class for pricing
+                  onSeatsSelected: _onSeatsSelected,
+                  initialSelections: _isRoundTrip
+                      ? (_currentJourneyIndex == 0
+                          ? _outboundSeatSelections
+                          : _returnSeatSelections)
+                      : _seatSelections,
+                  journeyLabel: _isRoundTrip
+                      ? (_currentJourneyIndex == 0
+                          ? 'OUTBOUND FLIGHT'
+                          : 'RETURN FLIGHT')
+                      : null,
+                ),
+
+                // Next button for round trip (after outbound completion)
+                if (_isRoundTrip &&
+                    _currentJourneyIndex == 0 &&
+                    _areAllSeatsSelected()) ...[
+                  SizedBox(height: spacingUnit(2)),
+                  DSButton(
+                    label: 'NEXT: SELECT RETURN SEATS',
+                    trailingIcon: Icons.arrow_forward_rounded,
+                    onTap: () {
+                      setState(() {
+                        _currentJourneyIndex = 1;
+                      });
+                    },
+                    color: Colors.green.shade700,
+                  ),
+                ],
+
+                // Back to outbound button (when on return journey)
+                if (_isRoundTrip && _currentJourneyIndex == 1) ...[
+                  SizedBox(height: spacingUnit(2)),
+                  DSButton(
+                    label: 'BACK TO OUTBOUND SEATS',
+                    leadingIcon: Icons.arrow_back_rounded,
+                    onTap: () {
+                      setState(() {
+                        _currentJourneyIndex = 0;
+                      });
+                    },
+                    color: const Color(0xFFB3B3B3),
+                  ),
+                ],
+
+                SizedBox(height: spacingUnit(3)),
+                _buildTransferSection(context),
+                SizedBox(height: spacingUnit(10)),
+              ],
+            ),
+          ),
+          _buildBottomBar(context),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  //  GROUND TRANSFER SECTION
+  // ─────────────────────────────────────────────
+  Widget _buildTransferSection(BuildContext context) {
+    const List<Map<String, dynamic>> vehicles = [
+      {'type': 'Sedan', 'desc': '1–3 passengers', 'price': 800},
+      {'type': 'SUV', 'desc': '1–5 passengers', 'price': 1200},
+      {'type': 'Van', 'desc': '6–9 passengers', 'price': 1500},
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ──
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: spacingUnit(2),
+              vertical: spacingUnit(1.5),
+            ),
+            decoration: BoxDecoration(
+              color: colorScheme(context).primary.withOpacity(0.08),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: colorScheme(context).primary,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.directions_car_rounded,
+                      color: Colors.white, size: 20),
+                ),
+                SizedBox(width: spacingUnit(1.5)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Airport Transfer',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: colorScheme(context).primary,
+                        ),
+                      ),
+                      const Text(
+                        'Pickup or drop-off at your doorstep',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF666666),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Add / Remove toggle
+                GestureDetector(
+                  onTap: () => setState(() {
+                    _transferAdded = !_transferAdded;
+                    if (!_transferAdded) _transferPickupCtrl.clear();
+                  }),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: _transferAdded
+                          ? Colors.red.shade50
+                          : colorScheme(context).primary,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _transferAdded
+                            ? Colors.red.shade300
+                            : colorScheme(context).primary,
+                      ),
+                    ),
+                    child: Text(
+                      _transferAdded ? 'Remove' : '+ Add',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color:
+                            _transferAdded ? Colors.red.shade700 : Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Expanded details (shown when added) ──
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 250),
+            crossFadeState: _transferAdded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: spacingUnit(2),
+                vertical: spacingUnit(1.2),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline_rounded,
+                      size: 14, color: Color(0xFF999999)),
+                  SizedBox(width: 6),
+                  Text(
+                    'AC vehicle — driver assigned 2 hrs before departure',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF888888)),
+                  ),
+                ],
+              ),
+            ),
+            secondChild: Padding(
+              padding: EdgeInsets.all(spacingUnit(2)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Vehicle selector ──
+                  const Text(
+                    'Select Vehicle',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF333333),
+                    ),
+                  ),
+                  SizedBox(height: spacingUnit(1)),
+                  Row(
+                    children: vehicles.map((v) {
+                      final selected = _transferVehicleType == v['type'];
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(
+                              () => _transferVehicleType = v['type'] as String),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            margin: EdgeInsets.only(
+                              right: v['type'] != 'Van' ? spacingUnit(1) : 0,
+                            ),
+                            padding: EdgeInsets.symmetric(
+                              vertical: spacingUnit(1.2),
+                              horizontal: spacingUnit(0.5),
+                            ),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? colorScheme(context)
+                                      .primary
+                                      .withOpacity(0.1)
+                                  : const Color(0xFFF5F5F5),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: selected
+                                    ? colorScheme(context).primary
+                                    : const Color(0xFFE0E0E0),
+                                width: selected ? 2 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  v['type'] == 'Van'
+                                      ? Icons.airport_shuttle_rounded
+                                      : Icons.directions_car_filled_rounded,
+                                  size: 22,
+                                  color: selected
+                                      ? colorScheme(context).primary
+                                      : const Color(0xFF888888),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  v['type'] as String,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: selected
+                                        ? colorScheme(context).primary
+                                        : const Color(0xFF444444),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  v['desc'] as String,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Color(0xFF888888),
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'PKR ${v['price']}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: selected
+                                        ? colorScheme(context).primary
+                                        : const Color(0xFF444444),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  SizedBox(height: spacingUnit(2)),
+
+                  // ── Pickup location ──
+                  const Text(
+                    'Pickup Address',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF333333),
+                    ),
+                  ),
+                  SizedBox(height: spacingUnit(0.8)),
+                  TextField(
+                    controller: _transferPickupCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'e.g. House 12, Block A, Gulshan, Karachi',
+                      hintStyle: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFFAAAAAA),
+                      ),
+                      prefixIcon: Icon(Icons.location_on_outlined,
+                          color: colorScheme(context).primary, size: 20),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFFDDDDDD)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFFDDDDDD)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                            color: colorScheme(context).primary, width: 1.5),
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFFFAFAFA),
+                    ),
+                    maxLines: 2,
+                    style:
+                        const TextStyle(fontSize: 13, color: Color(0xFF222222)),
+                  ),
+
+                  SizedBox(height: spacingUnit(1.5)),
+
+                  // ── Info banner ──
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: spacingUnit(1.5),
+                      vertical: spacingUnit(1),
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0F9F0),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFB2DFB2)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.check_circle_outline_rounded,
+                            size: 16, color: Color(0xFF4CAF50)),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Driver details sent via SMS 2 hrs before pickup. AC vehicle guaranteed.',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF2E7D32),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  //  APP BAR - Matches Bookme/Expedia Style
+  // ─────────────────────────────────────────────
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      backgroundColor: colorScheme(context).primary,
+      elevation: 0,
+      centerTitle: true,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.white),
+        onPressed: () => Get.back(),
+      ),
+      title: const Text(
+        'Facilities',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  //  5-STEP STEPPER - Matches Bookme/Expedia Style
+  // ─────────────────────────────────────────────
+  Widget _buildStepper(BuildContext context) {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      child: Row(
+        children: List.generate(9, (i) {
+          if (i.isOdd) {
+            // Connecting line
+            final stepBefore = i ~/ 2;
+            final isCompleted = stepBefore < 1;
+            return Expanded(
+              child: Container(
+                height: 2,
+                color: isCompleted
+                    ? colorScheme(context).primary
+                    : Colors.grey.shade300,
+              ),
+            );
+          }
+          // Circle
+          final index = i ~/ 2;
+          final isActive = index == 1; // FACILITIES
+          final isCompleted = index < 1;
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: isCompleted || isActive
+                      ? colorScheme(context).primary
+                      : Colors.grey.shade300,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      color: isCompleted || isActive
+                          ? Colors.white
+                          : const Color(0xFFB3B3B3),
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _steps[index],
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 9,
+                  color: isCompleted || isActive
+                      ? colorScheme(context).primary
+                      : const Color(0xFFB3B3B3),
+                  fontWeight: isCompleted || isActive
+                      ? FontWeight.w600
+                      : FontWeight.normal,
+                ),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  //  FLIGHT INFO CARD
+  // ─────────────────────────────────────────────
+  Widget _buildFlightCard(BuildContext context) {
+    final scheme = colorScheme(context);
+    final cabinColor = _policy()['color'] as Color;
+    return Container(
+      padding: EdgeInsets.all(spacingUnit(2)),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE0E0E0)), // Light divider
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(spacingUnit(1.2)),
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.flight, color: scheme.primary, size: 22),
+          ),
+          SizedBox(width: spacingUnit(1.5)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _flight.airlineName,
+                  style:
+                      ThemeText.subtitle.copyWith(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '${_flight.airlineCode}  ·  ${_flight.departureTime} → ${_flight.arrivalTime}',
+                  style: ThemeText.caption
+                      .copyWith(color: const Color(0xFFB3B3B3)),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(
+                horizontal: spacingUnit(1.5), vertical: spacingUnit(0.5)),
+            decoration: BoxDecoration(
+              color: cabinColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: cabinColor.withValues(alpha: 0.3)),
+            ),
+            child: Text(
+              _resolvedCabin(),
+              style: TextStyle(
+                color: cabinColor,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReturnFlightCard(BuildContext context) {
+    if (_returnFlight == null) return const SizedBox.shrink();
+
+    final scheme = colorScheme(context);
+    final cabinColor = (_cabinPolicy[_returnFlight!.cabinClass] ??
+        _cabinPolicy['Economy'])!['color'] as Color;
+
+    return Container(
+      padding: EdgeInsets.all(spacingUnit(2)),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE0E0E0)), // Light divider
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(spacingUnit(1.2)),
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(Icons.flight, color: scheme.primary, size: 22),
+          ),
+          SizedBox(width: spacingUnit(1.5)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _returnFlight!.airlineName,
+                  style:
+                      ThemeText.subtitle.copyWith(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '${_returnFlight!.airlineCode}  ·  ${_returnFlight!.departureTime} → ${_returnFlight!.arrivalTime}',
+                  style: ThemeText.caption
+                      .copyWith(color: const Color(0xFFB3B3B3)),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(
+                horizontal: spacingUnit(1.5), vertical: spacingUnit(0.5)),
+            decoration: BoxDecoration(
+              color: cabinColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: cabinColor.withValues(alpha: 0.3)),
+            ),
+            child: Text(
+              _returnFlight!.cabinClass,
+              style: TextStyle(
+                color: cabinColor,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  //  BAGGAGE POLICY BANNER
+  // ─────────────────────────────────────────────
+  Widget _buildBaggagePolicyBanner(BuildContext context) {
+    final policy = _policy();
+    final cabinColor = policy['color'] as Color;
+    return Container(
+      padding: EdgeInsets.all(spacingUnit(2)),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            cabinColor.withValues(alpha: 0.09),
+            cabinColor.withValues(alpha: 0.03),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cabinColor.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.info_outline, color: cabinColor, size: 17),
+              SizedBox(width: spacingUnit(1)),
+              Text(
+                'Free Baggage Allowance  ·  ${_resolvedCabin()}',
+                style: TextStyle(
+                  color: cabinColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: spacingUnit(1.5)),
+          Row(
+            children: [
+              _policyChip(
+                icon: Icons.backpack_outlined,
+                label: 'Carry-on',
+                value: policy['carryOn'].toString(),
+                color: cabinColor,
+              ),
+              SizedBox(width: spacingUnit(1.5)),
+              _policyChip(
+                icon: Icons.luggage_outlined,
+                label: 'Checked',
+                value: '${policy['checkedBags']}×${policy['checked']}',
+                color: cabinColor,
+              ),
+            ],
+          ),
+          SizedBox(height: spacingUnit(1.5)),
+          Container(
+            padding: EdgeInsets.all(spacingUnit(1.2)),
+            decoration: BoxDecoration(
+              color: Colors.amber.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.warning_amber_outlined,
+                    color: Colors.amber, size: 15),
+                SizedBox(width: spacingUnit(0.8)),
+                Expanded(
+                  child: Text(
+                    'Airport overweight charges can be very high. '
+                    'Pre-purchasing extra baggage below saves up to 60% '
+                    'compared to paying at the airport.',
+                    style:
+                        TextStyle(fontSize: 11, color: Colors.orange.shade800),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _policyChip({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.all(spacingUnit(1.2)),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F5F5), // Light card
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 18),
+            SizedBox(width: spacingUnit(0.8)),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: const TextStyle(
+                        fontSize: 10, color: Color(0xFFB3B3B3))),
+                Text(value,
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: color)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  //  PER-PASSENGER BAGGAGE SECTION
+  // ─────────────────────────────────────────────
+  Widget _buildPassengerBaggageSection(BuildContext context) {
+    final scheme = colorScheme(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.luggage, color: scheme.primary, size: 22),
+            SizedBox(width: spacingUnit(1)),
+            Text(
+              'Baggage Detail',
+              style: ThemeText.subtitle.copyWith(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        SizedBox(height: spacingUnit(1.5)),
+        ...List.generate(
+            _passengers.length, (i) => _buildPassengerBaggageCard(context, i)),
+      ],
+    );
+  }
+
+  Widget _buildPassengerBaggageCard(BuildContext context, int i) {
+    final scheme = colorScheme(context);
+    final policy = _policy();
+    final freeKg = (policy['checkedKg'] as int).toDouble();
+    final overweight = _passengerOverweight(i);
+    final hasOverweight = overweight > 0;
+    final extraCharge = overweight * _overweightRatePerKg;
+    final totalEntered = _passengerBags[i]
+        .fold<double>(0, (s, c) => s + (double.tryParse(c.text) ?? 0));
+
+    return Container(
+      margin: EdgeInsets.only(bottom: spacingUnit(1.5)),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: hasOverweight ? Colors.red.shade300 : Colors.grey.shade200,
+          width: hasOverweight ? 1.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(spacingUnit(2)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── passenger name row ──
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(spacingUnit(0.8)),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0E0E0), // Light container
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.person_outline,
+                      color: Color(0xFFB3B3B3), size: 18),
+                ),
+                SizedBox(width: spacingUnit(1.2)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _passengerName(i),
+                        style: ThemeText.subtitle.copyWith(
+                            fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      Text('Passenger ${i + 1}',
+                          style: ThemeText.caption
+                              .copyWith(color: const Color(0xFFB3B3B3))),
+                    ],
+                  ),
+                ),
+                // total kg badge
+                Container(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: spacingUnit(1.5), vertical: spacingUnit(0.5)),
+                  decoration: BoxDecoration(
+                    color: hasOverweight
+                        ? Colors.red.shade50
+                        : scheme.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${totalEntered.toStringAsFixed(0)} kg total',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color:
+                          hasOverweight ? Colors.red.shade700 : scheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            SizedBox(height: spacingUnit(1.5)),
+            Container(height: 1, color: const Color(0xFFE0E0E0)),
+            SizedBox(height: spacingUnit(1.5)),
+
+            // ── free allowance row ──
+            Row(
+              children: [
+                const Icon(Icons.check_circle_outline,
+                    color: Color(0xFFD4AF37), size: 16),
+                SizedBox(width: spacingUnit(0.8)),
+                Text(
+                  'Free allowance: ${freeKg.toStringAsFixed(0)} kg',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFD4AF37),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: spacingUnit(1.5)),
+
+            // ── bag rows ──
+            const Text(
+              'Bags',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+            SizedBox(height: spacingUnit(1)),
+            ...List.generate(_passengerBags[i].length, (bagIdx) {
+              final ctrl = _passengerBags[i][bagIdx];
+              return Padding(
+                padding: EdgeInsets.only(bottom: spacingUnit(1)),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(spacingUnit(0.7)),
+                      decoration: BoxDecoration(
+                        color: scheme.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.luggage_outlined,
+                          color: scheme.primary, size: 18),
+                    ),
+                    SizedBox(width: spacingUnit(1)),
+                    Text(
+                      'Bag ${bagIdx + 1}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(width: spacingUnit(1.5)),
+                    Expanded(
+                      child: SizedBox(
+                        height: 38,
+                        child: TextField(
+                          controller: ctrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          textAlign: TextAlign.center,
+                          onChanged: (_) => setState(() {}),
+                          decoration: InputDecoration(
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: spacingUnit(1),
+                                vertical: spacingUnit(0.5)),
+                            suffixText: 'kg',
+                            suffixStyle: const TextStyle(
+                                fontSize: 12, color: Color(0xFFB3B3B3)),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide:
+                                  BorderSide(color: scheme.primary, width: 1.5),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade300),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: spacingUnit(0.8)),
+                    if (_passengerBags[i].length > 1)
+                      GestureDetector(
+                        onTap: () => setState(() {
+                          ctrl.dispose();
+                          _passengerBags[i].removeAt(bagIdx);
+                          _saveBaggage();
+                        }),
+                        child: Container(
+                          padding: EdgeInsets.all(spacingUnit(0.6)),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Icon(Icons.remove_circle_outline,
+                              color: Colors.red.shade400, size: 18),
+                        ),
+                      )
+                    else
+                      SizedBox(width: spacingUnit(3)),
+                  ],
+                ),
+              );
+            }),
+
+            // ── add bag button ──
+            TextButton.icon(
+              onPressed: () => setState(() {
+                _passengerBags[i].add(TextEditingController(text: '0'));
+                _saveBaggage();
+              }),
+              icon: Icon(Icons.add_circle_outline,
+                  size: 16, color: scheme.primary),
+              label: Text(
+                'Add Bag',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w600),
+              ),
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+
+            // ── overweight warning ──
+            if (hasOverweight) ...[
+              SizedBox(height: spacingUnit(1)),
+              Container(
+                padding: EdgeInsets.symmetric(
+                    horizontal: spacingUnit(1.5), vertical: spacingUnit(0.8)),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        color: Colors.red.shade600, size: 16),
+                    SizedBox(width: spacingUnit(0.8)),
+                    Expanded(
+                      child: Text(
+                        'Overweight: ${overweight.toStringAsFixed(0)} kg  ·  '
+                        'Extra charge PKR ${extraCharge.toStringAsFixed(0)} '
+                        '(PKR ${_overweightRatePerKg.toStringAsFixed(0)}/kg)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.red.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  //  BOTTOM BAR
+  // ─────────────────────────────────────────────
+  String _formatPKR(double amount) {
+    final n = amount.toStringAsFixed(0);
+    // insert commas: 25000 → 25,000
+    final buf = StringBuffer();
+    int start = n.length % 3;
+    if (start > 0) buf.write(n.substring(0, start));
+    for (int i = start; i < n.length; i += 3) {
+      if (buf.isNotEmpty) buf.write(',');
+      buf.write(n.substring(i, i + 3));
+    }
+    return 'PKR ${buf.toString()}';
+  }
+
+  Widget _buildBottomBar(BuildContext context) {
+    final scheme = colorScheme(context);
+    final extraTotal = _extraBaggageTotal();
+    final flightTotal = _flightTotal();
+    final seatTotal = _seatTotal;
+    final grandTotal = flightTotal + extraTotal + seatTotal;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(spacingUnit(2.5), spacingUnit(2),
+              spacingUnit(2.5), spacingUnit(2)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── price breakdown ──
+              Container(
+                padding: EdgeInsets.all(spacingUnit(1.8)),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F5), // Light surface
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: const Color(0xFFE0E0E0)), // Light divider
+                ),
+                child: Column(
+                  children: [
+                    _priceRow(
+                      context,
+                      icon: Icons.flight,
+                      label: _isRoundTrip
+                          ? 'Round Trip Ticket'
+                          : 'Flight subtotal',
+                      sublabel: _isRoundTrip
+                          ? '${_passengers.length} pax × ${_formatPKR(_outboundFlight!.price + _returnFlight!.price)}'
+                          : '${_passengers.length} pax × ${_formatPKR(_flight.price)}',
+                      value: _formatPKR(flightTotal),
+                      valueColor: Colors.black87,
+                    ),
+                    if (extraTotal > 0) ...[
+                      Padding(
+                        padding: EdgeInsets.symmetric(vertical: spacingUnit(1)),
+                        child: const Divider(
+                            height: 1,
+                            color: Color(0xFFE0E0E0)), // Light divider
+                      ),
+                      _priceRow(
+                        context,
+                        icon: Icons.luggage_outlined,
+                        label: 'Extra baggage',
+                        sublabel: 'Overweight surcharge',
+                        value: '+ ${_formatPKR(extraTotal)}',
+                        valueColor: Colors.orange.shade700,
+                      ),
+                    ],
+                    if (seatTotal > 0) ...[
+                      Padding(
+                        padding: EdgeInsets.symmetric(vertical: spacingUnit(1)),
+                        child: const Divider(
+                            height: 1,
+                            color: Color(0xFFE0E0E0)), // Light divider
+                      ),
+                      _priceRow(
+                        context,
+                        icon: Icons.airline_seat_recline_normal,
+                        label: 'Seat selection',
+                        sublabel: _isRoundTrip
+                            ? 'Outbound + Return seats'
+                            : '${_seatSelections.where((s) => (s['seatName'] as String? ?? '').isNotEmpty).length} seat(s)',
+                        value: '+ ${_formatPKR(seatTotal)}',
+                        valueColor: Colors.green.shade700,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              SizedBox(height: spacingUnit(1.8)),
+
+              // ── grand total + continue button ──
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Total Payable',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF666666), // Light gray text
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatPKR(grandTotal),
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: scheme.primary,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Incl. all taxes & fees',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: spacingUnit(2)),
+                  DSButton(
+                    label: 'CONTINUE',
+                    trailingIcon: Icons.arrow_forward_rounded,
+                    onTap: _onContinue,
+                    disabled: !(_isRoundTrip
+                        ? _areAllJourneysComplete()
+                        : _areAllSeatsSelected()),
+                    width: 158,
+                    height: 56,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _priceRow(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String sublabel,
+    required String value,
+    required Color valueColor,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: EdgeInsets.all(spacingUnit(0.8)),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 16, color: const Color(0xFFB3B3B3)),
+        ),
+        SizedBox(width: spacingUnit(1.2)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                sublabel,
+                style: const TextStyle(fontSize: 11, color: Color(0xFF666666)),
+              ),
+            ],
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: valueColor,
+          ),
+        ),
+      ],
+    );
+  }
+}

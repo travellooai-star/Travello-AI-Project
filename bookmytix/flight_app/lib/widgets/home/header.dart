@@ -1,0 +1,179 @@
+import 'package:flight_app/app/app_link.dart';
+import 'package:flight_app/ui/themes/theme_palette.dart';
+import 'package:flight_app/utils/custom_tooltip.dart';
+import 'package:flutter/material.dart';
+import 'package:get/route_manager.dart';
+import 'package:flight_app/constants/app_const.dart';
+import 'package:flight_app/widgets/action_header/home_action_group.dart';
+import 'package:flight_app/ui/themes/theme_radius.dart';
+import 'package:flight_app/ui/themes/theme_spacing.dart';
+import 'package:flight_app/ui/themes/theme_text.dart';
+import 'package:overlay_tooltip/overlay_tooltip.dart';
+import 'package:flight_app/utils/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class HomeHeader extends StatefulWidget {
+  const HomeHeader({super.key, this.isFixed = false});
+
+  final bool isFixed;
+
+  @override
+  State<HomeHeader> createState() => _HomeHeaderState();
+}
+
+class _HomeHeaderState extends State<HomeHeader> {
+  String _userName = 'User';
+  String _userAvatar = '';
+  String _userCountry = 'Pakistan';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUser();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reload user data whenever widget rebuilds (e.g., after login)
+    _loadCurrentUser();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    // Check if in guest mode first
+    final isGuest = await AuthService.isGuestMode();
+
+    if (isGuest) {
+      // Show guest user data
+      final guestUser = AuthService.getGuestUser();
+      setState(() {
+        _userName = guestUser['name'];
+        _userAvatar = ''; // No avatar for guest
+        _userCountry = 'Visitor'; // Guest indicator
+      });
+    } else {
+      // Load logged-in user data
+      final user = await AuthService.getCurrentUser();
+      if (user != null) {
+        setState(() {
+          _userName = user['name'] ?? 'User';
+          _userAvatar = userDummy.avatar; // Using default avatar for now
+          _userCountry = 'Pakistan'; // Default country
+        });
+      } else {
+        // No user logged in, show default
+        setState(() {
+          _userName = 'Guest User';
+          _userAvatar = '';
+          _userCountry = 'Visitor';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      toolbarHeight: 60,
+      scrolledUnderElevation: 0.0,
+      forceMaterialTransparency: true,
+      backgroundColor: Colors.transparent,
+      automaticallyImplyLeading: false,
+      titleSpacing: spacingUnit(1),
+      flexibleSpace: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        color:
+            widget.isFixed ? colorScheme(context).surface : Colors.transparent,
+      ),
+      title: GestureDetector(
+        onTap: () {
+          Get.toNamed(AppLink.profile);
+        },
+        child: Row(children: [
+          /// AVATAR AND USER PROFILE
+          CircleAvatar(
+            radius: 24,
+            backgroundImage: NetworkImage(
+                _userAvatar.isEmpty ? userDummy.avatar : _userAvatar),
+          ),
+          SizedBox(width: spacingUnit(1)),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(_userName,
+                style: ThemeText.title2.copyWith(
+                    color: widget.isFixed
+                        ? colorScheme(context).onSurface
+                        : Colors.white)),
+            Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 4),
+                decoration: BoxDecoration(
+                  borderRadius: ThemeRadius.small,
+                  color: colorScheme(context).surface.withValues(alpha: 0.8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.location_on, size: 12, color: Colors.red),
+                    const SizedBox(
+                      width: 2,
+                    ),
+                    Text('Karachi • $_userCountry',
+                        style: const TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.w500)),
+                  ],
+                ))
+          ])
+        ]),
+      ),
+
+      /// ACTION BUTTONS
+      actions: [
+        // Switch to Railway Mode Button
+        iconBtn(
+          context,
+          Icons.train,
+          widget.isFixed,
+          () => _showModeSwitch(context),
+        ),
+        OverlayTooltipItem(
+          displayIndex: 2,
+          tooltip: (controller) => Padding(
+            padding: const EdgeInsets.only(right: 15),
+            child: MTooltip(
+                title: 'Check messages, the best deals, or notification here.',
+                controller: controller),
+          ),
+          child: Badge.count(
+            backgroundColor: Colors.red,
+            count: 3,
+            offset: const Offset(0, -1),
+            child: iconBtn(
+              context,
+              Icons.notifications,
+              widget.isFixed,
+              () {
+                Get.toNamed(AppLink.notification);
+              },
+            ),
+          ),
+        ),
+        Tooltip(
+          message: 'Help and Support',
+          child: iconBtn(
+            context,
+            Icons.chat_bubble_outline,
+            widget.isFixed,
+            () {
+              Get.toNamed(AppLink.faq);
+            },
+          ),
+        )
+      ],
+    );
+  }
+
+  void _showModeSwitch(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('travel_mode', 'railway');
+    Get.offAllNamed(AppLink.home);
+  }
+}

@@ -1,0 +1,3323 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flight_app/widgets/app_button/ds_button.dart';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+import 'package:flight_app/screens/flight/flight_results_screen.dart';
+import 'package:flight_app/models/airport.dart';
+import 'package:flight_app/ui/themes/theme_spacing.dart';
+import 'package:flight_app/ui/themes/theme_palette.dart';
+import 'package:flight_app/app/app_link.dart';
+import 'dart:math' as math;
+
+class BookingPayment extends StatefulWidget {
+  const BookingPayment({super.key});
+
+  @override
+  State<BookingPayment> createState() => _BookingPaymentState();
+}
+
+class _BookingPaymentState extends State<BookingPayment>
+    with TickerProviderStateMixin {
+  // Arguments from previous screen (Flights)
+  FlightResult? _flight;
+  late Map<String, dynamic> _searchParams;
+  late List<Map<String, dynamic>> _passengers;
+  late List<Map<String, dynamic>> _baggageData;
+  Airport? _fromAirport;
+  Airport? _toAirport;
+  late DateTime _departureDate;
+  int _adults = 1;
+  int _children = 0;
+  int _infants = 0;
+
+  // Round trip support (Flights)
+  bool _isRoundTrip = false;
+  FlightResult? _outboundFlight;
+  FlightResult? _returnFlight;
+  DateTime? _returnDate;
+
+  // Contact information
+  String _contactEmail = '';
+  String _contactPhone = '';
+
+  // Seat selections (from booking_checkout)
+  List<Map<String, dynamic>> _seatSelections = [];
+  List<Map<String, dynamic>> _outboundSeatSelections = [];
+  List<Map<String, dynamic>> _returnSeatSelections = [];
+  double _seatTotal = 0;
+
+  // Payment state
+  String _selectedPaymentMethod = '';
+  bool _isPriceBreakdownExpanded = false;
+  bool _agreedToTerms = true;
+  bool _showTermsError = false;
+  bool _saveCard = false;
+  bool _addTravelInsurance = false;
+  bool _isProcessing = false;
+  String _selectedCountryCode = '+92';
+  bool _showEasypaisaOTP = false;
+  bool _showJazzcashOTP = false;
+
+  // OTP Timer
+  Timer? _otpTimer;
+  int _otpRemainingSeconds = 27;
+
+  // Form controllers
+  final _formKey = GlobalKey<FormState>();
+  final _cardNameController = TextEditingController();
+  final _cardNumberController = TextEditingController();
+  final _expiryController = TextEditingController();
+  final _cvvController = TextEditingController();
+  final _easypaisaPhoneController = TextEditingController();
+  final _jazzcashPhoneController = TextEditingController();
+
+  // Price calculations
+  double _baseFare = 0;
+  double _taxes = 0; // total of all 3 components below
+  double _taxFED = 0; // Federal Excise Duty  — 16 % of base fare
+  double _taxAirportFee = 0; // Airport Development Fee — PKR 200 / pax
+  double _taxSecurityFee = 0; // Aviation Security Fee   — PKR 150 / pax
+  double _serviceFee = 500; // Dynamic based on payment method
+  double _paymentMethodFee = 0; // Additional fee based on payment method
+  double _baggageFee = 0;
+  double _transferFee = 0; // Airport transfer add-on
+  final double _discount = 0;
+  final double _insuranceFee = 1500;
+  double get _grandTotal =>
+      _baseFare +
+      _taxes +
+      _serviceFee +
+      _paymentMethodFee +
+      _baggageFee +
+      _transferFee +
+      (_addTravelInsurance ? _insuranceFee : 0) -
+      _discount;
+
+  bool get _isPaymentDetailsValid {
+    if (_selectedPaymentMethod.isEmpty) return false;
+
+    if (_selectedPaymentMethod == 'card') {
+      final cardNumberLength =
+          _cardNumberController.text.replaceAll(' ', '').length;
+      return cardNumberLength == 16 &&
+          _expiryController.text.trim().length == 5 &&
+          _cvvController.text.trim().length >= 3;
+    } else if (_selectedPaymentMethod == 'easypaisa') {
+      return _easypaisaPhoneController.text.trim().length >= 10;
+    } else if (_selectedPaymentMethod == 'jazzcash') {
+      return _jazzcashPhoneController.text.trim().length >= 10;
+    }
+
+    // For other payment methods (bank transfer, PayPal, etc.) that don't require form validation
+    return true;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadArguments();
+    // _startTimer(); // Timer disabled
+
+    // Add listeners to update button state when payment details change
+    _cardNumberController.addListener(() => setState(() {}));
+    _expiryController.addListener(() => setState(() {}));
+    _cvvController.addListener(() => setState(() {}));
+    _easypaisaPhoneController.addListener(() => setState(() {}));
+    _jazzcashPhoneController.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    // _timer.cancel(); // Timer disabled
+    _otpTimer?.cancel();
+    _cardNameController.dispose();
+    _cardNumberController.dispose();
+    _expiryController.dispose();
+    _cvvController.dispose();
+    _easypaisaPhoneController.dispose();
+    _jazzcashPhoneController.dispose();
+    super.dispose();
+  }
+
+  void _loadArguments() {
+    final args = Get.arguments as Map<String, dynamic>?;
+
+    // Handle null arguments (e.g., during hot restart)
+    if (args == null) {
+      return;
+    }
+
+    // Common data
+    final passList = args['passengers'] as List<dynamic>?;
+    _passengers =
+        passList?.map((p) => Map<String, dynamic>.from(p as Map)).toList() ??
+            [];
+    _isRoundTrip = args['isRoundTrip'] ?? false;
+    _returnDate = args['returnDate'] as DateTime?;
+    _contactEmail = args['contactEmail'] as String? ?? '';
+    _contactPhone = args['contactPhone'] as String? ?? '';
+
+    // Load seat selections
+    final seatsList = args['seatSelections'] as List<dynamic>?;
+    _seatSelections =
+        seatsList?.map((s) => Map<String, dynamic>.from(s as Map)).toList() ??
+            [];
+    final outboundSeatsList = args['outboundSeatSelections'] as List<dynamic>?;
+    _outboundSeatSelections = outboundSeatsList
+            ?.map((s) => Map<String, dynamic>.from(s as Map))
+            .toList() ??
+        [];
+    final returnSeatsList = args['returnSeatSelections'] as List<dynamic>?;
+    _returnSeatSelections = returnSeatsList
+            ?.map((s) => Map<String, dynamic>.from(s as Map))
+            .toList() ??
+        [];
+    _seatTotal = (args['seatTotal'] as num?)?.toDouble() ?? 0;
+
+    // Load flight data
+    _flight = args['flight'] as FlightResult;
+    _searchParams = args['searchParams'] as Map<String, dynamic>;
+    final bagRaw = (args['baggageData'] as List<dynamic>?) ?? [];
+    _baggageData =
+        bagRaw.map((b) => Map<String, dynamic>.from(b as Map)).toList();
+
+    // Load airports from search params
+    _fromAirport = _searchParams['fromAirport'] as Airport? ??
+        Airport(id: '0', code: 'DEP', name: 'Departure', location: 'Departure');
+    _toAirport = _searchParams['toAirport'] as Airport? ??
+        Airport(id: '0', code: 'ARR', name: 'Arrival', location: 'Arrival');
+    _departureDate =
+        _searchParams['departureDate'] as DateTime? ?? DateTime.now();
+
+    _adults = (_searchParams['adults'] as int?) ?? 1;
+    _children = (_searchParams['children'] as int?) ?? 0;
+    _infants = (_searchParams['infants'] as int?) ?? 0;
+
+    // Round trip support
+    _outboundFlight = args['outboundFlight'] as FlightResult?;
+    _returnFlight = args['returnFlight'] as FlightResult?;
+
+    // Calculate price breakdown for flights
+    final passengerCount = _passengers.length;
+    if (_isRoundTrip && _outboundFlight != null && _returnFlight != null) {
+      _baseFare =
+          (_outboundFlight!.price + _returnFlight!.price) * passengerCount;
+    } else if (_flight != null) {
+      _baseFare = _flight!.price * passengerCount;
+    }
+    // ── Pakistan domestic aviation taxes (Finance Act / CAA) ─────────────
+    _taxFED = _baseFare * 0.16; // FED 16 % on base fare
+    _taxAirportFee = 200.0 * passengerCount; // Airport Development Fee
+    _taxSecurityFee = 150.0 * passengerCount; // Aviation Security Fee
+    _taxes = _taxFED + _taxAirportFee + _taxSecurityFee;
+
+    _serviceFee = 500.0;
+    _paymentMethodFee = 0.0;
+    // Calculate baggage fee
+    _baggageFee = _baggageData.fold<double>(
+      0,
+      (sum, passenger) =>
+          sum + ((passenger['extraPrice'] as num?) ?? 0).toDouble(),
+    );
+    _transferFee = (args['transferFee'] as num?)?.toDouble() ?? 0;
+  }
+
+  void _startOTPTimer() {
+    _otpTimer?.cancel();
+    setState(() {
+      _otpRemainingSeconds = 27;
+    });
+    _otpTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_otpRemainingSeconds > 0) {
+        setState(() {
+          _otpRemainingSeconds--;
+        });
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  void _updatePaymentMethodFees(String method) {
+    // Flight bookings: no gateway fee applied
+    _paymentMethodFee = 0.0;
+  }
+
+  String _formatPKR(double amount) {
+    final formatter = NumberFormat('#,##,###', 'en_PK');
+    return 'PKR ${formatter.format(amount.round())}';
+  }
+
+  void _processPayment() async {
+    if (_selectedPaymentMethod.isEmpty) {
+      Get.snackbar(
+        'Payment Method Required',
+        'Please select a payment method',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange.shade100,
+        colorText: Colors.orange.shade900,
+      );
+      return;
+    }
+
+    if (!_agreedToTerms) {
+      setState(() {
+        _showTermsError = true;
+      });
+      Get.snackbar(
+        'Terms & Conditions Required',
+        'Please accept Terms & Conditions to continue',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.shade50,
+        colorText: Colors.red.shade800,
+        icon: Icon(Icons.error_outline, color: Colors.red.shade800),
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+        duration: const Duration(seconds: 4),
+      );
+      // Scroll to policies section
+      Future.delayed(const Duration(milliseconds: 100), () {
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      });
+      return;
+    }
+
+    if (_selectedPaymentMethod == 'card' &&
+        !_formKey.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _isProcessing = true;
+    });
+
+    // Simulate payment processing
+    await Future.delayed(const Duration(seconds: 3));
+
+    setState(() {
+      _isProcessing = false;
+    });
+
+    // Generate PNR and Transaction ID
+    final random = math.Random();
+    final pnr = 'TVL${random.nextInt(900000) + 100000}'; // TVL123456
+    final transactionId =
+        'TXN${DateTime.now().millisecondsSinceEpoch}${random.nextInt(1000)}';
+
+    // Navigate to payment success page (Done page) with all booking data
+    final Map<String, dynamic> paymentData = {
+      'pnr': pnr,
+      'transactionId': transactionId,
+      'paymentMethod': _selectedPaymentMethod,
+      'passengers': _passengers,
+      'grandTotal': _grandTotal,
+      'baseFare': _baseFare,
+      'taxes': _taxes,
+      'serviceFee': _serviceFee,
+      'baggageFee': _baggageFee,
+      'insuranceFee': _addTravelInsurance ? _insuranceFee : 0.0,
+      'discount': _discount,
+      'contactEmail': _contactEmail.isNotEmpty ? _contactEmail : 'N/A',
+      'contactPhone': _contactPhone.isNotEmpty ? _contactPhone : 'N/A',
+      'isRoundTrip': _isRoundTrip,
+      'departureDate': _departureDate,
+      'returnDate': _returnDate,
+    };
+
+    paymentData.addAll({
+      'flight': _flight,
+      'outboundFlight': _outboundFlight,
+      'returnFlight': _returnFlight,
+      'fromAirport': _fromAirport,
+      'toAirport': _toAirport,
+      'baggageData': _baggageData,
+      'seatSelections': _seatSelections,
+      'outboundSeatSelections': _outboundSeatSelections,
+      'returnSeatSelections': _returnSeatSelections,
+      'seatTotal': _seatTotal,
+    });
+
+    Get.toNamed(AppLink.paymentStatus, arguments: paymentData);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: _buildAppBar(),
+      body: Column(
+        children: [
+          _buildStepper(),
+          // _buildTimerBanner(), // Timer disabled
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildOrderSummary(),
+                  const SizedBox(height: 16),
+                  _buildPaymentMethods(),
+                  const SizedBox(height: 16),
+                  if (_selectedPaymentMethod == 'card') ...[
+                    _buildCardForm(),
+                    const SizedBox(height: 16),
+                  ],
+                  if (_selectedPaymentMethod == 'easypaisa') ...[
+                    _buildEasypaisaForm(),
+                    const SizedBox(height: 16),
+                  ],
+                  if (_selectedPaymentMethod == 'jazzcash') ...[
+                    _buildJazzcashForm(),
+                    const SizedBox(height: 16),
+                  ],
+                  _buildTravelInsurance(),
+                  const SizedBox(height: 16),
+                  _buildPriceBreakdown(),
+                  const SizedBox(height: 16),
+                  _buildSecurityBadges(),
+                  const SizedBox(height: 100),
+                ],
+              ),
+            ),
+          ),
+          _buildBottomBar(),
+        ],
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: colorScheme(context).primary,
+      elevation: 0,
+      centerTitle: true,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.white),
+        onPressed: () => Get.back(),
+      ),
+      title: const Text(
+        'Payment',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepper() {
+    const steps = ['PASSENGERS', 'FACILITIES', 'CHECKOUT', 'PAYMENT', 'DONE'];
+    final stepColor = colorScheme(context).primary;
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      child: Row(
+        children: List.generate(9, (i) {
+          if (i.isOdd) {
+            // Connecting line
+            final stepBefore = i ~/ 2;
+            final isCompleted = stepBefore < 3;
+            return Expanded(
+              child: Container(
+                height: 2,
+                color: isCompleted ? stepColor : Colors.grey.shade300,
+              ),
+            );
+          }
+          // Circle
+          final index = i ~/ 2;
+          final isActive = index == 3; // PAYMENT
+          final isCompleted = index < 3;
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: isCompleted || isActive
+                      ? stepColor
+                      : Colors.grey.shade300,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      color: isCompleted || isActive
+                          ? Colors.white
+                          : const Color(0xFFB3B3B3),
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                steps[index],
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 9,
+                  color: isCompleted || isActive
+                      ? stepColor
+                      : const Color(0xFFB3B3B3),
+                  fontWeight: isCompleted || isActive
+                      ? FontWeight.w600
+                      : FontWeight.normal,
+                ),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildOrderSummary() {
+    final summaryColor = colorScheme(context).primary;
+    const summaryIcon = Icons.flight_takeoff_rounded;
+    const summaryTitle = 'Flight Summary';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  summaryColor,
+                  summaryColor.withOpacity(0.85),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: const Row(
+              children: [
+                Icon(summaryIcon, color: Colors.white, size: 22),
+                SizedBox(width: 10),
+                Text(
+                  summaryTitle,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Details
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: _buildFlightSummaryContent(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFlightSummaryContent() {
+    return Column(
+      children: [
+        // Departure Flight
+        _buildProfessionalFlightCard(
+          flight: _isRoundTrip ? _outboundFlight! : _flight!,
+          label: 'Departure',
+          date: _departureDate,
+          fromAirport: _fromAirport!,
+          toAirport: _toAirport!,
+        ),
+        // Return Flight (if round trip)
+        if (_isRoundTrip && _returnFlight != null && _returnDate != null) ...[
+          const SizedBox(height: 20),
+          _buildProfessionalFlightCard(
+            flight: _returnFlight!,
+            label: 'Return',
+            date: _returnDate!,
+            fromAirport: _toAirport!,
+            toAirport: _fromAirport!,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildProfessionalFlightCard({
+    required FlightResult flight,
+    required String label,
+    required DateTime date,
+    required Airport fromAirport,
+    required Airport toAirport,
+  }) {
+    final formattedDate = DateFormat('dd MMM yyyy').format(date);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Date Header
+        Text(
+          '$label - $formattedDate',
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFFB3B3B3),
+            letterSpacing: 0.2,
+          ),
+        ),
+        const SizedBox(height: 14),
+        // Flight Route
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Departure
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    flight.departureTime,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    fromAirport.code,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFB3B3B3),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Flight Duration Line
+            Expanded(
+              flex: 2,
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade400,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      Expanded(
+                        child: Container(
+                          height: 2,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.grey.shade300,
+                                Colors.grey.shade400,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Transform.rotate(
+                        angle: math.pi / 2,
+                        child: Icon(
+                          Icons.flight,
+                          size: 20,
+                          color: colorScheme(context).primary,
+                        ),
+                      ),
+                      Expanded(
+                        child: Container(
+                          height: 2,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.grey.shade400,
+                                Colors.grey.shade300,
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade400,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    flight.duration,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFB3B3B3),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Arrival
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    flight.arrivalTime,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.black87,
+                      height: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    toAirport.code,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFB3B3B3),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        // Airline Info
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            children: [
+              // Airline Logo Placeholder
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Icon(
+                  Icons.flight,
+                  size: 16,
+                  color: colorScheme(context).primary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      flight.airlineName,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${flight.duration} - Non-Stop',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFFB3B3B3),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Passenger Details Section
+        Divider(height: 1, color: Colors.grey.shade200),
+        const SizedBox(height: 14),
+        _buildInfoRow('Passengers', _passengerBreakdownText()),
+        const SizedBox(height: 10),
+        _buildInfoRow('Cabin Class', flight.cabinClass),
+        const SizedBox(height: 10),
+        _buildInfoRow('Baggage', _baggageSummaryText()),
+      ],
+    );
+  }
+
+  String _passengerBreakdownText() {
+    // Show detailed breakdown for both trains and flights
+    final parts = <String>[];
+    if (_adults > 0) parts.add('$_adults Adult${_adults > 1 ? 's' : ''}');
+    if (_children > 0) {
+      parts.add('$_children Child${_children > 1 ? 'ren' : ''}');
+    }
+    if (_infants > 0) parts.add('$_infants Infant${_infants > 1 ? 's' : ''}');
+    return parts.isEmpty
+        ? '${_passengers.length} Traveler(s)'
+        : parts.join(' · ');
+  }
+
+  String _baggageSummaryText() {
+    if (_baggageData.isEmpty) return '—';
+    final totals =
+        _baggageData.map((b) => (b['totalKg'] as double?) ?? 0).toList();
+    final allSame = totals.every((kg) => kg == totals.first);
+    if (allSame && totals.first > 0) {
+      return '${totals.length} × ${totals.first.toStringAsFixed(0)} kg';
+    }
+    final totalAll = totals.fold<double>(0, (s, kg) => s + kg);
+    return '${totalAll.toStringAsFixed(0)} kg total';
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFFB3B3B3),
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentMethods() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.all(spacingUnit(2)),
+            child: Row(
+              children: [
+                const Icon(Icons.payment_outlined,
+                    color: Color(0xFF1E88E5), size: 22),
+                SizedBox(width: spacingUnit(1.5)),
+                const Text(
+                  'Choose Payment Method',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: Colors.grey.shade200),
+          _buildPaymentOption(
+            'card',
+            'Credit / Debit Card',
+            '(Master and VISA Cards)',
+            Icons.credit_card,
+          ),
+          _buildPaymentOption(
+            'jazzcash',
+            'JazzCash',
+            'Pay with JazzCash wallet',
+            Icons.account_balance_wallet,
+            color: Colors.red,
+          ),
+          _buildPaymentOption(
+            'easypaisa',
+            'Easypaisa',
+            'Pay with Easypaisa wallet',
+            Icons.account_balance_wallet,
+            color: Colors.green,
+          ),
+          _buildPaymentOption(
+            'bank',
+            'Bank Transfer',
+            'Direct bank transfer',
+            Icons.account_balance,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentOption(
+    String method,
+    String title,
+    String subtitle,
+    IconData icon, {
+    Color? color,
+  }) {
+    final isSelected = _selectedPaymentMethod == method;
+
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedPaymentMethod = method;
+          _updatePaymentMethodFees(method);
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.all(spacingUnit(2)),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF1E88E5).withValues(alpha: 0.05)
+              : Colors.transparent,
+          border: Border(
+            bottom: BorderSide(color: Colors.grey.shade100),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color:
+                    (color ?? const Color(0xFF1E88E5)).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: color ?? const Color(0xFF1E88E5),
+                size: 24,
+              ),
+            ),
+            SizedBox(width: spacingUnit(1.5)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFFB3B3B3),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Radio<String>(
+              value: method,
+              groupValue: _selectedPaymentMethod,
+              onChanged: (value) {
+                setState(() {
+                  _selectedPaymentMethod = value!;
+                  _updatePaymentMethodFees(value);
+                });
+              },
+              activeColor: const Color(0xFF1E88E5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardForm() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Text(
+                    'Enter Card Details',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lock,
+                            size: 12, color: Colors.green.shade700),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Secure',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Form Fields
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Card Number
+                  const Text(
+                    'Credit Card Number',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFB3B3B3),
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _cardNumberController,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.black),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(16),
+                      _CardNumberInputFormatter(),
+                    ],
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Card number is required';
+                      }
+                      final cleaned = value.replaceAll(' ', '');
+                      if (cleaned.length != 16) {
+                        return 'Card number must be 16 digits';
+                      }
+                      return null;
+                    },
+                    decoration: InputDecoration(
+                      hintText: '1234 1234 1234 1234',
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade400,
+                        fontSize: 15,
+                      ),
+                      suffixIcon: Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildVisaLogo(),
+                            const SizedBox(width: 6),
+                            _buildMastercardLogo(),
+                            const SizedBox(width: 6),
+                            _buildCardLogo('AMEX', const Color(0xFF006FCF)),
+                          ],
+                        ),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                            color: colorScheme(context).primary, width: 2),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Colors.red),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Expiry and CVC Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Expiry Date',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFB3B3B3),
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextFormField(
+                              controller: _expiryController,
+                              keyboardType: TextInputType.number,
+                              style: const TextStyle(color: Colors.black),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(4),
+                                _ExpiryDateInputFormatter(),
+                              ],
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Required';
+                                }
+                                if (value.length != 5) {
+                                  return 'Invalid';
+                                }
+                                return null;
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'MM/YY',
+                                hintStyle: TextStyle(
+                                  color: Colors.grey.shade400,
+                                  fontSize: 15,
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey.shade50,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey.shade300),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey.shade300),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                      color: colorScheme(context).primary,
+                                      width: 2),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      const BorderSide(color: Colors.red),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'CVC',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFB3B3B3),
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            TextFormField(
+                              controller: _cvvController,
+                              keyboardType: TextInputType.number,
+                              obscureText: true,
+                              style: const TextStyle(color: Colors.black),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(3),
+                              ],
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Required';
+                                }
+                                if (value.length != 3) {
+                                  return 'Invalid';
+                                }
+                                return null;
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'CVC',
+                                hintStyle: TextStyle(
+                                  color: Colors.grey.shade400,
+                                  fontSize: 15,
+                                ),
+                                suffixIcon: Tooltip(
+                                  message: '3 digits on back of card',
+                                  child: Icon(Icons.help_outline,
+                                      size: 18, color: Colors.grey.shade500),
+                                ),
+                                filled: true,
+                                fillColor: Colors.grey.shade50,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey.shade300),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey.shade300),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                      color: colorScheme(context).primary,
+                                      width: 2),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      const BorderSide(color: Colors.red),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // Save Card Checkbox
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _saveCard = !_saveCard;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12, horizontal: 4),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              color: _saveCard
+                                  ? colorScheme(context).primary
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: _saveCard
+                                    ? colorScheme(context).primary
+                                    : Colors.grey.shade400,
+                                width: 2,
+                              ),
+                            ),
+                            child: _saveCard
+                                ? const Icon(Icons.check,
+                                    size: 14, color: Colors.white)
+                                : null,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Save card for future payments',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey.shade800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Security Notice
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade100),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline,
+                            size: 18, color: Colors.blue.shade700),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Your payment is secured with 256-bit SSL encryption',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue.shade700,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVisaLogo() {
+    return Container(
+      height: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+      ),
+      child: Image.asset(
+        'assets/images/visa.png',
+        height: 18,
+        fit: BoxFit.contain,
+      ),
+    );
+  }
+
+  Widget _buildCardLogo(String fallbackText, Color brandColor) {
+    return Container(
+      height: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: brandColor,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          fallbackText,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMastercardLogo() {
+    return Container(
+      height: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.grey.shade300, width: 1),
+      ),
+      child: Image.asset(
+        'assets/images/master_card.png',
+        height: 18,
+        fit: BoxFit.contain,
+      ),
+    );
+  }
+
+  Widget _buildEasypaisaForm() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Text(
+                  'Add New Account',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+                const Spacer(),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selectedPaymentMethod = '';
+                      _showEasypaisaOTP = false;
+                    });
+                  },
+                  child: const Icon(Icons.close,
+                      size: 24, color: Color(0xFFB3B3B3)),
+                ),
+              ],
+            ),
+          ),
+          // Form
+          if (!_showEasypaisaOTP)
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Phone Number',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFB3B3B3),
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _easypaisaPhoneController,
+                    keyboardType: TextInputType.phone,
+                    style: const TextStyle(color: Colors.black),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(11),
+                    ],
+                    decoration: InputDecoration(
+                      hintText: 'Enter a phone number',
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade400,
+                        fontSize: 15,
+                      ),
+                      prefixIcon: PopupMenuButton<String>(
+                        offset: const Offset(0, 50),
+                        onSelected: (value) {
+                          setState(() {
+                            _selectedCountryCode = value;
+                          });
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: '+92',
+                            child: Row(
+                              children: [
+                                const Text('🇵🇰',
+                                    style: TextStyle(fontSize: 20)),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Pakistan (پاکستان) $_selectedCountryCode',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '🇵🇰',
+                                style: TextStyle(fontSize: 24),
+                              ),
+                              SizedBox(width: 8),
+                              Icon(Icons.arrow_drop_down,
+                                  size: 20, color: Color(0xFFB3B3B3)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide:
+                            BorderSide(color: Colors.green.shade600, width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  DSButton(
+                    label: 'Get Code',
+                    onTap: () {
+                      if (_easypaisaPhoneController.text.isNotEmpty) {
+                        setState(() {
+                          _showEasypaisaOTP = true;
+                        });
+                        _startOTPTimer();
+                      }
+                    },
+                    height: 50,
+                  ),
+                ],
+              ),
+            )
+          else
+            _buildOTPVerification('Easypaisa', _easypaisaPhoneController.text),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJazzcashForm() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Text(
+                  'Add New Account',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                ),
+                const Spacer(),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selectedPaymentMethod = '';
+                      _showJazzcashOTP = false;
+                    });
+                  },
+                  child: const Icon(Icons.close,
+                      size: 24, color: Color(0xFFB3B3B3)),
+                ),
+              ],
+            ),
+          ),
+          // Form
+          if (!_showJazzcashOTP)
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Phone Number',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFB3B3B3),
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _jazzcashPhoneController,
+                    keyboardType: TextInputType.phone,
+                    style: const TextStyle(color: Colors.black),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(11),
+                    ],
+                    decoration: InputDecoration(
+                      hintText: 'Enter a phone number',
+                      hintStyle: TextStyle(
+                        color: Colors.grey.shade400,
+                        fontSize: 15,
+                      ),
+                      prefixIcon: PopupMenuButton<String>(
+                        offset: const Offset(0, 50),
+                        onSelected: (value) {
+                          setState(() {
+                            _selectedCountryCode = value;
+                          });
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: '+92',
+                            child: Row(
+                              children: [
+                                const Text('🇵🇰',
+                                    style: TextStyle(fontSize: 20)),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'Pakistan (پاکستان) $_selectedCountryCode',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '🇵🇰',
+                                style: TextStyle(fontSize: 24),
+                              ),
+                              SizedBox(width: 8),
+                              Icon(Icons.arrow_drop_down,
+                                  size: 20, color: Color(0xFFB3B3B3)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide:
+                            BorderSide(color: Colors.red.shade600, width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 16),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  DSButton(
+                    label: 'Get Code',
+                    onTap: () {
+                      if (_jazzcashPhoneController.text.isNotEmpty) {
+                        setState(() {
+                          _showJazzcashOTP = true;
+                        });
+                        _startOTPTimer();
+                      }
+                    },
+                    height: 50,
+                  ),
+                ],
+              ),
+            )
+          else
+            _buildOTPVerification('Jazzcash', _jazzcashPhoneController.text),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOTPVerification(String paymentMethod, String phoneNumber) {
+    final formattedPhone =
+        '$_selectedCountryCode ${phoneNumber.substring(0, 3)} ${phoneNumber.substring(3)}';
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // OTP sent message
+          RichText(
+            text: TextSpan(
+              style: const TextStyle(
+                  fontSize: 14, color: Colors.black87, height: 1.5),
+              children: [
+                const TextSpan(text: 'We have sent an OTP on your '),
+                TextSpan(
+                  text: formattedPhone,
+                  style: const TextStyle(
+                    color: Color(0xFF1E88E5),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const TextSpan(text: ' mobile number.'),
+                const TextSpan(
+                  text: 'Change Number',
+                  style: TextStyle(
+                    color: Color(0xFF1E88E5),
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Success message
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.green.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline,
+                    size: 20, color: Colors.green.shade700),
+                const SizedBox(width: 12),
+                Text(
+                  'An OTP has been sent.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.green.shade700,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          // OTP Input Boxes
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(
+              6,
+              (index) => Container(
+                width: 45,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                ),
+                child: TextField(
+                  textAlign: TextAlign.center,
+                  keyboardType: TextInputType.number,
+                  maxLength: 1,
+                  decoration: const InputDecoration(
+                    counterText: '',
+                    border: InputBorder.none,
+                  ),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                  onChanged: (value) {
+                    if (value.length == 1 && index < 5) {
+                      FocusScope.of(context).nextFocus();
+                    }
+                  },
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Verify & Pay Button
+          const DSButton(
+            label: 'Verify & Pay',
+            onTap: null,
+            disabled: true,
+            height: 50,
+          ),
+          const SizedBox(height: 16),
+          // Resend OTP
+          Center(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                children: [
+                  const TextSpan(text: 'Unable to receive an OTP? '),
+                  TextSpan(
+                    text: _otpRemainingSeconds > 0
+                        ? 'Select Method in ${_otpRemainingSeconds}s'
+                        : 'Resend OTP',
+                    style: const TextStyle(
+                      color: Color(0xFF1E88E5),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTravelInsurance() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Section
+          Container(
+            padding: EdgeInsets.all(spacingUnit(2)),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.green.shade50,
+                  Colors.green.shade50.withValues(alpha: 0.3)
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    Icons.verified_user_rounded,
+                    color: Colors.green.shade600,
+                    size: 24,
+                  ),
+                ),
+                SizedBox(width: spacingUnit(1.5)),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Travel Insurance',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Comprehensive trip protection',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFFB3B3B3),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.orange.shade400, Colors.orange.shade600],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.orange.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Text(
+                    'RECOMMENDED',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Content Section
+          Padding(
+            padding: EdgeInsets.all(spacingUnit(2)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Protect your trip against unexpected events like flight delays, cancellations, and medical emergencies.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFFB3B3B3),
+                    height: 1.6,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                SizedBox(height: spacingUnit(2)),
+
+                // Benefits Grid
+                Column(
+                  children: [
+                    _buildInsuranceBenefit(
+                      Icons.flight_takeoff_rounded,
+                      'Flight delay coverage',
+                      'Up to PKR 50,000',
+                      Colors.blue,
+                    ),
+                    SizedBox(height: spacingUnit(1.5)),
+                    _buildInsuranceBenefit(
+                      Icons.local_hospital_rounded,
+                      'Medical emergency',
+                      'Up to PKR 200,000',
+                      Colors.red,
+                    ),
+                    SizedBox(height: spacingUnit(1.5)),
+                    _buildInsuranceBenefit(
+                      Icons.luggage_rounded,
+                      'Lost baggage compensation',
+                      'Up to PKR 30,000',
+                      Colors.purple,
+                    ),
+                    SizedBox(height: spacingUnit(1.5)),
+                    _buildInsuranceBenefit(
+                      Icons.support_agent_rounded,
+                      '24/7 emergency assistance',
+                      'Worldwide support',
+                      Colors.green,
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: spacingUnit(2)),
+
+                // Divider
+                Divider(height: 1, color: Colors.grey.shade200),
+
+                SizedBox(height: spacingUnit(1.5)),
+
+                // Checkbox with Price
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _addTravelInsurance = !_addTravelInsurance;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: EdgeInsets.all(spacingUnit(1.5)),
+                    decoration: BoxDecoration(
+                      color: _addTravelInsurance
+                          ? Colors.green.shade50
+                          : Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: _addTravelInsurance
+                            ? Colors.green.shade300
+                            : Colors.grey.shade200,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: _addTravelInsurance
+                                ? Colors.green.shade600
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: _addTravelInsurance
+                                  ? Colors.green.shade600
+                                  : Colors.grey.shade400,
+                              width: 2,
+                            ),
+                          ),
+                          child: _addTravelInsurance
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: Colors.white,
+                                )
+                              : null,
+                        ),
+                        SizedBox(width: spacingUnit(1.5)),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Add travel insurance',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'One-time payment per trip',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFFB3B3B3),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              _formatPKR(_insuranceFee),
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: _addTravelInsurance
+                                    ? Colors.green.shade700
+                                    : Colors.black87,
+                              ),
+                            ),
+                            const Text(
+                              'per person',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFFB3B3B3),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInsuranceBenefit(
+      IconData icon, String title, String subtitle, Color iconColor) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            size: 20,
+            color: iconColor.withValues(alpha: 0.8),
+          ),
+        ),
+        SizedBox(width: spacingUnit(1.5)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFFB3B3B3),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Icon(
+          Icons.check_circle_rounded,
+          size: 20,
+          color: Colors.green.shade600,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPriceBreakdown() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isPriceBreakdownExpanded = !_isPriceBreakdownExpanded;
+              });
+            },
+            child: Padding(
+              padding: EdgeInsets.all(spacingUnit(2)),
+              child: Row(
+                children: [
+                  const Icon(Icons.receipt_outlined,
+                      color: Color(0xFF1E88E5), size: 22),
+                  SizedBox(width: spacingUnit(1.5)),
+                  const Expanded(
+                    child: Text(
+                      'Price Breakdown',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    _formatPKR(_grandTotal),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E88E5),
+                    ),
+                  ),
+                  SizedBox(width: spacingUnit(1)),
+                  Icon(
+                    _isPriceBreakdownExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    color: const Color(0xFFB3B3B3),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_isPriceBreakdownExpanded) ...[
+            Divider(height: 1, color: Colors.grey.shade200),
+            Padding(
+              padding: EdgeInsets.all(spacingUnit(2)),
+              child: Column(
+                children: [
+                  _buildPriceRow('Base Fare', _baseFare),
+                  _buildPriceRow('FED (16%)', _taxFED),
+                  _buildPriceRow('Airport Development Fee', _taxAirportFee),
+                  _buildPriceRow('Aviation Security Fee', _taxSecurityFee),
+                  _buildPriceRow('Service Fee', _serviceFee),
+                  if (_baggageFee > 0)
+                    _buildPriceRow('Baggage Fee', _baggageFee),
+                  if (_transferFee > 0)
+                    _buildPriceRow('Airport Transfer', _transferFee),
+                  if (_addTravelInsurance)
+                    _buildPriceRow('Travel Insurance', _insuranceFee),
+                  if (_discount > 0)
+                    _buildPriceRow('Discount', -_discount, isDiscount: true),
+                  Divider(height: spacingUnit(2), color: Colors.grey.shade300),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Grand Total',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        _formatPKR(_grandTotal),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E88E5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceRow(String label, double amount,
+      {bool isDiscount = false}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: spacingUnit(0.7)),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFFB3B3B3),
+            ),
+          ),
+          Text(
+            _formatPKR(amount.abs()),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: isDiscount ? Colors.green.shade700 : Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPolicies() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _showTermsError ? Colors.red.shade200 : Colors.grey.shade200,
+          width: _showTermsError ? 2 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _showTermsError
+                ? Colors.red.withValues(alpha: 0.1)
+                : Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Padding(
+            padding: EdgeInsets.all(spacingUnit(2.5)),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.policy_rounded,
+                    color: Color(0xFF1E88E5),
+                    size: 22,
+                  ),
+                ),
+                SizedBox(width: spacingUnit(1.5)),
+                const Text(
+                  'Review Policies',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Divider(height: 1, color: Colors.grey.shade100),
+
+          // Policy Links
+          _buildPolicyRow(
+            'Refund Policy',
+            Icons.account_balance_wallet_rounded,
+            () => _showRefundPolicyModal(),
+          ),
+          Divider(height: 1, color: Colors.grey.shade100, indent: 68),
+          _buildPolicyRow(
+            'Cancellation Policy',
+            Icons.event_busy_rounded,
+            () => _showCancellationPolicyModal(),
+          ),
+          Divider(height: 1, color: Colors.grey.shade100, indent: 68),
+          _buildPolicyRow(
+            'Fare Rules',
+            Icons.receipt_long_rounded,
+            () => _showFareRulesModal(),
+          ),
+
+          Divider(height: 1, color: Colors.grey.shade200),
+
+          // Terms & Conditions Checkbox
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              spacingUnit(2.5),
+              spacingUnit(2),
+              spacingUnit(2.5),
+              spacingUnit(2.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _agreedToTerms = !_agreedToTerms;
+                      _showTermsError = false;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: _agreedToTerms
+                                ? const Color(0xFF1E88E5)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: _showTermsError
+                                  ? Colors.red.shade400
+                                  : _agreedToTerms
+                                      ? const Color(0xFF1E88E5)
+                                      : Colors.grey.shade400,
+                              width: 2,
+                            ),
+                          ),
+                          child: _agreedToTerms
+                              ? const Icon(
+                                  Icons.check_rounded,
+                                  size: 16,
+                                  color: Colors.white,
+                                )
+                              : null,
+                        ),
+                        SizedBox(width: spacingUnit(1.5)),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: RichText(
+                              text: TextSpan(
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade800,
+                                  height: 1.5,
+                                ),
+                                children: [
+                                  const TextSpan(
+                                    text: 'I accept the ',
+                                  ),
+                                  WidgetSpan(
+                                    child: GestureDetector(
+                                      onTap: () =>
+                                          _showTermsAndConditionsPage(),
+                                      child: const Text(
+                                        'Terms & Conditions',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF1E88E5),
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const TextSpan(
+                                    text: ' and ',
+                                  ),
+                                  WidgetSpan(
+                                    child: GestureDetector(
+                                      onTap: () => _showPrivacyPolicyModal(),
+                                      child: const Text(
+                                        'Privacy Policy',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF1E88E5),
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_showTermsError) ...[
+                  SizedBox(height: spacingUnit(1)),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.error_outline_rounded,
+                        size: 16,
+                        color: Colors.red.shade600,
+                      ),
+                      SizedBox(width: spacingUnit(0.7)),
+                      Text(
+                        'Please accept Terms & Conditions to continue',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.red.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPolicyRow(String title, IconData icon, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: spacingUnit(2.5),
+            vertical: spacingUnit(2),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  size: 20,
+                  color: const Color(0xFFB3B3B3),
+                ),
+              ),
+              SizedBox(width: spacingUnit(1.5)),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: Colors.grey.shade400,
+                size: 24,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Policy Modals
+  void _showRefundPolicyModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  spacingUnit(3),
+                  spacingUnit(1),
+                  spacingUnit(1),
+                  spacingUnit(2),
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Refund Policy',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black87,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          color: Color(0xFFB3B3B3)),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: Colors.grey.shade200),
+              // Content
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: EdgeInsets.all(spacingUnit(3)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildPolicySection(
+                        'Refund Eligibility',
+                        'Refunds are available for cancellations made according to the airline\'s cancellation policy. Refund processing time varies by airline and payment method.',
+                      ),
+                      SizedBox(height: spacingUnit(2.5)),
+                      _buildPolicySection(
+                        'Processing Time',
+                        'Refunds typically take 7-14 business days to process. Credit card refunds may take an additional 5-7 business days to reflect in your account.',
+                      ),
+                      SizedBox(height: spacingUnit(2.5)),
+                      _buildPolicySection(
+                        'Non-Refundable Tickets',
+                        'Some promotional or discounted fares are non-refundable. Please check your fare conditions before booking.',
+                      ),
+                      SizedBox(height: spacingUnit(2.5)),
+                      _buildPolicySection(
+                        'Cancellation Fees',
+                        'Airlines may charge cancellation fees. These fees vary by airline, route, and fare class and will be deducted from your refund amount.',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCancellationPolicyModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  spacingUnit(3),
+                  spacingUnit(1),
+                  spacingUnit(1),
+                  spacingUnit(2),
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Cancellation Policy',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black87,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          color: Color(0xFFB3B3B3)),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: Colors.grey.shade200),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: EdgeInsets.all(spacingUnit(3)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildPolicySection(
+                        'Free Cancellation',
+                        'Cancellations made within 24 hours of booking may be eligible for free cancellation, subject to airline policy and fare rules.',
+                      ),
+                      SizedBox(height: spacingUnit(2.5)),
+                      _buildPolicySection(
+                        'Cancellation Charges',
+                        'Cancellation fees vary based on time before departure:\n• More than 15 days: Minimal fees\n• 7-15 days: Moderate fees\n• Less than 7 days: Higher fees\n• No-show: Maximum fees',
+                      ),
+                      SizedBox(height: spacingUnit(2.5)),
+                      _buildPolicySection(
+                        'How to Cancel',
+                        'Log in to your account, go to "My Bookings", select your booking, and click "Cancel Booking". Follow the prompts to complete cancellation.',
+                      ),
+                      SizedBox(height: spacingUnit(2.5)),
+                      _buildPolicySection(
+                        'Non-Cancellable Bookings',
+                        'Certain promotional or special fares may be non-cancellable. Please review your booking details carefully.',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFareRulesModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  spacingUnit(3),
+                  spacingUnit(1),
+                  spacingUnit(1),
+                  spacingUnit(2),
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Fare Rules',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black87,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          color: Color(0xFFB3B3B3)),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: Colors.grey.shade200),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: EdgeInsets.all(spacingUnit(3)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildPolicySection(
+                        'Fare Components',
+                        'The ticket price includes base fare, taxes, fuel surcharge, and airport fees. Additional charges for baggage and seat selection may apply.',
+                      ),
+                      SizedBox(height: spacingUnit(2.5)),
+                      _buildPolicySection(
+                        'Date Changes',
+                        'Changes to travel dates may incur change fees plus fare difference. Economy fares typically have higher change fees than premium fares.',
+                      ),
+                      SizedBox(height: spacingUnit(2.5)),
+                      _buildPolicySection(
+                        'Name Changes',
+                        'Most airlines do not permit name changes. Spelling corrections may be allowed with proper documentation and applicable fees.',
+                      ),
+                      SizedBox(height: spacingUnit(2.5)),
+                      _buildPolicySection(
+                        'Baggage Allowance',
+                        'Baggage allowance varies by airline and fare class. Check your booking confirmation for specific allowance. Excess baggage fees apply.',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPrivacyPolicyModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  spacingUnit(3),
+                  spacingUnit(1),
+                  spacingUnit(1),
+                  spacingUnit(2),
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Privacy Policy',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black87,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          color: Color(0xFFB3B3B3)),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: Colors.grey.shade200),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  padding: EdgeInsets.all(spacingUnit(3)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildPolicySection(
+                        'Data Collection',
+                        'We collect personal information necessary for booking and providing travel services, including name, contact details, and payment information.',
+                      ),
+                      SizedBox(height: spacingUnit(2.5)),
+                      _buildPolicySection(
+                        'Data Usage',
+                        'Your information is used to process bookings, send confirmations, provide customer support, and improve our services.',
+                      ),
+                      SizedBox(height: spacingUnit(2.5)),
+                      _buildPolicySection(
+                        'Data Security',
+                        'We implement industry-standard security measures to protect your personal information from unauthorized access, disclosure, or destruction.',
+                      ),
+                      SizedBox(height: spacingUnit(2.5)),
+                      _buildPolicySection(
+                        'Third-Party Sharing',
+                        'Information may be shared with airlines, payment processors, and service providers necessary to complete your booking.',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showTermsAndConditionsPage() {
+    Get.to(
+      () => Scaffold(
+        backgroundColor: Colors.grey.shade50,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: Colors.black87, size: 20),
+            onPressed: () => Get.back(),
+          ),
+          title: const Text(
+            'Terms & Conditions',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+              letterSpacing: -0.3,
+            ),
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Divider(height: 1, color: Colors.grey.shade200),
+          ),
+        ),
+        body: SingleChildScrollView(
+          padding: EdgeInsets.all(spacingUnit(3)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildFullPageSection(
+                '1. Acceptance of Terms',
+                'By accessing and using Travello AI, you accept and agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not use our services.',
+              ),
+              SizedBox(height: spacingUnit(3)),
+              _buildFullPageSection(
+                '2. Booking & Payment',
+                'All bookings are subject to availability and confirmation. Payment must be made in full at the time of booking. We accept major credit cards, debit cards, and mobile wallet payments.',
+              ),
+              SizedBox(height: spacingUnit(3)),
+              _buildFullPageSection(
+                '3. Cancellation & Refunds',
+                'Cancellations are subject to airline policies and fare rules. Refunds, if applicable, will be processed within 7-14 business days. Cancellation fees may apply.',
+              ),
+              SizedBox(height: spacingUnit(3)),
+              _buildFullPageSection(
+                '4. User Responsibilities',
+                'You are responsible for providing accurate information, maintaining account security, and ensuring valid travel documents. You must arrive at the airport with sufficient time before departure.',
+              ),
+              SizedBox(height: spacingUnit(3)),
+              _buildFullPageSection(
+                '5. Liability',
+                'Travello AI acts as an intermediary between customers and airlines. We are not liable for flight delays, cancellations, or changes made by airlines.',
+              ),
+              SizedBox(height: spacingUnit(3)),
+              _buildFullPageSection(
+                '6. Privacy',
+                'We respect your privacy and handle your personal information in accordance with our Privacy Policy. Your data is used solely for providing and improving our services.',
+              ),
+              SizedBox(height: spacingUnit(3)),
+              _buildFullPageSection(
+                '7. Changes to Terms',
+                'We reserve the right to modify these terms at any time. Continued use of our services constitutes acceptance of updated terms.',
+              ),
+              SizedBox(height: spacingUnit(4)),
+              Container(
+                padding: EdgeInsets.all(spacingUnit(2.5)),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade100),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded,
+                        color: Colors.blue.shade700, size: 20),
+                    SizedBox(width: spacingUnit(1.5)),
+                    Expanded(
+                      child: Text(
+                        'Last updated: March 2026',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue.shade900,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      transition: Transition.cupertino,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
+
+  Widget _buildPolicySection(String title, String content) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: Colors.black87,
+            letterSpacing: -0.3,
+          ),
+        ),
+        SizedBox(height: spacingUnit(1)),
+        Text(
+          content,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFFB3B3B3),
+            height: 1.6,
+            letterSpacing: -0.1,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFullPageSection(String title, String content) {
+    return Container(
+      padding: EdgeInsets.all(spacingUnit(2.5)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+              letterSpacing: -0.4,
+            ),
+          ),
+          SizedBox(height: spacingUnit(1.5)),
+          Text(
+            content,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFFB3B3B3),
+              height: 1.7,
+              letterSpacing: -0.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecurityBadges() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: EdgeInsets.all(spacingUnit(2)),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildSecurityBadge(
+                  Icons.verified_user, 'SSL Secured', Colors.green),
+              _buildSecurityBadge(
+                  Icons.support_agent, '24/7 Support', Colors.blue),
+              _buildSecurityBadge(
+                  Icons.account_balance_wallet, 'Money Back', Colors.orange),
+            ],
+          ),
+          SizedBox(height: spacingUnit(1.5)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock, size: 14, color: Color(0xFFB3B3B3)),
+              SizedBox(width: spacingUnit(0.7)),
+              const Text(
+                'Your payment information is encrypted and secure',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFFB3B3B3),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: spacingUnit(1)),
+          const Text(
+            '24/7 Customer Support: +92-300-1234567',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFFB3B3B3),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecurityBadge(IconData icon, String label, Color color) {
+    return Column(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        SizedBox(height: spacingUnit(0.7)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFFB3B3B3),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBottomBar() {
+    return Container(
+      padding: EdgeInsets.all(spacingUnit(2)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Total Amount',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFFB3B3B3),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatPKR(_grandTotal),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1E88E5),
+                      ),
+                    ),
+                  ],
+                ),
+                DSButton(
+                  label: 'Pay Now',
+                  trailingIcon: Icons.arrow_forward_rounded,
+                  loading: _isProcessing,
+                  disabled: !_isPaymentDetailsValid,
+                  onTap: _processPayment,
+                  width: 152,
+                  height: 52,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Card number input formatter
+class _CardNumberInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text.replaceAll(' ', '');
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < text.length; i++) {
+      if (i > 0 && i % 4 == 0) {
+        buffer.write(' ');
+      }
+      buffer.write(text[i]);
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
+// Expiry date input formatter
+class _ExpiryDateInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final text = newValue.text.replaceAll('/', '');
+    final buffer = StringBuffer();
+
+    for (int i = 0; i < text.length; i++) {
+      if (i == 2) {
+        buffer.write('/');
+      }
+      buffer.write(text[i]);
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}

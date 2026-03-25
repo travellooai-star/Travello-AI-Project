@@ -1,0 +1,218 @@
+import 'package:change_case/change_case.dart';
+import 'package:flight_app/models/plane.dart';
+import 'package:flight_app/ui/themes/theme_palette.dart';
+import 'package:flight_app/ui/themes/theme_radius.dart';
+import 'package:flight_app/ui/themes/theme_spacing.dart';
+import 'package:flight_app/ui/themes/theme_text.dart';
+import 'package:flight_app/utils/shimmer_preloader.dart';
+import 'package:flight_app/widgets/cards/paper_card.dart';
+import 'package:flight_app/widgets/decorations/dashed_border.dart';
+import 'package:flutter/cupertino.dart';
+
+class PackageCard extends StatelessWidget {
+  const PackageCard(
+      {super.key,
+      required this.image,
+      this.roundTrip = true,
+      required this.label,
+      required this.from,
+      required this.to,
+      required this.date,
+      required this.tags,
+      required this.price,
+      this.refundable = true,
+      this.plane});
+
+  final String image;
+  final bool roundTrip;
+  final String label;
+  final String from;
+  final String to;
+  final String date;
+  final List<String> tags;
+  final double price;
+  final bool refundable;
+  final Plane? plane;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.topCenter,
+      children: [
+        /// IMAGES
+        ClipRRect(
+          borderRadius: ThemeRadius.medium,
+          child: Stack(
+            children: [
+              Image.network(
+                image,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: 130,
+                loadingBuilder: (BuildContext context, Widget child,
+                    ImageChunkEvent? loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const SizedBox(
+                      width: double.infinity,
+                      height: 130,
+                      child: ShimmerPreloader());
+                },
+              ),
+              Positioned(
+                top: spacingUnit(1),
+                left: spacingUnit(1),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                      borderRadius: ThemeRadius.xsmall,
+                      color:
+                          colorScheme(context).surface.withValues(alpha: 0.75)),
+                  child: Text(
+                    roundTrip ? 'ROUND-TRIP' : 'ONE-WAY',
+                    style: ThemeText.caption,
+                  ),
+                ),
+              ),
+              Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Container(
+                      width: 60,
+                      height: 60,
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                          color: colorScheme(context).secondary,
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(60),
+                          )),
+                      child: Text(label,
+                          textAlign: TextAlign.end,
+                          style: ThemeText.paragraphBold
+                              .copyWith(color: const Color(0xFF000000))))),
+            ],
+          ),
+        ),
+
+        /// PROPERTIES
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: spacingUnit(1)),
+          child: Column(
+            children: [
+              const SizedBox(height: 100),
+              PaperCard(
+                  content: Padding(
+                padding: EdgeInsets.all(spacingUnit(1)),
+                child: Column(children: [
+                  /// DESTINATIONS
+                  SizedBox(
+                    child: Row(children: [
+                      Flexible(
+                          child: Text(from,
+                              overflow: TextOverflow.ellipsis,
+                              style: ThemeText.subtitle)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Icon(
+                          roundTrip
+                              ? CupertinoIcons.arrow_right_arrow_left
+                              : CupertinoIcons.arrow_right,
+                          size: 16,
+                        ),
+                      ),
+                      Flexible(
+                          child: Text(to,
+                              overflow: TextOverflow.ellipsis,
+                              style: ThemeText.subtitle)),
+                    ]),
+                  ),
+
+                  /// DATE
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            date,
+                            style: ThemeText.caption.copyWith(
+                                color: colorScheme(context).onSurfaceVariant),
+                          ),
+                          Text(
+                            'Start from',
+                            style: ThemeText.caption.copyWith(
+                                color: colorScheme(context).onSurfaceVariant),
+                          ),
+                        ]),
+                  ),
+
+                  /// PRICE
+                  Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                    Wrap(
+                      spacing: 4,
+                      children: tags.asMap().entries.map((entry) {
+                        int index = entry.key;
+                        String tag = entry.value;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          decoration: BoxDecoration(
+                              borderRadius: ThemeRadius.xsmall,
+                              color: index % 2 == 0
+                                  ? colorScheme(context).primaryContainer
+                                  : colorScheme(context).secondaryContainer),
+                          child: Text(tag.toCapitalCase(),
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: colorScheme(context).onSurface)),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                          borderRadius: ThemeRadius.xsmall,
+                          color: colorScheme(context).tertiaryContainer),
+                      child: Icon(CupertinoIcons.arrow_uturn_left,
+                          color: colorScheme(context).tertiary, size: 10),
+                    ),
+                    Expanded(
+                      child: Text('Rs.${price.toStringAsFixed(0)}',
+                          textAlign: TextAlign.end,
+                          style: ThemeText.title2.copyWith(
+                              color: colorScheme(context).primary,
+                              fontWeight: FontWeight.bold,
+                              height: 1)),
+                    )
+                  ]),
+
+                  /// AIRPLANE
+                  Padding(
+                      padding: EdgeInsets.symmetric(vertical: spacingUnit(1)),
+                      child: const DashedBorder()),
+                  plane != null
+                      ? Row(children: [
+                          ClipRRect(
+                            borderRadius: ThemeRadius.xsmall,
+                            child: Image.network(
+                              plane!.logo,
+                              width: 14,
+                              height: 14,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${plane!.name} • Economy',
+                            style: ThemeText.caption,
+                          ),
+                        ])
+                      : Container()
+                ]),
+              ))
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}

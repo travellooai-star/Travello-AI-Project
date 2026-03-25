@@ -1,0 +1,1967 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:get/get.dart';
+import 'package:flight_app/ui/themes/theme_spacing.dart';
+import 'package:flight_app/ui/themes/theme_text.dart';
+import 'package:flight_app/models/railway_station.dart';
+import 'package:flight_app/utils/format_utils.dart';
+import 'package:intl/intl.dart';
+
+// Train result model
+class TrainResult {
+  final String id;
+  final String trainName;
+  final String trainNumber;
+  final String departureTime;
+  final String arrivalTime;
+  final bool arrivesNextDay;
+  final String duration;
+  final Map<String, int?> classSeats; // class -> seats (null = N/A)
+  final Map<String, double> classPrices; // class name -> price
+  final List<String> availableClasses;
+  final bool isRefundable;
+
+  TrainResult({
+    required this.id,
+    required this.trainName,
+    required this.trainNumber,
+    required this.departureTime,
+    required this.arrivalTime,
+    this.arrivesNextDay = false,
+    required this.duration,
+    required this.classSeats,
+    required this.classPrices,
+    required this.availableClasses,
+    this.isRefundable = true,
+  });
+
+  int get availableSeats =>
+      classSeats.values.where((s) => s != null).fold(0, (sum, s) => sum + s!);
+}
+
+class TrainResultsScreen extends StatefulWidget {
+  const TrainResultsScreen({super.key});
+
+  @override
+  State<TrainResultsScreen> createState() => _TrainResultsScreenState();
+}
+
+class _TrainResultsScreenState extends State<TrainResultsScreen> {
+  late Map<String, dynamic> searchParams;
+  List<TrainResult> _trains = [];
+  List<TrainResult> _allTrains = [];
+
+  // Round-trip handling
+  late bool _isRoundTrip;
+  late int _currentJourneyIndex; // 0 = outbound, 1 = return
+  TrainResult? _selectedOutboundTrain;
+  String? _selectedOutboundClass;
+  late DateTime? _selectedReturnDate;
+
+  // Date selection
+  late DateTime _selectedDate;
+
+  // Sort option
+  String _sortBy = 'Recommended'; // Recommended, Cheapest, Fastest
+  late String _selectedTrainClass;
+  RangeValues _priceRange = const RangeValues(0, 100000);
+  RangeValues _departureTimeRange = const RangeValues(0, 24);
+  bool _refundableOnly = false;
+
+  // Loading state
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    searchParams = Get.arguments ?? {};
+
+    // Get selected train class from search parameters
+    _selectedTrainClass =
+        searchParams['trainClass'] as String? ?? 'Economy (Seat)';
+
+    // Check if round-trip
+    _isRoundTrip = searchParams['tripType'] == 'Round-trip';
+    _currentJourneyIndex = 0; // Start with outbound
+
+    // Initialize date - check both departureDate and travelDate for backwards compatibility
+    _selectedDate = searchParams['departureDate'] ??
+        searchParams['travelDate'] ??
+        DateTime.now();
+    // Initialize return date if round-trip
+    if (_isRoundTrip) {
+      _selectedReturnDate = searchParams['returnDate'];
+    } else {
+      _selectedReturnDate = null;
+    }
+
+    _fetchTrains();
+  }
+
+  List<DateTime> _generateDateRange(DateTime centerDate) {
+    List<DateTime> dates = [];
+    for (int i = -7; i <= 7; i++) {
+      dates.add(centerDate.add(Duration(days: i)));
+    }
+    return dates;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // DATA FETCHING
+  // When backend is ready:
+  //   1. Replace the body of _fetchTrains() with your API call
+  //   2. Map the API response to List<TrainResult> using the same model
+  //   3. Delete all _getUpTrains / _getDownTrains / _getQuettaTrains etc.
+  //   4. Everything else (UI, sorting, filtering) stays exactly the same ✅
+  // ─────────────────────────────────────────────────────────────────────────
+  Future<void> _fetchTrains() async {
+    setState(() => _isLoading = true);
+    try {
+      // TODO: Replace this block with API call when backend is ready:
+      // final response = await TrainApiService.searchTrains(
+      //   from: (searchParams['fromStation'] as RailwayStation).code,
+      //   to:   (searchParams['toStation']   as RailwayStation).code,
+      //   date: _selectedDate,
+      //   trainClass: _selectedTrainClass,
+      // );
+      // _allTrains = response.map((e) => TrainResult.fromJson(e)).toList();
+
+      // ── DUMMY DATA (delete below when API is connected) ──────────────────
+      await Future.delayed(
+          const Duration(milliseconds: 600)); // simulate network
+      _loadDummyTrains();
+      // ────────────────────────────────────────────────────────────────────
+    } catch (e) {
+      if (mounted) {
+        Get.snackbar('Error', 'Failed to load trains. Please try again.',
+            backgroundColor: Colors.red[100]);
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _loadDummyTrains() {
+    final fromCode =
+        (searchParams['fromStation'] as RailwayStation?)?.code ?? '';
+    final toCode = (searchParams['toStation'] as RailwayStation?)?.code ?? '';
+
+    // Station region groups
+    const sindh = {
+      'KCT',
+      'KRC',
+      'KTR',
+      'HYD',
+      'SKR',
+      'RHR',
+      'JAC',
+      'LRK',
+      'NWS',
+      'SBI',
+      'QTA',
+      'QTC'
+    };
+    const punjabNorth = {
+      'LHR',
+      'LHC',
+      'RWP',
+      'MGL',
+      'LMJ',
+      'GJT',
+      'GJW',
+      'SKT',
+      'MNW',
+      'PEC',
+      'PWC'
+    };
+
+    final fromSouth = sindh.contains(fromCode);
+    final fromNorth = punjabNorth.contains(fromCode);
+    final toSouth = sindh.contains(toCode);
+
+    // Determine direction
+    final isDownDirection = fromNorth && toSouth;
+    final isQuettaRoute = toCode == 'QTA' ||
+        toCode == 'QTC' ||
+        fromCode == 'QTA' ||
+        fromCode == 'QTC';
+    final isPeshawarRoute = toCode == 'PEC' ||
+        toCode == 'PWC' ||
+        fromCode == 'PEC' ||
+        fromCode == 'PWC';
+
+    if (isQuettaRoute) {
+      _allTrains = _getQuettaTrains(fromSouth);
+    } else if (isPeshawarRoute) {
+      _allTrains = _getPeshawarTrains(fromSouth);
+    } else if (isDownDirection) {
+      _allTrains = _getDownTrains(); // Lahore → Karachi
+    } else {
+      _allTrains = _getUpTrains(); // default: Karachi → Lahore (UP)
+    }
+
+    _resetPriceRangeForSelectedClass();
+    _applyFiltersAndSort();
+  }
+
+  // UP trains: Karachi → Lahore direction
+  List<TrainResult> _getUpTrains() => [
+        TrainResult(
+          id: '1',
+          trainName: 'Awam Express',
+          trainNumber: '13UP',
+          departureTime: '07:30',
+          arrivalTime: '07:25',
+          arrivesNextDay: true,
+          duration: '23h 55m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 88,
+            'AC Business': 54,
+            'Economy (Berth)': 127,
+            'Economy (Seat)': 47
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 6900,
+            'AC Business': 9950,
+            'Economy (Berth)': 3650,
+            'Economy (Seat)': 3550
+          },
+          availableClasses: [
+            'AC Lower / Standard (Berth)',
+            'AC Business',
+            'Economy (Berth)',
+            'Economy (Seat)'
+          ],
+        ),
+        TrainResult(
+          id: '2',
+          trainName: 'Karakoram Express',
+          trainNumber: '41UP',
+          departureTime: '15:00',
+          arrivalTime: '10:20',
+          arrivesNextDay: true,
+          duration: '19h 20m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 105,
+            'AC Business': 12,
+            'Economy (Berth)': 51,
+            'Economy (Seat)': 100
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 8300,
+            'AC Business': 10500,
+            'Economy (Berth)': 4750,
+            'Economy (Seat)': 4650
+          },
+          availableClasses: [
+            'AC Lower / Standard (Berth)',
+            'AC Business',
+            'Economy (Berth)',
+            'Economy (Seat)'
+          ],
+        ),
+        TrainResult(
+          id: '3',
+          trainName: 'Allama Iqbal Express',
+          trainNumber: '9UP',
+          departureTime: '15:30',
+          arrivalTime: '12:30',
+          arrivesNextDay: true,
+          duration: '21h 00m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 31,
+            'AC Business': null,
+            'Economy (Berth)': null,
+            'Economy (Seat)': 74
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 6900,
+            'Economy (Seat)': 3550
+          },
+          availableClasses: ['AC Lower / Standard (Berth)', 'Economy (Seat)'],
+          isRefundable: false,
+        ),
+        TrainResult(
+          id: '4',
+          trainName: 'Pak Business Express',
+          trainNumber: '33UP',
+          departureTime: '16:00',
+          arrivalTime: '10:20',
+          arrivesNextDay: true,
+          duration: '18h 20m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 217,
+            'AC Business': null,
+            'Economy (Berth)': 288,
+            'Economy (Seat)': 159
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 8700,
+            'Economy (Berth)': 5350,
+            'Economy (Seat)': 5250
+          },
+          availableClasses: [
+            'AC Lower / Standard (Berth)',
+            'Economy (Berth)',
+            'Economy (Seat)'
+          ],
+        ),
+        TrainResult(
+          id: '5',
+          trainName: 'Tezgam',
+          trainNumber: '7UP',
+          departureTime: '17:30',
+          arrivalTime: '14:00',
+          arrivesNextDay: true,
+          duration: '20h 30m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 58,
+            'AC Business': 31,
+            'Economy (Berth)': 42,
+            'Economy (Seat)': 87
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 7900,
+            'AC Business': 10500,
+            'Economy (Berth)': 4750,
+            'Economy (Seat)': 4650
+          },
+          availableClasses: [
+            'AC Lower / Standard (Berth)',
+            'AC Business',
+            'Economy (Berth)',
+            'Economy (Seat)'
+          ],
+        ),
+        TrainResult(
+          id: '6',
+          trainName: 'Karachi Express',
+          trainNumber: '15UP',
+          departureTime: '18:00',
+          arrivalTime: '13:00',
+          arrivesNextDay: true,
+          duration: '19h 00m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 91,
+            'AC Business': 8,
+            'Economy (Berth)': 71,
+            'Economy (Seat)': 58
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 7550,
+            'AC Business': 10500,
+            'Economy (Berth)': 4750,
+            'Economy (Seat)': 4650
+          },
+          availableClasses: [
+            'AC Lower / Standard (Berth)',
+            'AC Business',
+            'Economy (Berth)',
+            'Economy (Seat)'
+          ],
+        ),
+        TrainResult(
+          id: '7',
+          trainName: 'Fareed Express',
+          trainNumber: '37UP',
+          departureTime: '19:50',
+          arrivalTime: '22:05',
+          arrivesNextDay: true,
+          duration: '26h 15m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 93,
+            'AC Business': null,
+            'Economy (Berth)': null,
+            'Economy (Seat)': 23
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 6900,
+            'Economy (Seat)': 3550
+          },
+          availableClasses: ['AC Lower / Standard (Berth)', 'Economy (Seat)'],
+          isRefundable: false,
+        ),
+      ];
+
+  // DN trains: Lahore → Karachi direction (same trains, return numbers)
+  List<TrainResult> _getDownTrains() => [
+        TrainResult(
+          id: '1',
+          trainName: 'Awam Express',
+          trainNumber: '14DN',
+          departureTime: '08:00',
+          arrivalTime: '08:20',
+          arrivesNextDay: true,
+          duration: '24h 20m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 72,
+            'AC Business': 48,
+            'Economy (Berth)': 110,
+            'Economy (Seat)': 55
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 6900,
+            'AC Business': 9950,
+            'Economy (Berth)': 3650,
+            'Economy (Seat)': 3550
+          },
+          availableClasses: [
+            'AC Lower / Standard (Berth)',
+            'AC Business',
+            'Economy (Berth)',
+            'Economy (Seat)'
+          ],
+        ),
+        TrainResult(
+          id: '2',
+          trainName: 'Karakoram Express',
+          trainNumber: '42DN',
+          departureTime: '12:30',
+          arrivalTime: '07:50',
+          arrivesNextDay: true,
+          duration: '19h 20m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 95,
+            'AC Business': 20,
+            'Economy (Berth)': 65,
+            'Economy (Seat)': 88
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 8300,
+            'AC Business': 10500,
+            'Economy (Berth)': 4750,
+            'Economy (Seat)': 4650
+          },
+          availableClasses: [
+            'AC Lower / Standard (Berth)',
+            'AC Business',
+            'Economy (Berth)',
+            'Economy (Seat)'
+          ],
+        ),
+        TrainResult(
+          id: '3',
+          trainName: 'Allama Iqbal Express',
+          trainNumber: '10DN',
+          departureTime: '14:00',
+          arrivalTime: '11:30',
+          arrivesNextDay: true,
+          duration: '21h 30m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 44,
+            'AC Business': null,
+            'Economy (Berth)': null,
+            'Economy (Seat)': 62
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 6900,
+            'Economy (Seat)': 3550
+          },
+          availableClasses: ['AC Lower / Standard (Berth)', 'Economy (Seat)'],
+          isRefundable: false,
+        ),
+        TrainResult(
+          id: '4',
+          trainName: 'Pak Business Express',
+          trainNumber: '34DN',
+          departureTime: '15:00',
+          arrivalTime: '09:30',
+          arrivesNextDay: true,
+          duration: '18h 30m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 180,
+            'AC Business': null,
+            'Economy (Berth)': 255,
+            'Economy (Seat)': 140
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 8700,
+            'Economy (Berth)': 5350,
+            'Economy (Seat)': 5250
+          },
+          availableClasses: [
+            'AC Lower / Standard (Berth)',
+            'Economy (Berth)',
+            'Economy (Seat)'
+          ],
+        ),
+        TrainResult(
+          id: '5',
+          trainName: 'Tezgam',
+          trainNumber: '8DN',
+          departureTime: '16:00',
+          arrivalTime: '12:30',
+          arrivesNextDay: true,
+          duration: '20h 30m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 50,
+            'AC Business': 25,
+            'Economy (Berth)': 38,
+            'Economy (Seat)': 75
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 7900,
+            'AC Business': 10500,
+            'Economy (Berth)': 4750,
+            'Economy (Seat)': 4650
+          },
+          availableClasses: [
+            'AC Lower / Standard (Berth)',
+            'AC Business',
+            'Economy (Berth)',
+            'Economy (Seat)'
+          ],
+        ),
+        TrainResult(
+          id: '6',
+          trainName: 'Karachi Express',
+          trainNumber: '16DN',
+          departureTime: '18:30',
+          arrivalTime: '13:30',
+          arrivesNextDay: true,
+          duration: '19h 00m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 85,
+            'AC Business': 5,
+            'Economy (Berth)': 60,
+            'Economy (Seat)': 50
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 7550,
+            'AC Business': 10500,
+            'Economy (Berth)': 4750,
+            'Economy (Seat)': 4650
+          },
+          availableClasses: [
+            'AC Lower / Standard (Berth)',
+            'AC Business',
+            'Economy (Berth)',
+            'Economy (Seat)'
+          ],
+        ),
+      ];
+
+  // Quetta route trains
+  List<TrainResult> _getQuettaTrains(bool fromKarachi) => [
+        TrainResult(
+          id: '1',
+          trainName: 'Quetta Express',
+          trainNumber: fromKarachi ? '1UP' : '2DN',
+          departureTime: '10:00',
+          arrivalTime: '06:30',
+          arrivesNextDay: true,
+          duration: '20h 30m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 60,
+            'AC Business': 20,
+            'Economy (Berth)': 90,
+            'Economy (Seat)': 45
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 7200,
+            'AC Business': 11000,
+            'Economy (Berth)': 4200,
+            'Economy (Seat)': 3900
+          },
+          availableClasses: [
+            'AC Lower / Standard (Berth)',
+            'AC Business',
+            'Economy (Berth)',
+            'Economy (Seat)'
+          ],
+        ),
+        TrainResult(
+          id: '2',
+          trainName: 'Jaffar Express',
+          trainNumber: fromKarachi ? '25UP' : '26DN',
+          departureTime: '21:00',
+          arrivalTime: '20:30',
+          arrivesNextDay: true,
+          duration: '23h 30m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 40,
+            'AC Business': null,
+            'Economy (Berth)': 75,
+            'Economy (Seat)': 38
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 6800,
+            'Economy (Berth)': 3800,
+            'Economy (Seat)': 3600
+          },
+          availableClasses: [
+            'AC Lower / Standard (Berth)',
+            'Economy (Berth)',
+            'Economy (Seat)'
+          ],
+          isRefundable: false,
+        ),
+      ];
+
+  // Peshawar route trains
+  List<TrainResult> _getPeshawarTrains(bool fromKarachi) => [
+        TrainResult(
+          id: '1',
+          trainName: 'Khyber Mail',
+          trainNumber: fromKarachi ? '5UP' : '6DN',
+          departureTime: '06:00',
+          arrivalTime: '08:30',
+          arrivesNextDay: true,
+          duration: '26h 30m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 70,
+            'AC Business': 30,
+            'Economy (Berth)': 100,
+            'Economy (Seat)': 55
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 9200,
+            'AC Business': 13500,
+            'Economy (Berth)': 5400,
+            'Economy (Seat)': 5100
+          },
+          availableClasses: [
+            'AC Lower / Standard (Berth)',
+            'AC Business',
+            'Economy (Berth)',
+            'Economy (Seat)'
+          ],
+        ),
+        TrainResult(
+          id: '2',
+          trainName: 'Shah Hussain Express',
+          trainNumber: fromKarachi ? '19UP' : '20DN',
+          departureTime: '14:45',
+          arrivalTime: '19:30',
+          arrivesNextDay: true,
+          duration: '28h 45m',
+          classSeats: {
+            'AC Lower / Standard (Berth)': 55,
+            'AC Business': null,
+            'Economy (Berth)': 80,
+            'Economy (Seat)': 65
+          },
+          classPrices: {
+            'AC Lower / Standard (Berth)': 8800,
+            'Economy (Berth)': 5100,
+            'Economy (Seat)': 4900
+          },
+          availableClasses: [
+            'AC Lower / Standard (Berth)',
+            'Economy (Berth)',
+            'Economy (Seat)'
+          ],
+        ),
+      ];
+  void _resetPriceRangeForSelectedClass() {
+    final prices = _allTrains
+        .where((train) => train.availableClasses.contains(_selectedTrainClass))
+        .map((train) => train.classPrices[_selectedTrainClass] ?? 0.0)
+        .where((price) => price > 0)
+        .toList();
+
+    if (prices.isEmpty) {
+      _priceRange = const RangeValues(0, 0);
+      return;
+    }
+
+    final minPrice = prices.reduce((a, b) => a < b ? a : b);
+    final maxPrice = prices.reduce((a, b) => a > b ? a : b);
+    _priceRange = RangeValues(minPrice, maxPrice);
+  }
+
+  void _applyFiltersAndSort() {
+    setState(() {
+      _trains = _allTrains.where((train) {
+        if (!train.availableClasses.contains(_selectedTrainClass)) {
+          return false;
+        }
+
+        final price = train.classPrices[_selectedTrainClass] ?? 0.0;
+        if (price <= 0 ||
+            price < _priceRange.start ||
+            price > _priceRange.end) {
+          return false;
+        }
+
+        final departureHour =
+            int.tryParse(train.departureTime.split(':').first) ?? 0;
+        if (departureHour < _departureTimeRange.start ||
+            departureHour > _departureTimeRange.end) {
+          return false;
+        }
+
+        if (_refundableOnly && !train.isRefundable) {
+          return false;
+        }
+
+        return true;
+      }).toList();
+
+      switch (_sortBy) {
+        case 'Cheapest':
+          _trains.sort((a, b) {
+            final priceA = a.classPrices[_selectedTrainClass] ?? 0.0;
+            final priceB = b.classPrices[_selectedTrainClass] ?? 0.0;
+            return priceA.compareTo(priceB);
+          });
+          break;
+        case 'Fastest':
+          _trains.sort((a, b) =>
+              _parseDuration(a.duration).compareTo(_parseDuration(b.duration)));
+          break;
+        case 'Recommended':
+        default:
+          // Keep original order for recommended
+          break;
+      }
+    });
+  }
+
+  void _showFiltersBottomSheet() {
+    RangeValues tempPrice = _priceRange;
+    RangeValues tempTime = _departureTimeRange;
+    bool tempRefundable = _refundableOnly;
+
+    final prices = _allTrains
+        .where((train) => train.availableClasses.contains(_selectedTrainClass))
+        .map((train) => train.classPrices[_selectedTrainClass] ?? 0.0)
+        .where((price) => price > 0)
+        .toList();
+
+    final minPrice =
+        prices.isEmpty ? 0.0 : prices.reduce((a, b) => a < b ? a : b);
+    final maxPrice =
+        prices.isEmpty ? 0.0 : prices.reduce((a, b) => a > b ? a : b);
+    final sliderMax = maxPrice <= minPrice ? minPrice + 1 : maxPrice;
+
+    if (tempPrice.start < minPrice || tempPrice.end > sliderMax) {
+      tempPrice = RangeValues(minPrice, maxPrice);
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.75,
+              minChildSize: 0.5,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (context, scrollController) {
+                return Container(
+                  padding: EdgeInsets.all(spacingUnit(3)),
+                  child: ListView(
+                    controller: scrollController,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          margin: EdgeInsets.only(bottom: spacingUnit(2)),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Filters', style: ThemeText.title2),
+                          TextButton(
+                            onPressed: () {
+                              setModalState(() {
+                                tempPrice = RangeValues(minPrice, maxPrice);
+                                tempTime = const RangeValues(0, 24);
+                                tempRefundable = false;
+                              });
+                            },
+                            child: const Text(
+                              'Reset',
+                              style: TextStyle(color: Color(0xFFD4AF37)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: spacingUnit(3)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Price Range', style: ThemeText.subtitle),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: spacingUnit(1.5),
+                              vertical: spacingUnit(0.5),
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD4AF37).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${formatPKR(tempPrice.start)} – ${formatPKR(tempPrice.end)}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFD4AF37),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: spacingUnit(1)),
+                      RangeSlider(
+                        values: tempPrice,
+                        min: minPrice,
+                        max: sliderMax,
+                        divisions: prices.isEmpty ? 1 : 20,
+                        activeColor: const Color(0xFFD4AF37),
+                        inactiveColor:
+                            const Color(0xFFD4AF37).withValues(alpha: 0.15),
+                        labels: RangeLabels(
+                          formatPKR(tempPrice.start),
+                          formatPKR(tempPrice.end),
+                        ),
+                        onChanged: prices.isEmpty
+                            ? null
+                            : (values) {
+                                setModalState(() => tempPrice = values);
+                              },
+                      ),
+                      SizedBox(height: spacingUnit(2.5)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Departure Time',
+                              style: ThemeText.subtitle),
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: spacingUnit(1.5),
+                              vertical: spacingUnit(0.5),
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD4AF37).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${tempTime.start.round().toString().padLeft(2, '0')}:00 – ${tempTime.end.round() == 24 ? '24:00' : '${tempTime.end.round().toString().padLeft(2, '0')}:00'}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFD4AF37),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: spacingUnit(1)),
+                      RangeSlider(
+                        values: tempTime,
+                        min: 0,
+                        max: 24,
+                        divisions: 24,
+                        activeColor: const Color(0xFFD4AF37),
+                        inactiveColor:
+                            const Color(0xFFD4AF37).withValues(alpha: 0.15),
+                        labels: RangeLabels(
+                          '${tempTime.start.round().toString().padLeft(2, '0')}:00',
+                          tempTime.end.round() == 24
+                              ? '24:00'
+                              : '${tempTime.end.round().toString().padLeft(2, '0')}:00',
+                        ),
+                        onChanged: (values) {
+                          setModalState(() => tempTime = values);
+                        },
+                      ),
+                      SizedBox(height: spacingUnit(2.5)),
+                      GestureDetector(
+                        onTap: () => setModalState(
+                            () => tempRefundable = !tempRefundable),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: spacingUnit(2),
+                            vertical: spacingUnit(1.5),
+                          ),
+                          decoration: BoxDecoration(
+                            color: tempRefundable
+                                ? const Color(0xFFD4AF37).withValues(alpha: 0.06)
+                                : Colors.grey.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: tempRefundable
+                                  ? const Color(0xFFD4AF37).withValues(alpha: 0.3)
+                                  : Colors.transparent,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    CupertinoIcons.checkmark_shield_fill,
+                                    color: tempRefundable
+                                        ? const Color(0xFFD4AF37)
+                                        : Colors.grey.shade400,
+                                    size: 20,
+                                  ),
+                                  SizedBox(width: spacingUnit(1.5)),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('Refundable trains only',
+                                          style: ThemeText.subtitle),
+                                      Text(
+                                        'Show only cancellable tickets',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey.shade500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Switch(
+                                value: tempRefundable,
+                                onChanged: (value) {
+                                  setModalState(() => tempRefundable = value);
+                                },
+                                activeThumbColor: const Color(0xFFD4AF37),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: spacingUnit(4)),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _priceRange = tempPrice;
+                              _departureTimeRange = tempTime;
+                              _refundableOnly = tempRefundable;
+                            });
+                            _applyFiltersAndSort();
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFD4AF37),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: const Text(
+                            'Apply Filters',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  int _parseDuration(String duration) {
+    final parts = duration.split(' ');
+    int minutes = 0;
+    for (var part in parts) {
+      if (part.contains('h')) {
+        minutes += int.parse(part.replaceAll('h', '')) * 60;
+      } else if (part.contains('m')) {
+        minutes += int.parse(part.replaceAll('m', ''));
+      }
+    }
+    return minutes;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fromStation = searchParams['fromStation'] as RailwayStation?;
+    final toStation = searchParams['toStation'] as RailwayStation?;
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFD4AF37),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _isRoundTrip
+                  ? _currentJourneyIndex == 0
+                      ? '${fromStation?.code ?? 'DEP'} → ${toStation?.code ?? 'ARR'}'
+                      : '${toStation?.code ?? 'ARR'} → ${fromStation?.code ?? 'DEP'}'
+                  : '${fromStation?.code ?? 'DEP'} → ${toStation?.code ?? 'ARR'}',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              '${_trains.length} trains found',
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+          onPressed: () {
+            if (_isRoundTrip && _currentJourneyIndex == 1) {
+              // Go back to outbound selection
+              setState(() {
+                _currentJourneyIndex = 0;
+                _selectedDate = searchParams['departureDate'] ?? DateTime.now();
+                _selectedOutboundTrain = null;
+                _selectedOutboundClass = null;
+              });
+              _fetchTrains();
+            } else {
+              Get.back();
+            }
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(CupertinoIcons.slider_horizontal_3,
+                color: Colors.white),
+            onPressed: _showFiltersBottomSheet,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Journey selector for round-trip
+          if (_isRoundTrip)
+            Container(
+              color: Colors.white,
+              padding: EdgeInsets.symmetric(
+                horizontal: spacingUnit(2),
+                vertical: spacingUnit(1.5),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: EdgeInsets.symmetric(vertical: spacingUnit(1.5)),
+                      decoration: BoxDecoration(
+                        color: _currentJourneyIndex == 0
+                            ? const Color(0xFFD4AF37)
+                            : Colors.grey[200],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _selectedOutboundTrain != null
+                              ? const Color(0xFFD4AF37)
+                              : Colors.grey[300]!,
+                          width: 2,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_selectedOutboundTrain != null)
+                            Icon(
+                              Icons.check_circle,
+                              color: _currentJourneyIndex == 0
+                                  ? Colors.white
+                                  : const Color(0xFFD4AF37),
+                              size: 18,
+                            ),
+                          if (_selectedOutboundTrain != null)
+                            SizedBox(width: spacingUnit(0.5)),
+                          Text(
+                            'Outbound',
+                            style: TextStyle(
+                              color: _currentJourneyIndex == 0
+                                  ? Colors.white
+                                  : Colors.black87,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: spacingUnit(1.5)),
+                  Icon(
+                    CupertinoIcons.arrow_right,
+                    color: Colors.grey[600],
+                  ),
+                  SizedBox(width: spacingUnit(1.5)),
+                  Expanded(
+                    child: Container(
+                      padding: EdgeInsets.symmetric(vertical: spacingUnit(1.5)),
+                      decoration: BoxDecoration(
+                        color: _currentJourneyIndex == 1
+                            ? const Color(0xFFD4AF37)
+                            : Colors.grey[200],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _currentJourneyIndex == 1
+                              ? const Color(0xFFD4AF37)
+                              : Colors.grey[300]!,
+                          width: 2,
+                        ),
+                      ),
+                      child: Text(
+                        'Return',
+                        style: TextStyle(
+                          color: _currentJourneyIndex == 1
+                              ? Colors.white
+                              : Colors.grey[600],
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // Sort options
+          Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: spacingUnit(2),
+              vertical: spacingUnit(1),
+            ),
+            color: const Color(0xFFD4AF37).withValues(alpha: 0.1),
+            child: Row(
+              children: [
+                const Text('Sort by:', style: ThemeText.caption),
+                SizedBox(width: spacingUnit(1)),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildSortChip('Recommended'),
+                        SizedBox(width: spacingUnit(1)),
+                        _buildSortChip('Cheapest'),
+                        SizedBox(width: spacingUnit(1)),
+                        _buildSortChip('Fastest'),
+                      ],
+                    ),
+                  ),
+                ),
+                SizedBox(width: spacingUnit(1)),
+                Text(
+                  DateFormat('d MMM, E').format(_selectedDate),
+                  style: ThemeText.subtitle2.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFFD4AF37),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Train list
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                        color: Color(0xFFD4AF37)))
+                : _trains.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              CupertinoIcons.train_style_one,
+                              size: 80,
+                              color: Colors.grey.withValues(alpha: 0.5),
+                            ),
+                            SizedBox(height: spacingUnit(2)),
+                            const Text(
+                              'No trains found',
+                              style: ThemeText.title2,
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.all(spacingUnit(2)),
+                        itemCount: _trains.length,
+                        itemBuilder: (context, index) {
+                          final train = _trains[index];
+                          return _buildTrainCard(train);
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortChip(String label) {
+    final selected = _sortBy == label;
+    bool isHovered = false;
+    return StatefulBuilder(
+      builder: (context, setChipState) {
+        return MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setChipState(() => isHovered = true),
+          onExit: (_) => setChipState(() => isHovered = false),
+          child: GestureDetector(
+            onTap: () {
+              setState(() => _sortBy = label);
+              _applyFiltersAndSort();
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: EdgeInsets.symmetric(
+                horizontal: spacingUnit(2),
+                vertical: spacingUnit(0.5),
+              ),
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0xFFD4AF37)
+                    : isHovered
+                        ? const Color(0xFFD4AF37).withValues(alpha: 0.1)
+                        : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: selected
+                      ? const Color(0xFFD4AF37)
+                      : isHovered
+                          ? const Color(0xFFD4AF37)
+                          : Colors.grey.withValues(alpha: 0.3),
+                  width: selected || isHovered ? 1.5 : 1,
+                ),
+              ),
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: selected ? Colors.white : Colors.black87,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static const Map<String, String> _classAbbr = {
+    'Economy (Seat)': 'ECS',
+    'Economy (Berth)': 'EC',
+    'AC Lower / Standard (Berth)': 'ACSB',
+    'AC Business': 'ACLZ',
+  };
+
+  static const List<String> _classOrder = [
+    'Economy (Seat)',
+    'Economy (Berth)',
+    'AC Lower / Standard (Berth)',
+    'AC Business',
+  ];
+
+  Widget _buildClassGrid(TrainResult train) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        children: _classOrder.map((cls) {
+          final abbr = _classAbbr[cls] ?? cls;
+          final seats = train.classSeats[cls];
+          final price = train.classPrices[cls];
+          final isSelected = cls == _selectedTrainClass;
+          final isNA = seats == null || price == null;
+
+          bool isHovered = false;
+          return Expanded(
+            child: StatefulBuilder(
+              builder: (context, setChipState) {
+                return MouseRegion(
+                  cursor: isNA
+                      ? SystemMouseCursors.basic
+                      : SystemMouseCursors.click,
+                  onEnter: (_) => setChipState(() => isHovered = true),
+                  onExit: (_) => setChipState(() => isHovered = false),
+                  child: GestureDetector(
+                    onTap: isNA
+                        ? null
+                        : () {
+                            setState(() => _selectedTrainClass = cls);
+                            _resetPriceRangeForSelectedClass();
+                            _applyFiltersAndSort();
+                          },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFFD4AF37).withValues(alpha: 0.12)
+                            : isHovered && !isNA
+                                ? const Color(0xFFD4AF37).withValues(alpha: 0.05)
+                                : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                        border: isSelected
+                            ? Border.all(
+                                color: const Color(0xFFD4AF37), width: 1.5)
+                            : isHovered && !isNA
+                                ? Border.all(
+                                    color: const Color(0xFFD4AF37)
+                                        .withValues(alpha: 0.3),
+                                    width: 1)
+                                : null,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            abbr,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected
+                                  ? const Color(0xFFB89930)
+                                  : isNA
+                                      ? Colors.grey[400]
+                                      : Colors.grey[700],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isNA ? 'N/A' : 'Rs.${price.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.w500,
+                              color: isNA
+                                  ? Colors.grey[400]
+                                  : isSelected
+                                      ? const Color(0xFFC6A75E)
+                                      : Colors.grey[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildTrainCard(TrainResult train) {
+    final priceForClass = train.classPrices[_selectedTrainClass] ?? 0.0;
+    final isSelectedOutbound = _isRoundTrip &&
+        _currentJourneyIndex == 1 &&
+        _selectedOutboundTrain?.id == train.id;
+
+    bool isHovered = false;
+    return StatefulBuilder(
+      builder: (context, setCardState) {
+        return MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setCardState(() => isHovered = true),
+          onExit: (_) => setCardState(() => isHovered = false),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            transform: Matrix4.identity()
+              ..translate(0.0, isHovered ? -4.0 : 0.0),
+            child: Card(
+              margin: EdgeInsets.only(bottom: spacingUnit(2)),
+              elevation: isHovered ? 8 : (isSelectedOutbound ? 4 : 2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: isSelectedOutbound
+                    ? const BorderSide(color: Color(0xFFD4AF37), width: 2)
+                    : BorderSide.none,
+              ),
+              child: InkWell(
+                onTap: () {
+                  _handleTrainSelection(train, _selectedTrainClass);
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: EdgeInsets.all(spacingUnit(2)),
+                  child: Column(
+                    children: [
+                      // Badge for fastest/cheapest
+                      if (_getBadge(train).isNotEmpty)
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: spacingUnit(1.5),
+                                vertical: spacingUnit(0.5),
+                              ),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: _getBadge(train) == 'Cheapest'
+                                      ? [
+                                          const Color(0xFFD4AF37),
+                                          const Color(0xFFE6C68E)
+                                        ]
+                                      : _getBadge(train) == 'Fastest'
+                                          ? [Colors.blue, Colors.blueAccent]
+                                          : [
+                                              Colors.orange,
+                                              Colors.orangeAccent
+                                            ],
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _getBadge(train) == 'Cheapest'
+                                        ? CupertinoIcons.money_dollar_circle
+                                        : _getBadge(train) == 'Fastest'
+                                            ? CupertinoIcons.bolt_fill
+                                            : CupertinoIcons.star_fill,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                  SizedBox(width: spacingUnit(0.5)),
+                                  Text(
+                                    _getBadge(train),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                      if (_getBadge(train).isNotEmpty)
+                        SizedBox(height: spacingUnit(1.5)),
+
+                      // Train info and timing
+                      Row(
+                        children: [
+                          // Train logo/icon
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD4AF37).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              CupertinoIcons.train_style_one,
+                              color: Color(0xFFD4AF37),
+                              size: 24,
+                            ),
+                          ),
+
+                          SizedBox(width: spacingUnit(2)),
+
+                          // Time and route info
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    // Departure
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          train.departureTime,
+                                          style: ThemeText.title2.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Text(
+                                          _isRoundTrip &&
+                                                  _currentJourneyIndex == 1
+                                              ? searchParams['toStation']
+                                                      ?.code ??
+                                                  'DEP'
+                                              : searchParams['fromStation']
+                                                      ?.code ??
+                                                  'DEP',
+                                          style: ThemeText.caption.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: const Color(0xFFD4AF37),
+                                          ),
+                                        ),
+                                        SizedBox(height: spacingUnit(0.3)),
+                                        Text(
+                                          _isRoundTrip &&
+                                                  _currentJourneyIndex == 1
+                                              ? searchParams['toStation']
+                                                      ?.name ??
+                                                  ''
+                                              : searchParams['fromStation']
+                                                      ?.name ??
+                                                  '',
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.grey,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
+                                        ),
+                                        Text(
+                                          DateFormat('dd MMM')
+                                              .format(_selectedDate),
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.orange,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+
+                                    // Duration and route line
+                                    Expanded(
+                                      child: Column(
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(
+                                                CupertinoIcons.time,
+                                                size: 12,
+                                                color: Colors.grey,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                train.duration,
+                                                style:
+                                                    ThemeText.caption.copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          SizedBox(height: spacingUnit(0.5)),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Container(
+                                                width: 8,
+                                                height: 8,
+                                                decoration: const BoxDecoration(
+                                                  color:
+                                                      Color(0xFFD4AF37),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                              Expanded(
+                                                child: Container(
+                                                  height: 2,
+                                                  color:
+                                                      const Color(0xFFD4AF37),
+                                                ),
+                                              ),
+                                              Container(
+                                                width: 8,
+                                                height: 8,
+                                                decoration: const BoxDecoration(
+                                                  color:
+                                                      Color(0xFFD4AF37),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          SizedBox(height: spacingUnit(0.5)),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFD4AF37)
+                                                  .withValues(alpha: 0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: const Color(0xFFD4AF37)
+                                                    .withValues(alpha: 0.3),
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              '– Direct',
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: Color(0xFFD4AF37),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // Arrival
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              train.arrivalTime,
+                                              style: ThemeText.title2.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            if (train.arrivesNextDay)
+                                              Container(
+                                                margin: const EdgeInsets.only(
+                                                    left: 3, top: 2),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 4,
+                                                        vertical: 1),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.orange,
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                ),
+                                                child: const Text(
+                                                  '+1',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        Text(
+                                          _isRoundTrip &&
+                                                  _currentJourneyIndex == 1
+                                              ? searchParams['fromStation']
+                                                      ?.code ??
+                                                  'ARR'
+                                              : searchParams['toStation']
+                                                      ?.code ??
+                                                  'ARR',
+                                          style: ThemeText.caption.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: const Color(0xFFD4AF37),
+                                          ),
+                                        ),
+                                        SizedBox(height: spacingUnit(0.3)),
+                                        Text(
+                                          _isRoundTrip &&
+                                                  _currentJourneyIndex == 1
+                                              ? searchParams['fromStation']
+                                                      ?.name ??
+                                                  ''
+                                              : searchParams['toStation']
+                                                      ?.name ??
+                                                  '',
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.grey,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
+                                        ),
+                                        Text(
+                                          DateFormat('dd MMM').format(
+                                            train.arrivesNextDay
+                                                ? _selectedDate.add(
+                                                    const Duration(days: 1))
+                                                : _selectedDate,
+                                          ),
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.orange,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+
+                                SizedBox(height: spacingUnit(1)),
+
+                                // Train name and available info
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Text(
+                                            train.trainName,
+                                            style: ThemeText.caption.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black87,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey
+                                                  .withValues(alpha: 0.15),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              train.trainNumber,
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                color: Colors.black54,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      SizedBox(height: spacingUnit(1.5)),
+
+                      // Class grid — all 4 classes with seats + price
+                      _buildClassGrid(train),
+
+                      SizedBox(height: spacingUnit(1.5)),
+
+                      Divider(
+                          height: 1, color: Colors.grey.withValues(alpha: 0.2)),
+
+                      SizedBox(height: spacingUnit(1.5)),
+
+                      // Price and select button
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (priceForClass > 0)
+                                ...([
+                                  Text(
+                                    _selectedTrainClass,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black87,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  SizedBox(height: spacingUnit(0.5)),
+                                  const Row(
+                                    children: [
+                                      Icon(
+                                        CupertinoIcons.money_dollar_circle,
+                                        size: 14,
+                                        color: Colors.grey,
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        'Base fare per person',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: spacingUnit(0.3)),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        formatPKR(priceForClass),
+                                        style: ThemeText.title2.copyWith(
+                                          color: const Color(0xFFD4AF37),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ])
+                              else
+                                Text(
+                                  'Not available in $_selectedTrainClass',
+                                  style: TextStyle(
+                                      fontSize: 11, color: Colors.orange[700]),
+                                ),
+                              if (isSelectedOutbound)
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      CupertinoIcons.check_mark_circled_solid,
+                                      color: Color(0xFFD4AF37),
+                                      size: 14,
+                                    ),
+                                    SizedBox(width: spacingUnit(0.5)),
+                                    const Text(
+                                      'Outbound Selected',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Color(0xFFD4AF37),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                          ElevatedButton(
+                            onPressed: priceForClass > 0
+                                ? () {
+                                    _handleTrainSelection(
+                                        train, _selectedTrainClass);
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD4AF37),
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: Colors.grey[300],
+                              padding: EdgeInsets.symmetric(
+                                horizontal: spacingUnit(3),
+                                vertical: spacingUnit(1.5),
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'Select',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _handleTrainSelection(TrainResult train, String trainClass) {
+    // Handle round-trip selection
+    if (_isRoundTrip && _currentJourneyIndex == 0) {
+      // Outbound selected, move to return
+      setState(() {
+        _selectedOutboundTrain = train;
+        _selectedOutboundClass = trainClass;
+        _currentJourneyIndex = 1;
+        _selectedDate = _selectedReturnDate ?? _selectedDate;
+      });
+      _fetchTrains();
+
+      // Show message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Outbound train selected. Now select return train.'),
+          backgroundColor: Color(0xFFD4AF37),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else {
+      // One-way or return journey selected, proceed to passenger details
+      Get.toNamed(
+        '/train-passengers',
+        arguments: {
+          'train': train,
+          'selectedClass': trainClass,
+          'searchParams': searchParams,
+          'isRoundTrip': _isRoundTrip,
+          'outboundTrain': _selectedOutboundTrain,
+          'outboundClass': _selectedOutboundClass,
+          'returnTrain': _isRoundTrip ? train : null,
+          'returnClass': _isRoundTrip ? trainClass : null,
+        },
+      );
+    }
+  }
+
+  String _getBadge(TrainResult train) {
+    if (_trains.isEmpty) return '';
+
+    // Get cheapest train for selected class
+    final cheapestTrain = _trains.reduce((a, b) {
+      final priceA = a.classPrices[_selectedTrainClass] ?? double.infinity;
+      final priceB = b.classPrices[_selectedTrainClass] ?? double.infinity;
+      return priceA < priceB ? a : b;
+    });
+
+    // Get fastest train
+    final fastestTrain = _trains.reduce((a, b) {
+      return _parseDuration(a.duration) < _parseDuration(b.duration) ? a : b;
+    });
+
+    if (train.id == cheapestTrain.id) return 'Cheapest';
+    if (train.id == fastestTrain.id) return 'Fastest';
+    if (_trains.indexOf(train) == 0 && _sortBy == 'Recommended') {
+      return 'Recommended';
+    }
+
+    return '';
+  }
+}

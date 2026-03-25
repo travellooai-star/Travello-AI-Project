@@ -1,0 +1,2 @@
+/Users/retinam2/Documents/Experanza/bookmytix/flight_app/android/app/.cxx/RelWithDebInfo/lc6v5o6s/x86/CMakeFiles/edit_cache.dir
+/Users/retinam2/Documents/Experanza/bookmytix/flight_app/android/app/.cxx/RelWithDebInfo/lc6v5o6s/x86/CMakeFiles/rebuild_cache.dir

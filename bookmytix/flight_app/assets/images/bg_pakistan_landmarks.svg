@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 250">
+  <g fill="currentColor">
+    <!-- Left Mausoleum with dome -->
+    <ellipse cx="70" cy="90" rx="30" ry="20"/>
+    <rect x="40" y="90" width="60" height="50"/>
+    <rect x="35" y="140" width="70" height="5"/>
+    <rect x="48" y="95" width="8" height="45"/>
+    <rect x="74" y="95" width="8" height="45"/>
+    
+    <!-- Eiffel Tower style minaret -->
+    <polygon points="140,40 135,140 145,140"/>
+    <rect x="132" y="140" width="16" height="5"/>
+    <circle cx="140" cy="35" r="5"/>
+    <line x1="135" y1="80" x2="145" y2="80" stroke="currentColor" stroke-width="2"/>
+    <line x1="136" y1="100" x2="144" y2="100" stroke="currentColor" stroke-width="2"/>
+    
+    <!-- Traditional mosque with minarets -->
+    <rect x="170" y="80" width="80" height="60"/>
+    <ellipse cx="210" cy="70" rx="35" ry="22"/>
+    <rect x="165" y="60" width="8" height="80"/>
+    <rect x="247" y="60" width="8" height="80"/>
+    <circle cx="169" cy="55" r="5"/>
+    <circle cx="251" cy="55" r="5"/>
+    <rect x="185" y="105" width="12" height="35"/>
+    <rect x="203" y="105" width="12" height="35"/>
+    <rect x="223" y="105" width="12" height="35"/>
+    
+    <!-- Large central dome -->
+    <ellipse cx="310" cy="75" rx="40" ry="25"/>
+    <rect x="270" y="75" width="80" height="65"/>
+    <rect x="280" y="95" width="15" height="45"/>
+    <rect x="305" y="95" width="15" height="45"/>
+    <rect x="325" y="95" width="15" height="45"/>
+    
+    <!-- Fortified gate structure -->
+    <rect x="370" y="85" width="60" height="55"/>
+    <path d="M 370 85 L 400 60 L 430 85 Z"/>
+    <rect x="385" y="105" width="15" height="35"/>
+    <rect x="410" y="105" width="15" height="35"/>
+    <rect x="365" y="75" width="8" height="65"/>
+    <rect x="427" y="75" width="8" height="65"/>
+    <circle cx="369" cy="70" r="5"/>
+    <circle cx="431" cy="70" r="5"/>
+    
+    <!-- Tall minaret tower -->
+    <rect x="458" y="35" width="12" height="105"/>
+    <rect x="453" y="30" width="22" height="10"/>
+    <circle cx="464" cy="25" r="6"/>
+    <polygon points="464,20 459,25 469,25"/>
+    
+    <!-- Modern triangular mosque (Faisal style) -->
+    <polygon points="500,140 540,55 580,140"/>
+    <rect x="530" y="80" width="20" height="60"/>
+    <rect x="495" y="50" width="8" height="90"/>
+    <rect x="577" y="50" width="8" height="90"/>
+    
+    <!-- Domed monument -->
+    <rect x="610" y="105" width="70" height="35"/>
+    <rect x="625" y="80" width="40" height="25"/>
+    <ellipse cx="645" cy="70" rx="30" ry="20"/>
+    <rect x="643" y="50" width="4" height="20"/>
+    <circle cx="645" cy="47" r="4"/>
+    <path d="M 630 100 Q 638 93 646 100"/>
+    <path d="M 654 100 Q 662 93 670 100"/>
+    
+    <!-- Smaller dome structure -->
+    <ellipse cx="720" cy="95" rx="22" ry="16"/>
+    <rect x="698" y="95" width="44" height="45"/>
+    <rect x="708" y="105" width="10" height="35"/>
+    <rect x="722" y="105" width="10" height="35"/>
+    
+    <!-- Rectangular buildings -->
+    <rect x="760" y="100" width="28" height="40"/>
+    <rect x="795" y="90" width="35" height="50"/>
+    <rect x="838" y="105" width="24" height="35"/>
+    
+    <!-- Large domed structure (right) -->
+    <ellipse cx="905" cy="92" rx="32" ry="22"/>
+    <rect x="873" y="92" width="64" height="48"/>
+    <rect x="885" y="105" width="14" height="35"/>
+    <rect x="911" y="105" width="14" height="35"/>
+    
+    <!-- End minarets -->
+    <rect x="955" y="85" width="10" height="55"/>
+    <circle cx="960" cy="80" r="6"/>
+    <rect x="980" y="95" width="10" height="45"/>
+    <circle cx="985" cy="90" r="5"/>
+    
+    <!-- Arch monument -->
+    <rect x="1010" y="85" width="60" height="55"/>
+    <rect x="1025" y="100" width="30" height="40"/>
+    <path d="M 1025 100 L 1040 85 L 1055 100"/>
+    
+    <!-- Ground line -->
+    <rect x="0" y="140" width="1200" height="4"/>
+    
+    <!-- Reflection/shadow effect -->
+    <rect x="0" y="144" width="1200" height="30" opacity="0.15"/>
+  </g>
+</svg>
