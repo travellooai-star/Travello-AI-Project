@@ -1,7 +1,7 @@
 import 'package:flight_app/app/app_link.dart';
 import 'package:flight_app/ui/themes/theme_radius.dart';
 import 'package:flutter/material.dart';
-import 'package:get/route_manager.dart';
+import 'package:get/get.dart';
 import 'package:flight_app/ui/themes/theme_button.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
@@ -65,80 +65,85 @@ class _AccountInfoState extends State<AccountInfo> {
       const VSpaceShort(),
 
       /// ACCOUNT INFO
-      SizedBox(
-        height: 400,
-        child: Padding(
-            padding: EdgeInsets.all(spacingUnit(2)),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Row(children: [
-                    Text('Name',
-                        style: ThemeText.subtitle
-                            .copyWith(fontWeight: FontWeight.bold)),
-                    const Spacer(),
-                    Text(_userName),
-                  ]),
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: spacingUnit(2)),
-                    child: const LineList(),
+      Padding(
+          padding: EdgeInsets.all(spacingUnit(2)),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            Row(children: [
+              Text('Name',
+                  style:
+                      ThemeText.subtitle.copyWith(fontWeight: FontWeight.bold)),
+              const Spacer(),
+              Flexible(
+                  child: Text(_userName,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end)),
+            ]),
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: spacingUnit(2)),
+              child: const LineList(),
+            ),
+            Row(children: [
+              Text('Email',
+                  style:
+                      ThemeText.subtitle.copyWith(fontWeight: FontWeight.bold)),
+              const Spacer(),
+              Flexible(
+                  child: Text(_userEmail,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end)),
+            ]),
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: spacingUnit(2)),
+              child: const LineList(),
+            ),
+            Row(children: [
+              Text('Phone Number/WhatsApp',
+                  style:
+                      ThemeText.subtitle.copyWith(fontWeight: FontWeight.bold)),
+              const Spacer(),
+              Flexible(
+                  child: Text(_userPhone,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end)),
+            ]),
+            const VSpaceBig(),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: OutlinedButton(
+                  onPressed: () {
+                    Get.toNamed(AppLink.editProfile);
+                  },
+                  style: ThemeButton.outlinedPrimary(context),
+                  child:
+                      const Text('Change Profile', style: ThemeText.subtitle)),
+            ),
+            const VSpaceShort(),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: OutlinedButton(
+                  onPressed: () {
+                    Get.toNamed(AppLink.editPassword);
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.red.shade300),
+                    foregroundColor: Colors.red.shade300,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: ThemeRadius.medium,
+                    ),
                   ),
-                  Row(children: [
-                    Text('Email',
-                        style: ThemeText.subtitle
-                            .copyWith(fontWeight: FontWeight.bold)),
-                    const Spacer(),
-                    Text(_userEmail),
-                  ]),
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: spacingUnit(2)),
-                    child: const LineList(),
-                  ),
-                  Row(children: [
-                    Text('Phone Number/WhatsApp',
-                        style: ThemeText.subtitle
-                            .copyWith(fontWeight: FontWeight.bold)),
-                    const Spacer(),
-                    Text(_userPhone),
-                  ]),
-                  const VSpaceBig(),
-                  SizedBox(
-                    width: 250,
-                    height: 40,
-                    child: OutlinedButton(
-                        onPressed: () {
-                          Get.toNamed(AppLink.editProfile);
-                        },
-                        style: ThemeButton.outlinedPrimary(context),
-                        child: const Text('Change Profile',
-                            style: ThemeText.subtitle)),
-                  ),
-                  const VSpaceShort(),
-                  SizedBox(
-                    width: 250,
-                    height: 40,
-                    child: OutlinedButton(
-                        onPressed: () {
-                          Get.toNamed(AppLink.editPassword);
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.red.shade300),
-                          foregroundColor: Colors.red.shade300,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: ThemeRadius.medium,
-                          ),
-                        ),
-                        child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.lock, color: Colors.red.shade300),
-                              const Text('Change Password',
-                                  style: ThemeText.subtitle),
-                            ])),
-                  ),
-                  const VSpaceBig(),
-                ])),
-      ),
+                  child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.lock, color: Colors.red.shade300),
+                        const Text('Change Password',
+                            style: ThemeText.subtitle),
+                      ])),
+            ),
+            const VSpaceBig(),
+          ])),
     ]);
   }
 }

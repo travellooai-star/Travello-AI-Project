@@ -26,6 +26,7 @@ class ServiceTabs extends StatefulWidget {
 class _ServiceTabsState extends State<ServiceTabs>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
+  int _hoveredIndex = -1;
 
   final List<Map<String, dynamic>> _services = [
     {
@@ -66,21 +67,42 @@ class _ServiceTabsState extends State<ServiceTabs>
 
   @override
   Widget build(BuildContext context) {
+    // Container has padding: spacingUnit(1) = 8px on all sides
+    // So inner available width = screenWidth - 16px (left+right padding of parent)
+    // ServiceTabs is inside a Positioned with left/right: spacingUnit(2) = 16px each
+    // So actual widget width = screenWidth - 32px, inner = screenWidth - 32 - 16 = screenWidth - 48
+    // Use LayoutBuilder to get exact available width for accurate indicator positioning
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final innerWidth = constraints.maxWidth -
+            spacingUnit(1) * 2; // subtract container padding
+        final tabWidth = innerWidth / 3;
+        return _buildTabContent(context, tabWidth);
+      },
+    );
+  }
+
+  Widget _buildTabContent(BuildContext context, double tabWidth) {
+    final isSmall = MediaQuery.of(context).size.width < 380;
+    final tabHeight = isSmall ? 48.0 : 56.0;
     return Container(
-      padding: EdgeInsets.all(spacingUnit(1)),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.2),
+          color: Colors.white.withValues(alpha: 0.25),
           width: 1.5,
         ),
-        // Glassmorphism effect
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 30,
+            offset: const Offset(0, 12),
+          ),
+          BoxShadow(
+            color: Colors.white.withValues(alpha: 0.05),
+            blurRadius: 1,
+            offset: const Offset(0, -1),
           ),
         ],
       ),
@@ -90,10 +112,10 @@ class _ServiceTabsState extends State<ServiceTabs>
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
-            left: _selectedIndex * (MediaQuery.of(context).size.width / 3 - 16),
+            left: _selectedIndex * tabWidth,
             child: Container(
-              width: MediaQuery.of(context).size.width / 3 - 16,
-              height: 56,
+              width: tabWidth,
+              height: tabHeight,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFF4A90E2), Color(0xFF357ABD)],
@@ -115,44 +137,75 @@ class _ServiceTabsState extends State<ServiceTabs>
           // Service buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: _services.map((service) {
+            children: _services.asMap().entries.map((entry) {
+              final index = entry.key;
+              final service = entry.value;
               final isSelected = service['id'] == widget.selectedService;
+              final isHovered = _hoveredIndex == index;
               return Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    _animationController.forward(from: 0);
-                    widget.onServiceChanged(service['id']);
-                  },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    height: 56,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          service['icon'],
-                          color: isSelected
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.6),
-                          size: 22,
-                        ),
-                        SizedBox(height: spacingUnit(0.5)),
-                        Text(
-                          service['label'],
-                          style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : Colors.white.withValues(alpha: 0.7),
-                            fontSize: 13,
-                            fontWeight:
-                                isSelected ? FontWeight.bold : FontWeight.w500,
-                            letterSpacing: 0.3,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  onEnter: (_) => setState(() => _hoveredIndex = index),
+                  onExit: (_) => setState(() => _hoveredIndex = -1),
+                  child: GestureDetector(
+                    onTap: () {
+                      _animationController.forward(from: 0);
+                      widget.onServiceChanged(service['id']);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      height: tabHeight,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        color: (!isSelected && isHovered)
+                            ? Colors.white.withValues(alpha: 0.12)
+                            : Colors.transparent,
+                        boxShadow: isHovered && !isSelected
+                            ? [
+                                BoxShadow(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          AnimatedScale(
+                            scale: isHovered && !isSelected ? 1.15 : 1.0,
+                            duration: const Duration(milliseconds: 200),
+                            child: Icon(
+                              service['icon'],
+                              color: isSelected
+                                  ? Colors.white
+                                  : isHovered
+                                      ? Colors.white.withValues(alpha: 0.9)
+                                      : Colors.white.withValues(alpha: 0.6),
+                              size: 22,
+                            ),
                           ),
-                        ),
-                      ],
+                          SizedBox(height: spacingUnit(0.5)),
+                          Text(
+                            service['label'],
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : isHovered
+                                      ? Colors.white.withValues(alpha: 0.95)
+                                      : Colors.white.withValues(alpha: 0.7),
+                              fontSize: 13,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : isHovered
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

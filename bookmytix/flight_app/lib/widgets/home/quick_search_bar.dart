@@ -23,7 +23,7 @@ class QuickSearchBar extends StatelessWidget {
             EdgeInsets.symmetric(horizontal: isDesktop ? 0 : spacingUnit(2)),
         child: GestureDetector(
           onTap: () {
-            Get.toNamed(AppLink.explore);
+            Get.toNamed(AppLink.searchList);
           },
           child: Container(
             height: 56,
@@ -58,35 +58,6 @@ class QuickSearchBar extends StatelessWidget {
                       color:
                           colorScheme(context).onSurface.withValues(alpha: 0.5),
                     ),
-                  ),
-                ),
-                Container(
-                  margin: EdgeInsets.only(right: spacingUnit(1)),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: spacingUnit(1),
-                    vertical: spacingUnit(0.5),
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme(context).primaryContainer,
-                    borderRadius: ThemeRadius.small,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.explore,
-                        size: 16,
-                        color: colorScheme(context).onPrimaryContainer,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Explore',
-                        style: ThemeText.caption.copyWith(
-                          color: colorScheme(context).onPrimaryContainer,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ],

@@ -18,6 +18,7 @@ class PackageCard extends StatelessWidget {
       required this.from,
       required this.to,
       required this.date,
+      this.duration = '',
       required this.tags,
       required this.price,
       this.refundable = true,
@@ -29,6 +30,7 @@ class PackageCard extends StatelessWidget {
   final String from;
   final String to;
   final String date;
+  final String duration;
   final List<String> tags;
   final double price;
   final bool refundable;
@@ -58,37 +60,28 @@ class PackageCard extends StatelessWidget {
                       child: ShimmerPreloader());
                 },
               ),
+              // ── Discount corner badge — top-left ──────────────────
               Positioned(
-                top: spacingUnit(1),
-                left: spacingUnit(1),
+                top: 0,
+                left: 0,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  width: 60,
+                  height: 60,
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                      borderRadius: ThemeRadius.xsmall,
-                      color:
-                          colorScheme(context).surface.withValues(alpha: 0.75)),
+                    color: colorScheme(context).secondary,
+                    borderRadius: const BorderRadius.only(
+                      bottomRight: Radius.circular(60),
+                    ),
+                  ),
                   child: Text(
-                    roundTrip ? 'ROUND-TRIP' : 'ONE-WAY',
-                    style: ThemeText.caption,
+                    label,
+                    textAlign: TextAlign.start,
+                    style: ThemeText.paragraphBold
+                        .copyWith(color: const Color(0xFF000000)),
                   ),
                 ),
               ),
-              Positioned(
-                  top: 0,
-                  right: 0,
-                  child: Container(
-                      width: 60,
-                      height: 60,
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                          color: colorScheme(context).secondary,
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(60),
-                          )),
-                      child: Text(label,
-                          textAlign: TextAlign.end,
-                          style: ThemeText.paragraphBold
-                              .copyWith(color: const Color(0xFF000000))))),
             ],
           ),
         ),
@@ -126,16 +119,40 @@ class PackageCard extends StatelessWidget {
                     ]),
                   ),
 
-                  /// DATE
+                  /// DATE + TRIP TYPE
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            date,
-                            style: ThemeText.caption.copyWith(
-                                color: colorScheme(context).onSurfaceVariant),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                date,
+                                style: ThemeText.caption.copyWith(
+                                    color:
+                                        colorScheme(context).onSurfaceVariant),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: roundTrip
+                                      ? colorScheme(context).primaryContainer
+                                      : colorScheme(context).secondaryContainer,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  roundTrip ? 'Round-Trip' : 'One-Way',
+                                  style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      color: colorScheme(context).onSurface),
+                                ),
+                              ),
+                            ],
                           ),
                           Text(
                             'Start from',
@@ -201,10 +218,22 @@ class PackageCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 2),
-                          Text(
-                            '${plane!.name} • Economy',
-                            style: ThemeText.caption,
+                          Expanded(
+                            child: Text(
+                              '${plane!.name} · Economy',
+                              overflow: TextOverflow.ellipsis,
+                              style: ThemeText.caption,
+                            ),
                           ),
+                          if (duration.isNotEmpty) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              duration,
+                              style: ThemeText.caption.copyWith(
+                                  color: colorScheme(context).primary,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ],
                         ])
                       : Container()
                 ]),

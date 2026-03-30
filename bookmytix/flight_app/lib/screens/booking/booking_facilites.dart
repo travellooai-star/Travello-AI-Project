@@ -71,6 +71,13 @@ class _BookingFacilitesState extends State<BookingFacilites> {
   // Each passenger starts with 1 bag. User can add/remove bags.
   late List<List<TextEditingController>> _passengerBags;
 
+  // Return baggage mode (round trip only):
+  //  'same'    → same as outbound (default)
+  //  'custom'  → user picks a different weight
+  //  'later'   → skip for now (decide via Manage Booking)
+  String _returnBaggageMode = 'same';
+  late List<List<TextEditingController>> _returnPassengerBags;
+
   // Overweight surcharge rate (PKR per kg above free allowance)
   static const double _overweightRatePerKg = 200;
 
@@ -122,6 +129,10 @@ class _BookingFacilitesState extends State<BookingFacilites> {
       _passengers.length,
       (_) => [TextEditingController(text: '0')],
     );
+    _returnPassengerBags = List.generate(
+      _passengers.length,
+      (_) => [TextEditingController(text: '0')],
+    );
     _loadSavedBaggage();
 
     // Restore seat selections if user navigated back from checkout
@@ -153,6 +164,11 @@ class _BookingFacilitesState extends State<BookingFacilites> {
   @override
   void dispose() {
     for (final bags in _passengerBags) {
+      for (final c in bags) {
+        c.dispose();
+      }
+    }
+    for (final bags in _returnPassengerBags) {
       for (final c in bags) {
         c.dispose();
       }
@@ -190,10 +206,31 @@ class _BookingFacilitesState extends State<BookingFacilites> {
     return (totalEntered - freeKg).clamp(0, double.infinity);
   }
 
+  double _returnPassengerOverweight(int i) {
+    final freeKg = (_policy()['checkedKg'] as int).toDouble();
+    final bags = _effectiveReturnBags(i);
+    final total =
+        bags.fold<double>(0, (s, c) => s + (double.tryParse(c.text) ?? 0));
+    return (total - freeKg).clamp(0, double.infinity);
+  }
+
+  // Returns the controllers to use for return baggage display/calculation
+  List<TextEditingController> _effectiveReturnBags(int i) {
+    if (_returnBaggageMode == 'same') return _passengerBags[i];
+    // 'later' mode: use the already-initialised _returnPassengerBags[i] which
+    // starts at 0 kg — no new controller objects created on each rebuild.
+    return _returnPassengerBags[i];
+  }
+
   double _extraBaggageTotal() {
     double total = 0;
     for (int i = 0; i < _passengers.length; i++) {
       total += _passengerOverweight(i) * _overweightRatePerKg;
+      if (_isRoundTrip && _returnBaggageMode == 'custom') {
+        total += _returnPassengerOverweight(i) * _overweightRatePerKg;
+      } else if (_isRoundTrip && _returnBaggageMode == 'same') {
+        total += _passengerOverweight(i) * _overweightRatePerKg;
+      }
     }
     return total;
   }
@@ -329,6 +366,37 @@ class _BookingFacilitesState extends State<BookingFacilites> {
         'extraPrice': overweight * _overweightRatePerKg,
       };
     });
+
+    // Build return baggage data
+    final returnBaggageData = _isRoundTrip
+        ? List.generate(_passengers.length, (i) {
+            List<double> bags;
+            if (_returnBaggageMode == 'same') {
+              bags = _passengerBags[i]
+                  .map((c) => double.tryParse(c.text) ?? 0)
+                  .toList();
+            } else if (_returnBaggageMode == 'custom') {
+              bags = _returnPassengerBags[i]
+                  .map((c) => double.tryParse(c.text) ?? 0)
+                  .toList();
+            } else {
+              bags = [0.0]; // 'later'
+            }
+            final total = bags.fold<double>(0, (s, w) => s + w);
+            final overweight = _returnBaggageMode == 'later'
+                ? 0.0
+                : (total - freeKg).clamp(0, double.infinity);
+            return {
+              'passengerName': _passengerName(i),
+              'freeKg': freeKg,
+              'bags': bags,
+              'totalKg': total,
+              'overweightKg': overweight,
+              'extraPrice': overweight * _overweightRatePerKg,
+              'mode': _returnBaggageMode,
+            };
+          })
+        : <Map<String, dynamic>>[];
     _saveBaggage(); // persist bag weights so back-navigation restores them
 
     // Validate seat selection (optional but recommended),
@@ -387,6 +455,8 @@ class _BookingFacilitesState extends State<BookingFacilites> {
         ..._rawArgs,
         'baggageData': baggageData,
         'baggageExtraTotal': _extraBaggageTotal(),
+        'returnBaggageData': returnBaggageData,
+        'returnBaggageMode': _returnBaggageMode,
         'outboundSeatSelections': _outboundSeatSelections,
         'returnSeatSelections': _returnSeatSelections,
         'seatTotal': _seatTotal,
@@ -429,6 +499,8 @@ class _BookingFacilitesState extends State<BookingFacilites> {
         ..._rawArgs,
         'baggageData': baggageData,
         'baggageExtraTotal': _extraBaggageTotal(),
+        'returnBaggageData': returnBaggageData,
+        'returnBaggageMode': _returnBaggageMode,
         'seatSelections': _seatSelections,
         'seatTotal': _seatTotal,
         'transferAdded': _transferAdded,
@@ -506,6 +578,10 @@ class _BookingFacilitesState extends State<BookingFacilites> {
                 _buildBaggagePolicyBanner(context),
                 SizedBox(height: spacingUnit(2)),
                 _buildPassengerBaggageSection(context),
+                if (_isRoundTrip && _returnFlight != null) ...[
+                  SizedBox(height: spacingUnit(2)),
+                  _buildReturnBaggageSection(context),
+                ],
                 SizedBox(height: spacingUnit(3)),
 
                 // ── Seat Selection Section ──
@@ -639,6 +715,524 @@ class _BookingFacilitesState extends State<BookingFacilites> {
           ),
           _buildBottomBar(context),
         ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────
+  //  RETURN BAGGAGE SECTION (Round Trip)
+  //  Industry standard: 3-option selector per Expedia/Wego/AirBlue
+  // ─────────────────────────────────────────────
+  Widget _buildReturnBaggageSection(BuildContext context) {
+    final scheme = colorScheme(context);
+    final policy = _policy();
+    final freeKg = (policy['checkedKg'] as int).toDouble();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Section header ──
+        Row(
+          children: [
+            Icon(Icons.luggage, color: scheme.primary, size: 22),
+            SizedBox(width: spacingUnit(1)),
+            Text(
+              'Return Flight Baggage',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Colors.black87,
+                letterSpacing: 0.3,
+              ),
+            ),
+            SizedBox(width: spacingUnit(1)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade700,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                'RETURN',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: spacingUnit(1.5)),
+
+        // ── AI Smart Tip ──
+        Container(
+          padding: EdgeInsets.all(spacingUnit(1.5)),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                scheme.primary.withValues(alpha: 0.08),
+                scheme.primary.withValues(alpha: 0.03),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: scheme.primary.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('✈️', style: const TextStyle(fontSize: 18)),
+              SizedBox(width: spacingUnit(1)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Travello AI Tip',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: scheme.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    const Text(
+                      'Bought something on your trip? You can add or upgrade baggage anytime from My Bookings — even a few hours before your flight.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.black87,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: spacingUnit(1.5)),
+
+        // ── 3-option selector ──
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: const [
+              BoxShadow(
+                  color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2))
+            ],
+          ),
+          child: Column(
+            children: [
+              _returnBaggageOption(
+                context: context,
+                value: 'same',
+                icon: Icons.content_copy_outlined,
+                title: 'Same as departure',
+                subtitle: 'Apply the same baggage for your return flight',
+                badge: 'Default',
+                badgeColor: Colors.green.shade700,
+              ),
+              Divider(height: 1, color: Colors.grey.shade100, indent: 60),
+              _returnBaggageOption(
+                context: context,
+                value: 'custom',
+                icon: Icons.tune_rounded,
+                title: 'Choose differently',
+                subtitle: 'Select a different baggage weight for your return',
+                badge: null,
+                badgeColor: null,
+              ),
+              Divider(height: 1, color: Colors.grey.shade100, indent: 60),
+              _returnBaggageOption(
+                context: context,
+                value: 'later',
+                icon: Icons.schedule_rounded,
+                title: 'Decide later',
+                subtitle: 'Add via My Bookings · Available until 24 hrs before',
+                badge: 'Recommended',
+                badgeColor: scheme.primary,
+              ),
+            ],
+          ),
+        ),
+
+        // ── Custom return bags (shown only when mode = custom) ──
+        if (_returnBaggageMode == 'custom') ...[
+          SizedBox(height: spacingUnit(2)),
+          ...List.generate(
+            _passengers.length,
+            (i) => _buildReturnPassengerBaggageCard(context, i, freeKg),
+          ),
+        ],
+
+        // ── "later" info banner ──
+        if (_returnBaggageMode == 'later') ...[
+          SizedBox(height: spacingUnit(1.5)),
+          Container(
+            padding: EdgeInsets.all(spacingUnit(1.5)),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.blue.shade700, size: 18),
+                SizedBox(width: spacingUnit(1)),
+                Expanded(
+                  child: Text(
+                    'No extra baggage fee now. Go to My Bookings → Manage Booking to add baggage before your return flight.',
+                    style: TextStyle(
+                        fontSize: 12, color: Colors.blue.shade900, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _returnBaggageOption({
+    required BuildContext context,
+    required String value,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String? badge,
+    required Color? badgeColor,
+  }) {
+    final scheme = colorScheme(context);
+    final selected = _returnBaggageMode == value;
+    return InkWell(
+      onTap: () => setState(() => _returnBaggageMode = value),
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: EdgeInsets.symmetric(
+            horizontal: spacingUnit(2), vertical: spacingUnit(1.5)),
+        decoration: BoxDecoration(
+          color: selected
+              ? scheme.primary.withValues(alpha: 0.06)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            // Radio circle
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected ? scheme.primary : Colors.grey.shade400,
+                  width: selected ? 2 : 1.5,
+                ),
+                color: selected
+                    ? scheme.primary.withValues(alpha: 0.1)
+                    : Colors.transparent,
+              ),
+              child: selected
+                  ? Center(
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: scheme.primary,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+            SizedBox(width: spacingUnit(1.5)),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: selected
+                    ? scheme.primary.withValues(alpha: 0.1)
+                    : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon,
+                  size: 18,
+                  color: selected ? scheme.primary : Colors.grey.shade600),
+            ),
+            SizedBox(width: spacingUnit(1.2)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: selected ? scheme.primary : Colors.black87,
+                        ),
+                      ),
+                      if (badge != null) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: badgeColor!.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            badge,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: badgeColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReturnPassengerBaggageCard(
+      BuildContext context, int i, double freeKg) {
+    final scheme = colorScheme(context);
+    final overweight = _returnPassengerOverweight(i);
+    final hasOverweight = overweight > 0;
+    final extraCharge = overweight * _overweightRatePerKg;
+    final totalEntered = _returnPassengerBags[i]
+        .fold<double>(0, (s, c) => s + (double.tryParse(c.text) ?? 0));
+
+    return Container(
+      margin: EdgeInsets.only(bottom: spacingUnit(1.5)),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: hasOverweight ? Colors.red.shade300 : Colors.grey.shade200,
+          width: hasOverweight ? 1.5 : 1,
+        ),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x0A000000), blurRadius: 6, offset: Offset(0, 2))
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(spacingUnit(2)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(spacingUnit(0.8)),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0E0E0),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.person_outline,
+                      color: Color(0xFFB3B3B3), size: 18),
+                ),
+                SizedBox(width: spacingUnit(1.2)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_passengerName(i),
+                          style: const TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.bold)),
+                      Text('Return · Passenger ${i + 1}',
+                          style: const TextStyle(
+                              fontSize: 11, color: Color(0xFFB3B3B3))),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: hasOverweight
+                        ? Colors.red.shade50
+                        : scheme.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${totalEntered.toStringAsFixed(0)} kg',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color:
+                          hasOverweight ? Colors.red.shade700 : scheme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: spacingUnit(1.5)),
+            Container(height: 1, color: const Color(0xFFE0E0E0)),
+            SizedBox(height: spacingUnit(1.5)),
+            Row(
+              children: [
+                const Icon(Icons.check_circle_outline,
+                    color: Color(0xFFD4AF37), size: 16),
+                SizedBox(width: spacingUnit(0.8)),
+                Text(
+                  'Free allowance: ${freeKg.toStringAsFixed(0)} kg',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFD4AF37),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: spacingUnit(1.5)),
+            const Text('Bags',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87)),
+            SizedBox(height: spacingUnit(1)),
+            ...List.generate(_returnPassengerBags[i].length, (bagIdx) {
+              final ctrl = _returnPassengerBags[i][bagIdx];
+              return Padding(
+                padding: EdgeInsets.only(bottom: spacingUnit(1)),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(spacingUnit(0.7)),
+                      decoration: BoxDecoration(
+                        color: scheme.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.luggage_outlined,
+                          color: scheme.primary, size: 18),
+                    ),
+                    SizedBox(width: spacingUnit(1)),
+                    Text('Bag ${bagIdx + 1}',
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87)),
+                    SizedBox(width: spacingUnit(1.5)),
+                    Expanded(
+                      child: SizedBox(
+                        height: 38,
+                        child: TextField(
+                          controller: ctrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          textAlign: TextAlign.center,
+                          onChanged: (_) => setState(() {}),
+                          decoration: InputDecoration(
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 8),
+                            suffixText: 'kg',
+                            suffixStyle: const TextStyle(
+                                fontSize: 12, color: Color(0xFFB3B3B3)),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide:
+                                    BorderSide(color: Colors.grey.shade300)),
+                            focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                    color: scheme.primary, width: 1.5)),
+                            enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide:
+                                    BorderSide(color: Colors.grey.shade300)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: spacingUnit(0.8)),
+                    if (_returnPassengerBags[i].length > 1)
+                      GestureDetector(
+                        onTap: () => setState(() {
+                          ctrl.dispose();
+                          _returnPassengerBags[i].removeAt(bagIdx);
+                        }),
+                        child: Container(
+                          padding: EdgeInsets.all(spacingUnit(0.6)),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Icon(Icons.remove_circle_outline,
+                              color: Colors.red.shade400, size: 18),
+                        ),
+                      )
+                    else
+                      SizedBox(width: spacingUnit(3)),
+                  ],
+                ),
+              );
+            }),
+            TextButton.icon(
+              onPressed: () => setState(() {
+                _returnPassengerBags[i].add(TextEditingController(text: '0'));
+              }),
+              icon: Icon(Icons.add_circle_outline,
+                  size: 16, color: scheme.primary),
+              label: Text('Add Bag',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w600)),
+              style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+            ),
+            if (hasOverweight) ...[
+              SizedBox(height: spacingUnit(1)),
+              Container(
+                padding: EdgeInsets.symmetric(
+                    horizontal: spacingUnit(1.5), vertical: spacingUnit(0.8)),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        color: Colors.red.shade600, size: 16),
+                    SizedBox(width: spacingUnit(0.8)),
+                    Expanded(
+                      child: Text(
+                        'Overweight: ${overweight.toStringAsFixed(0)} kg  ·  '
+                        'Extra charge PKR ${extraCharge.toStringAsFixed(0)}',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.red.shade700,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -968,6 +1562,13 @@ class _BookingFacilitesState extends State<BookingFacilites> {
           fontWeight: FontWeight.w600,
         ),
       ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline, color: Colors.white),
+          onPressed: () => Get.toNamed('/faq'),
+          tooltip: 'Help & FAQs',
+        ),
+      ],
     );
   }
 
@@ -975,9 +1576,10 @@ class _BookingFacilitesState extends State<BookingFacilites> {
   //  5-STEP STEPPER - Matches Bookme/Expedia Style
   // ─────────────────────────────────────────────
   Widget _buildStepper(BuildContext context) {
+    const goldColor = Color(0xFFD4AF37);
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Row(
         children: List.generate(9, (i) {
           if (i.isOdd) {
@@ -987,9 +1589,8 @@ class _BookingFacilitesState extends State<BookingFacilites> {
             return Expanded(
               child: Container(
                 height: 2,
-                color: isCompleted
-                    ? colorScheme(context).primary
-                    : Colors.grey.shade300,
+                margin: const EdgeInsets.only(bottom: 18),
+                color: isCompleted ? goldColor : const Color(0xFFE0E0E0),
               ),
             );
           }
@@ -1002,25 +1603,26 @@ class _BookingFacilitesState extends State<BookingFacilites> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   color: isCompleted || isActive
-                      ? colorScheme(context).primary
-                      : Colors.grey.shade300,
+                      ? goldColor
+                      : const Color(0xFFE0E0E0),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      color: isCompleted || isActive
-                          ? Colors.white
-                          : const Color(0xFFB3B3B3),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: isCompleted
+                      ? const Icon(Icons.check, color: Colors.white, size: 14)
+                      : Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color:
+                                isActive ? Colors.white : Colors.grey.shade500,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -1030,11 +1632,9 @@ class _BookingFacilitesState extends State<BookingFacilites> {
                 style: TextStyle(
                   fontSize: 9,
                   color: isCompleted || isActive
-                      ? colorScheme(context).primary
-                      : const Color(0xFFB3B3B3),
-                  fontWeight: isCompleted || isActive
-                      ? FontWeight.w600
-                      : FontWeight.normal,
+                      ? goldColor
+                      : Colors.grey.shade500,
+                  fontWeight: FontWeight.normal,
                 ),
               ),
             ],
@@ -1739,9 +2339,6 @@ class _BookingFacilitesState extends State<BookingFacilites> {
                     label: 'CONTINUE',
                     trailingIcon: Icons.arrow_forward_rounded,
                     onTap: _onContinue,
-                    disabled: !(_isRoundTrip
-                        ? _areAllJourneysComplete()
-                        : _areAllSeatsSelected()),
                     width: 158,
                     height: 56,
                   ),

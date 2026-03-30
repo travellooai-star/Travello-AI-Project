@@ -11,10 +11,13 @@ import 'package:flight_app/screens/hotel/hotel_search_screen.dart';
 import 'package:flight_app/screens/hotel/hotel_results_screen.dart';
 import 'package:flight_app/screens/hotel/hotel_detail_screen.dart';
 import 'package:flight_app/screens/hotel/hotel_guest_form_screen.dart';
+import 'package:flight_app/screens/hotel/hotel_checkout.dart';
+import 'package:flight_app/screens/hotel/hotel_package_detail.dart';
 import 'package:flight_app/screens/transport/transport_screen.dart';
 import 'package:flight_app/screens/ai/ai_assistant.dart';
 import 'package:flight_app/screens/weather/weather_screen.dart';
 import 'package:flight_app/screens/healthcare/healthcare_screen.dart';
+import 'package:flight_app/screens/wishlist/wishlist_screen.dart';
 import 'package:flight_app/ui/layouts/general_layout.dart';
 
 const int pageTransitionDuration = 200;
@@ -94,6 +97,18 @@ final List<GetPage> routesProfessional = [
     transition: Transition.rightToLeft,
     transitionDuration: const Duration(milliseconds: pageTransitionDuration),
   ),
+  GetPage(
+    name: AppLink.hotelCheckout,
+    page: () => const GeneralLayout(content: HotelCheckout()),
+    transition: Transition.rightToLeft,
+    transitionDuration: const Duration(milliseconds: pageTransitionDuration),
+  ),
+  GetPage(
+    name: AppLink.hotelPackageAll,
+    page: () => const GeneralLayout(content: HotelPackageDetail()),
+    transition: Transition.rightToLeft,
+    transitionDuration: const Duration(milliseconds: pageTransitionDuration),
+  ),
 
   /// LOCAL TRANSPORT
   GetPage(
@@ -123,6 +138,14 @@ final List<GetPage> routesProfessional = [
   GetPage(
     name: AppLink.healthcare,
     page: () => const GeneralLayout(content: HealthcareScreen()),
+    transition: Transition.rightToLeft,
+    transitionDuration: const Duration(milliseconds: pageTransitionDuration),
+  ),
+
+  /// WISHLIST / SAVED
+  GetPage(
+    name: AppLink.wishlist,
+    page: () => const WishlistScreen(),
     transition: Transition.rightToLeft,
     transitionDuration: const Duration(milliseconds: pageTransitionDuration),
   ),

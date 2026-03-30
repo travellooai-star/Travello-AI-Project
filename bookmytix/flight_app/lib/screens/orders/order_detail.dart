@@ -166,7 +166,10 @@ class _OrderDetailState extends State<OrderDetail> {
               ])),
               Padding(
                 padding: EdgeInsets.symmetric(vertical: spacingUnit(2)),
-                child: Image.asset('assets/images/barcode.gif', width: 300,),
+                child: Image.asset('assets/images/barcode.gif', 
+                  width: MediaQuery.of(context).size.width * 0.75,
+                  fit: BoxFit.contain,
+                ),
               ),
               Text('Submit at Registration', style: ThemeText.paragraph.copyWith(color: colorScheme(context).onSurfaceVariant)),
               const VSpaceShort(),

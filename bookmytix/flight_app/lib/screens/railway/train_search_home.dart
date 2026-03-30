@@ -5,6 +5,7 @@ import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
 import 'package:flight_app/models/railway_station.dart';
+import 'package:flight_app/widgets/range_date_picker.dart';
 
 class TrainSearchHome extends StatefulWidget {
   const TrainSearchHome({super.key});
@@ -13,8 +14,13 @@ class TrainSearchHome extends StatefulWidget {
   State<TrainSearchHome> createState() => _TrainSearchHomeState();
 }
 
-class _TrainSearchHomeState extends State<TrainSearchHome> {
+class _TrainSearchHomeState extends State<TrainSearchHome>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   // Trip type
   String _tripType = 'One-way';
@@ -53,6 +59,41 @@ class _TrainSearchHomeState extends State<TrainSearchHome> {
   ];
 
   final List<String> _rankOptions = ['01', '02', '03', '04'];
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Initialize animations
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+    ));
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.8, curve: Curves.easeOutCubic),
+    ));
+
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   static const Map<String, List<String>> _rankToClasses = {
     '01': ['Economy (Seat)', 'Economy (Berth)'],
@@ -297,57 +338,60 @@ class _TrainSearchHomeState extends State<TrainSearchHome> {
   }
 
   Future<void> _selectTravelDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _travelDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 90)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: colorScheme(context).primary,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null) {
-      setState(() {
-        _travelDate = picked;
-        // Clear return date if it's before new travel date
-        if (_returnDate != null && _returnDate!.isBefore(picked)) {
-          _returnDate = null;
-        }
-      });
+    if (_tripType == 'Round-trip') {
+      // Open range picker for both dates together
+      final range = await RangeDatePickerSheet.show(
+        context,
+        startLabel: 'Departure',
+        endLabel: 'Return',
+        initialStart: _travelDate,
+        initialEnd: _returnDate,
+        firstDate: DateTime.now(),
+        lastDate: DateTime.now().add(const Duration(days: 90)),
+        singleDate: false,
+      );
+      if (range != null) {
+        setState(() {
+          _travelDate = range.start;
+          _returnDate = range.end != range.start ? range.end : null;
+        });
+      }
+    } else {
+      final range = await RangeDatePickerSheet.show(
+        context,
+        startLabel: 'Departure',
+        initialStart: _travelDate,
+        firstDate: DateTime.now(),
+        lastDate: DateTime.now().add(const Duration(days: 90)),
+        singleDate: true,
+      );
+      if (range != null) {
+        setState(() {
+          _travelDate = range.start;
+          if (_returnDate != null && _returnDate!.isBefore(_travelDate!)) {
+            _returnDate = null;
+          }
+        });
+      }
     }
   }
 
   Future<void> _selectReturnDate() async {
     if (_tripType != 'Round-trip') return;
-
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _returnDate ?? _travelDate ?? DateTime.now(),
-      firstDate: _travelDate ?? DateTime.now(),
+    final range = await RangeDatePickerSheet.show(
+      context,
+      startLabel: 'Departure',
+      endLabel: 'Return',
+      initialStart: _travelDate,
+      initialEnd: _returnDate,
+      firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 90)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFFD4AF37),
-            ),
-          ),
-          child: child!,
-        );
-      },
+      singleDate: false,
     );
-
-    if (picked != null) {
+    if (range != null) {
       setState(() {
-        _returnDate = picked;
+        _travelDate = range.start;
+        _returnDate = range.end != range.start ? range.end : null;
       });
     }
   }
@@ -582,30 +626,135 @@ class _TrainSearchHomeState extends State<TrainSearchHome> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // App Bar
+          // ── Premium Fintech Header ──────────────────────────────────────
           SliverAppBar(
-            expandedHeight: 120.0,
+            expandedHeight: 140.0,
             floating: false,
             pinned: true,
-            backgroundColor: const Color(0xFFD4AF37),
+            elevation: 0,
+            backgroundColor: Colors.white,
+            leading: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new,
+                    color: Color(0xFFD4AF37), size: 18),
+                onPressed: () => Get.back(),
+              ),
+            ),
             flexibleSpace: FlexibleSpaceBar(
-              title: const Text('Book Trains', style: TextStyle(fontSize: 20)),
               background: Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      const Color(0xFFD4AF37),
-                      const Color(0xFFD4AF37).withValues(alpha: 0.8),
+                      Color(0xFFD4AF37),
+                      Color(0xFFDAB853),
+                      Color(0xFFE8C76A),
                     ],
                   ),
                 ),
+                child: SafeArea(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          left: 20,
+                          right: 20,
+                          top: constraints.maxHeight > 120 ? 24 : 16,
+                          bottom: 8,
+                        ),
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.25),
+                                        borderRadius: BorderRadius.circular(14),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.1),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.train_rounded,
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Text(
+                                            'Train Booking',
+                                            style: TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.white,
+                                              letterSpacing: -0.8,
+                                              height: 1.1,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Travel smart, arrive refreshed',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.9),
+                                              letterSpacing: 0.2,
+                                              height: 1.2,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-              onPressed: () => Get.back(),
             ),
           ),
 
@@ -1253,8 +1402,7 @@ class _StationSearchBottomSheetState extends State<_StationSearchBottomSheet> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        const BorderSide(color: Color(0xFFD4AF37)),
+                    borderSide: const BorderSide(color: Color(0xFFD4AF37)),
                   ),
                 ),
               ),

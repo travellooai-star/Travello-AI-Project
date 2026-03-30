@@ -29,17 +29,35 @@ class BookingService {
         bookingData['status'] = 'confirmed';
       }
 
+      // Deep-sanitize: convert any non-JSON-serializable values (DateTime,
+      // custom objects) to strings so jsonEncode never throws silently.
+      final sanitized = _sanitize(bookingData) as Map<String, dynamic>;
+
       // Add to list
-      bookings.insert(
-          0, bookingData); // Insert at beginning (most recent first)
+      bookings.insert(0, sanitized); // Insert at beginning (most recent first)
 
       // Save to storage
       String jsonString = jsonEncode(bookings);
       return await prefs.setString(_bookingsKey, jsonString);
     } catch (e) {
-      print('Error saving booking: $e');
+      // ignore: avoid_print
+      print('BookingService.saveBooking error: $e');
       return false;
     }
+  }
+
+  /// Recursively converts any non-primitive value to a JSON-safe equivalent.
+  static dynamic _sanitize(dynamic value) {
+    if (value == null || value is bool || value is num || value is String) {
+      return value;
+    }
+    if (value is DateTime) return value.toIso8601String();
+    if (value is List) return value.map(_sanitize).toList();
+    if (value is Map) {
+      return value.map((k, v) => MapEntry(k.toString(), _sanitize(v)));
+    }
+    // Fallback: toString() for any custom Dart object (FlightResult, Airport…)
+    return value.toString();
   }
 
   /// Get all bookings

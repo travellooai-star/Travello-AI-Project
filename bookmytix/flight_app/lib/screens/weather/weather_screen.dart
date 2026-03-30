@@ -81,41 +81,47 @@ class _WeatherScreenState extends State<WeatherScreen> {
               child: Card(
                 child: Padding(
                   padding: EdgeInsets.all(spacingUnit(3)),
-                  child: Column(
-                    children: [
-                      Text(
-                        _currentWeather.icon,
-                        style: const TextStyle(fontSize: 80),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        '${_currentWeather.temperature.toStringAsFixed(0)}°C',
-                        style: const TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        _currentWeather.condition,
-                        style: ThemeText.title.copyWith(fontSize: 16),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isSmall = constraints.maxWidth < 360;
+                      return Column(
                         children: [
-                          _WeatherDetail(
-                            icon: Icons.water_drop,
-                            label: 'Humidity',
-                            value: '${_currentWeather.humidity}%',
+                          Text(
+                            _currentWeather.icon,
+                            style: TextStyle(fontSize: isSmall ? 56.0 : 72.0),
                           ),
-                          _WeatherDetail(
-                            icon: Icons.air,
-                            label: 'Wind',
-                            value: '${_currentWeather.windSpeed} km/h',
+                          const SizedBox(height: 16),
+                          Text(
+                            '${_currentWeather.temperature.toStringAsFixed(0)}°C',
+                            style: TextStyle(
+                              fontSize: isSmall ? 36.0 : 48.0,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            _currentWeather.condition,
+                            style: ThemeText.title.copyWith(fontSize: 16),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _WeatherDetail(
+                                icon: Icons.water_drop,
+                                label: 'Humidity',
+                                value: '${_currentWeather.humidity}%',
+                              ),
+                              _WeatherDetail(
+                                icon: Icons.air,
+                                label: 'Wind',
+                                value: '${_currentWeather.windSpeed} km/h',
+                              ),
+                            ],
                           ),
                         ],
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
               ),

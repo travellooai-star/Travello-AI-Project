@@ -53,16 +53,18 @@ class _DynamicDestinationCardsState extends State<DynamicDestinationCards> {
   }
 
   void _scrollLeft() {
+    final cardWidth = MediaQuery.of(context).size.width < 400 ? 180.0 : 220.0;
     _scrollController.animateTo(
-      _scrollController.offset - 240,
+      _scrollController.offset - cardWidth,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
   }
 
   void _scrollRight() {
+    final cardWidth = MediaQuery.of(context).size.width < 400 ? 180.0 : 220.0;
     _scrollController.animateTo(
-      _scrollController.offset + 240,
+      _scrollController.offset + cardWidth,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
@@ -127,7 +129,7 @@ class _DynamicDestinationCardsState extends State<DynamicDestinationCards> {
         // Horizontal scrollable destination cards with arrow controls
         SizedBox(
           width: double.infinity,
-          height: 260,
+          height: screenWidth < 400 ? 220 : 260,
           child: Stack(
             children: [
               Positioned.fill(
@@ -224,7 +226,9 @@ class _DynamicDestinationCardsState extends State<DynamicDestinationCards> {
     return GestureDetector(
       onTap: () => _onDestinationTap(destination),
       child: Container(
-        width: 220,
+        width: isDesktop
+            ? 260
+            : (MediaQuery.of(context).size.width < 400 ? 180 : 220),
         margin: EdgeInsets.only(right: spacingUnit(2)),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),

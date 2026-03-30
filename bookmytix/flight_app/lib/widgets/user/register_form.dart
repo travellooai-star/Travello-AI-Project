@@ -3,7 +3,7 @@ import 'package:flight_app/constants/app_const.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
-import 'package:get/route_manager.dart';
+import 'package:get/get.dart';
 import 'package:flight_app/ui/themes/theme_button.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
@@ -80,7 +80,7 @@ class _RegisterFormState extends State<RegisterForm> {
               children: [
                 // Beautiful illustration container
                 SizedBox(
-                  height: 180,
+                  height: MediaQuery.of(context).size.height < 640 ? 130 : 180,
                   width: double.infinity,
                   child: Stack(
                     alignment: Alignment.center,

@@ -1,8 +1,7 @@
 import 'package:flight_app/app/app_link.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:get/state_manager.dart';
-import 'package:get/route_manager.dart';
+import 'package:get/get.dart';
 import 'package:flight_app/constants/app_const.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/widgets/cards/paper_card.dart';
@@ -158,6 +157,24 @@ class _SettingListState extends State<SettingList> {
                     ]))),
             const VSpace(),
           ],
+
+          /// SAVED / WISHLIST
+          const TitleBasicSmall(title: 'My Activity'),
+          PaperCard(
+              content: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: ListTile(
+                    leading: const Icon(Icons.favorite_rounded,
+                        color: Color(0xFFD4AF37)),
+                    title: const Text('Saved Packages',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: const Text('Your liked hotels, flights & trains'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 12),
+                    onTap: () {
+                      Get.toNamed(AppLink.wishlist);
+                    },
+                  ))),
+          const VSpace(),
 
           /// ACCOUNT SETTING
           const TitleBasicSmall(title: 'Help and Account'),

@@ -50,7 +50,6 @@ class _RailwayBookingCheckoutState extends State<RailwayBookingCheckout> {
   String _transferVehicleType = 'Sedan';
   double _transferFee = 0.0;
 
-  final bool _agreeToTerms = false;
   bool _agreedToTerms = false;
   bool _showTermsError = false;
 
@@ -245,10 +244,12 @@ class _RailwayBookingCheckoutState extends State<RailwayBookingCheckout> {
       setState(() => _showTermsError = true);
       Get.snackbar(
         'Terms Required',
-        'Please agree to Terms and Conditions and Privacy Policy',
+        'Please accept Terms & Conditions and Privacy Policy to continue',
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red.shade100,
-        colorText: Colors.red.shade900,
+        backgroundColor: Colors.red.shade600,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+        margin: const EdgeInsets.all(12),
       );
       return;
     }
@@ -359,15 +360,23 @@ class _RailwayBookingCheckoutState extends State<RailwayBookingCheckout> {
           fontWeight: FontWeight.w600,
         ),
       ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline, color: Colors.white),
+          onPressed: () => Get.toNamed('/faq'),
+          tooltip: 'Help & FAQs',
+        ),
+      ],
     );
   }
 
   Widget _buildStepProgress() {
-    const steps = ['PASSENGERS', 'FACILITIES', 'CHECKOUT', 'PAYMENT', 'DONE'];
+    const steps = ['PASSENGERS', 'CLASS', 'CHECKOUT', 'PAYMENT', 'DONE'];
+    const goldColor = Color(0xFFD4AF37);
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Row(
         children: List.generate(9, (i) {
           if (i.isOdd) {
@@ -376,9 +385,8 @@ class _RailwayBookingCheckoutState extends State<RailwayBookingCheckout> {
             return Expanded(
               child: Container(
                 height: 2,
-                color: isCompleted
-                    ? const Color(0xFFD4AF37)
-                    : Colors.grey.shade300,
+                margin: const EdgeInsets.only(bottom: 18),
+                color: isCompleted ? goldColor : const Color(0xFFE0E0E0),
               ),
             );
           }
@@ -390,25 +398,26 @@ class _RailwayBookingCheckoutState extends State<RailwayBookingCheckout> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   color: isCompleted || isActive
-                      ? const Color(0xFFD4AF37)
-                      : Colors.grey.shade300,
+                      ? goldColor
+                      : const Color(0xFFE0E0E0),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      color: isCompleted || isActive
-                          ? Colors.white
-                          : const Color(0xFFB3B3B3),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: isCompleted
+                      ? const Icon(Icons.check, color: Colors.white, size: 14)
+                      : Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color:
+                                isActive ? Colors.white : Colors.grey.shade500,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -418,11 +427,9 @@ class _RailwayBookingCheckoutState extends State<RailwayBookingCheckout> {
                 style: TextStyle(
                   fontSize: 9,
                   color: isCompleted || isActive
-                      ? const Color(0xFFD4AF37)
-                      : const Color(0xFFB3B3B3),
-                  fontWeight: isCompleted || isActive
-                      ? FontWeight.w600
-                      : FontWeight.normal,
+                      ? goldColor
+                      : Colors.grey.shade500,
+                  fontWeight: FontWeight.normal,
                 ),
               ),
             ],

@@ -124,6 +124,18 @@ class _TrainPassengerFormState extends State<TrainPassengerForm> {
           p.saveDetails = true;
         });
       }
+      // Load saved contact info
+      final contactRaw = prefs.getString('saved_contact_info_train');
+      if (contactRaw != null) {
+        final c = jsonDecode(contactRaw) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _contactNameCtrl.text = c['contactName'] ?? '';
+            _contactEmailCtrl.text = c['contactEmail'] ?? '';
+            _contactPhoneCtrl.text = c['contactPhone'] ?? '';
+          });
+        }
+      }
     } catch (_) {}
   }
 
@@ -247,7 +259,7 @@ class _TrainPassengerFormState extends State<TrainPassengerForm> {
         duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKeys[_totalPassengers].currentState!.validate()) return;
     final passengersData = List.generate(_totalPassengers, (i) {
       final p = _passengers[i];
@@ -279,6 +291,18 @@ class _TrainPassengerFormState extends State<TrainPassengerForm> {
         'phone': _contactPhoneCtrl.text.trim(),
       };
     });
+    // Save contact info for future auto-fill
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          'saved_contact_info_train',
+          jsonEncode({
+            'contactName': _contactNameCtrl.text.trim(),
+            'contactEmail': _contactEmailCtrl.text.trim(),
+            'contactPhone': _contactPhoneCtrl.text.trim(),
+          }));
+    } catch (_) {}
+
     Get.toNamed('/railway-booking-facilities', arguments: {
       'train': train,
       'selectedClass': selectedClass,
@@ -314,45 +338,63 @@ class _TrainPassengerFormState extends State<TrainPassengerForm> {
         ),
       ),
       centerTitle: true,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline, color: Colors.white),
+          onPressed: () => Get.toNamed('/faq'),
+          tooltip: 'Help & FAQs',
+        ),
+      ],
     );
   }
 
   Widget _buildStepper() {
+    const goldColor = Color(0xFFD4AF37);
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Row(
         children: List.generate(9, (i) {
           if (i.isOdd) {
+            // Connecting line
+            final stepBefore = i ~/ 2;
+            final isCompleted = stepBefore < 0;
             return Expanded(
               child: Container(
                 height: 2,
-                color: Colors.grey.shade300,
+                margin: const EdgeInsets.only(bottom: 18),
+                color: isCompleted ? goldColor : const Color(0xFFE0E0E0),
               ),
             );
           }
           final index = i ~/ 2;
-          final isActive = index == 0;
+          final isActive = index == 0; // PASSENGERS
+          final isCompleted = index < 0;
+
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
-                  color:
-                      isActive ? const Color(0xFFD4AF37) : Colors.grey.shade300,
+                  color: isCompleted || isActive
+                      ? goldColor
+                      : const Color(0xFFE0E0E0),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      color: isActive ? Colors.white : const Color(0xFFB3B3B3),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: isCompleted
+                      ? const Icon(Icons.check, color: Colors.white, size: 14)
+                      : Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color:
+                                isActive ? Colors.white : Colors.grey.shade500,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -360,11 +402,11 @@ class _TrainPassengerFormState extends State<TrainPassengerForm> {
                 _steps[index],
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 8.5,
-                  color: isActive
-                      ? const Color(0xFFD4AF37)
-                      : const Color(0xFFB3B3B3),
-                  fontWeight: isActive ? FontWeight.w700 : FontWeight.normal,
+                  fontSize: 9,
+                  color: isCompleted || isActive
+                      ? goldColor
+                      : Colors.grey.shade500,
+                  fontWeight: FontWeight.normal,
                 ),
               ),
             ],

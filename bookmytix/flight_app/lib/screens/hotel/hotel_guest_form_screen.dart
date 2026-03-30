@@ -1,11 +1,14 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
-import 'package:flight_app/ui/themes/theme_text.dart';
 import 'package:flight_app/models/hotel.dart';
 import 'package:flight_app/models/room_type.dart';
+import 'package:flight_app/widgets/app_button/ds_button.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HotelGuestFormScreen extends StatefulWidget {
   const HotelGuestFormScreen({super.key});
@@ -24,263 +27,692 @@ class _HotelGuestFormScreenState extends State<HotelGuestFormScreen> {
   late int rooms;
   late int guests;
   late double totalPrice;
-  bool addProtectionPlan = false;
 
-  // Guest controllers
-  final List<Map<String, TextEditingController>> _guestControllers = [];
+  // Primary guest
+  final _firstNameCtrl = TextEditingController();
+  final _lastNameCtrl = TextEditingController();
+  final _cnicCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  String _gender = 'Male';
+  bool _cnicVerified = false;
+  bool _saveGuestDetails = false;
+
+  // Extra guests (guests 2, 3, … N): one name + one doc controller per guest
+  List<TextEditingController> _extraNameCtrls = [];
+  List<TextEditingController> _extraDocCtrls = [];
+
+  // Extras
+  bool _addBreakfast = false;
+  bool _addAirportTransfer = false;
+  bool _addLateCheckout = false;
+
+  static const double _breakfastCost = 1400;
+  static const double _airportTransferCost = 2500;
+  static const double _lateCheckoutCost = 800;
 
   @override
   void initState() {
     super.initState();
-    final args = Get.arguments ?? {};
-    hotel = args['hotel'];
-    roomType = args['roomType'];
-    checkInDate = args['checkInDate'];
-    checkOutDate = args['checkOutDate'];
-    rooms = args['rooms'];
-    guests = args['guests'];
-    totalPrice = args['totalPrice'];
-
-    // Initialize guest forms (one primary guest required)
-    for (int i = 0; i < guests; i++) {
-      _guestControllers.add({
-        'firstName': TextEditingController(),
-        'lastName': TextEditingController(),
-        'email': TextEditingController(),
-        'phone': TextEditingController(),
-      });
+    // BUG 9 FIX: null-safe argument reading with sensible fallbacks
+    final args = Get.arguments as Map? ?? {};
+    final hotelArg = args['hotel'];
+    if (hotelArg == null || hotelArg is! Hotel) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => Get.back());
+      return;
     }
+    hotel = hotelArg;
+    roomType = args['roomType'] as RoomType?;
+    checkInDate = (args['checkInDate'] as DateTime?) ??
+        DateTime.now().add(const Duration(days: 1));
+    checkOutDate = (args['checkOutDate'] as DateTime?) ??
+        DateTime.now().add(const Duration(days: 2));
+    rooms = (args['rooms'] as int?) ?? 1;
+    guests = (args['guests'] as int?) ?? 1;
+    totalPrice = ((args['totalPrice'] as num?) ?? 0).toDouble();
+    final extraCount = (guests - 1).clamp(0, 9);
+    _extraNameCtrls = List.generate(extraCount, (_) => TextEditingController());
+    _extraDocCtrls = List.generate(extraCount, (_) => TextEditingController());
+    _addListeners();
+    _loadGuestData();
+  }
+
+  Future<void> _loadGuestData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('saved_hotel_guest_data');
+      if (saved == null || saved.isEmpty) return;
+      final data = jsonDecode(saved) as Map<String, dynamic>;
+      final savedExtras = data['extraGuests'] as List? ?? [];
+      setState(() {
+        _firstNameCtrl.text = data['firstName'] ?? '';
+        _lastNameCtrl.text = data['lastName'] ?? '';
+        _cnicCtrl.text = data['cnic'] ?? '';
+        _phoneCtrl.text = data['phone'] ?? '';
+        _emailCtrl.text = data['email'] ?? '';
+        _gender = data['gender'] ?? 'Male';
+        _saveGuestDetails = true;
+        // Restore extra guest data up to the number of extra guests slots
+        for (int i = 0;
+            i < _extraNameCtrls.length && i < savedExtras.length;
+            i++) {
+          final e = savedExtras[i] as Map? ?? {};
+          _extraNameCtrls[i].text = e['name'] as String? ?? '';
+          _extraDocCtrls[i].text = e['doc'] as String? ?? '';
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _saveGuestData() async {
+    if (!_saveGuestDetails) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          'saved_hotel_guest_data',
+          jsonEncode({
+            'firstName': _firstNameCtrl.text.trim(),
+            'lastName': _lastNameCtrl.text.trim(),
+            'cnic': _cnicCtrl.text.trim(),
+            'phone': _phoneCtrl.text.trim(),
+            'email': _emailCtrl.text.trim(),
+            'gender': _gender,
+            'extraGuests': [
+              for (int i = 0; i < _extraNameCtrls.length; i++)
+                {
+                  'name': _extraNameCtrls[i].text.trim(),
+                  'doc': _extraDocCtrls[i].text.trim()
+                },
+            ],
+          }));
+    } catch (_) {}
   }
 
   @override
   void dispose() {
-    for (var controllers in _guestControllers) {
-      controllers['firstName']?.dispose();
-      controllers['lastName']?.dispose();
-      controllers['email']?.dispose();
-      controllers['phone']?.dispose();
+    _firstNameCtrl.dispose();
+    _lastNameCtrl.dispose();
+    _cnicCtrl.dispose();
+    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
+    for (final c in _extraNameCtrls) {
+      c.dispose();
+    }
+    for (final c in _extraDocCtrls) {
+      c.dispose();
     }
     super.dispose();
   }
 
-  int get numberOfNights {
-    return checkOutDate.difference(checkInDate).inDays;
-  }
+  int get numberOfNights => checkOutDate.difference(checkInDate).inDays;
 
-  double get protectionPlanCost {
-    return totalPrice * 0.05; // 5% of total booking
-  }
-
-  double get finalTotal {
-    return totalPrice + (addProtectionPlan ? protectionPlanCost : 0);
-  }
-
-  void _proceedToPayment() {
-    if (_formKey.currentState!.validate()) {
-      // Collect guest data
-      final guestsData = _guestControllers.map((controllers) {
-        return {
-          'firstName': controllers['firstName']!.text,
-          'lastName': controllers['lastName']!.text,
-          'email': controllers['email']!.text,
-          'phone': controllers['phone']!.text,
-        };
-      }).toList();
-
-      Get.toNamed(
-        '/payment-professional',
-        arguments: {
-          'hotel': hotel,
-          'roomType': roomType,
-          'checkInDate': checkInDate,
-          'checkOutDate': checkOutDate,
-          'rooms': rooms,
-          'guests': guests, // Keep as int for payment screen
-          'guestsData': guestsData, // Actual guest details
-          'nights': numberOfNights,
-          'totalPrice': finalTotal,
-          'basePrice': totalPrice,
-          'protectionPlan': addProtectionPlan,
-          'protectionPlanCost': addProtectionPlan ? protectionPlanCost : 0,
-          'bookingType': 'hotel',
-        },
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please fill all required fields',
-                style: TextStyle(fontSize: 14))),
-      );
+  /// Pakistan airport name by hotel city.
+  String get _airportName {
+    switch (hotel.city) {
+      case 'Karachi':
+        return 'Jinnah International Airport';
+      case 'Lahore':
+        return 'Allama Iqbal International Airport';
+      case 'Islamabad':
+      case 'Rawalpindi':
+        return 'New Islamabad International Airport';
+      case 'Peshawar':
+        return 'Bacha Khan International Airport';
+      case 'Quetta':
+        return 'Quetta International Airport';
+      case 'Multan':
+        return 'Multan International Airport';
+      case 'Faisalabad':
+        return 'Faisalabad International Airport';
+      case 'Sialkot':
+        return 'Sialkot International Airport';
+      case 'Skardu':
+        return 'Skardu Airport';
+      default:
+        return '${hotel.city} Airport';
     }
+  }
+
+  double get extrasTotal {
+    double e = 0;
+    // BUG 11 FIX: multiply breakfast by rooms count, not just nights
+    if (_addBreakfast) e += _breakfastCost * numberOfNights * rooms;
+    if (_addAirportTransfer) e += _airportTransferCost * rooms;
+    if (_addLateCheckout) e += _lateCheckoutCost * rooms;
+    return e;
+  }
+
+  double get finalTotal => totalPrice + extrasTotal;
+
+  /// Reactively tracked — add listeners in initState for this to update button.
+  bool get _isFormValid {
+    if (_firstNameCtrl.text.trim().isEmpty) return false;
+    if (_lastNameCtrl.text.trim().isEmpty) return false;
+    final cnicDigits = _cnicCtrl.text.replaceAll('-', '');
+    if (cnicDigits.length != 13) return false;
+    final phone = _phoneCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (phone.length != 11) return false;
+    if (!phone.startsWith('03') && !phone.startsWith('02')) return false;
+    for (int i = 0; i < _extraNameCtrls.length; i++) {
+      if (_extraNameCtrls[i].text.trim().isEmpty) return false;
+      final doc = _extraDocCtrls[i].text.replaceAll('-', '');
+      if (doc.length != 13) return false;
+    }
+    return true;
+  }
+
+  void _addListeners() {
+    for (final c in [
+      _firstNameCtrl,
+      _lastNameCtrl,
+      _cnicCtrl,
+      _phoneCtrl,
+    ]) {
+      c.addListener(() => setState(() {}));
+    }
+    for (final c in [..._extraNameCtrls, ..._extraDocCtrls]) {
+      c.addListener(() => setState(() {}));
+    }
+  }
+
+  Future<void> _proceedToPayment() async {
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Please fill all required fields'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating));
+      return;
+    }
+
+    final extrasIncluded = <String>[];
+    if (_addBreakfast) extrasIncluded.add('Breakfast for $guests');
+    if (_addAirportTransfer) extrasIncluded.add('Airport transfer ×$rooms');
+    if (_addLateCheckout) extrasIncluded.add('Late check-out ×$rooms');
+
+    // Build unified guestsData list
+    final guestsData = <Map<String, dynamic>>[
+      {
+        'firstName': _firstNameCtrl.text.trim(),
+        'lastName': _lastNameCtrl.text.trim(),
+        'cnic': _cnicCtrl.text.trim(),
+        'phone': _phoneCtrl.text.trim(),
+        'email': _emailCtrl.text.trim(),
+        'gender': _gender,
+        'type': 'primary',
+      },
+      for (int i = 0; i < _extraNameCtrls.length; i++)
+        if (_extraNameCtrls[i].text.trim().isNotEmpty)
+          {
+            'firstName': _extraNameCtrls[i].text.trim().split(' ').first,
+            'lastName': _extraNameCtrls[i].text.trim().contains(' ')
+                ? _extraNameCtrls[i].text.trim().split(' ').skip(1).join(' ')
+                : '',
+            'fullName': _extraNameCtrls[i].text.trim(),
+            'cnic': _extraDocCtrls[i].text.trim(),
+            'type': 'guest',
+            'guestNumber': i + 2,
+          },
+    ];
+
+    await _saveGuestData();
+
+    Get.toNamed('/hotel-checkout', arguments: {
+      'hotel': hotel,
+      'roomType': roomType,
+      'checkInDate': checkInDate,
+      'checkOutDate': checkOutDate,
+      'rooms': rooms,
+      'guests': guests,
+      'guestsData': guestsData,
+      'nights': numberOfNights,
+      'totalPrice': finalTotal,
+      'basePrice': totalPrice,
+      'extrasTotal': extrasTotal,
+      'extrasIncluded': extrasIncluded,
+      'breakfastAdded': _addBreakfast,
+      'airportTransferAdded': _addAirportTransfer,
+      'lateCheckoutAdded': _addLateCheckout,
+      'bookingType': 'hotel',
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final fmt = NumberFormat('#,##0', 'en_US');
     return Scaffold(
-      backgroundColor: colorScheme(context).surfaceContainerLowest,
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         backgroundColor: colorScheme(context).primary,
         foregroundColor: Colors.white,
-        title: const Text('Guest Details'),
+        title: const Text('Guest Details',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Get.back(),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline, color: Colors.white),
+            onPressed: () => Get.toNamed('/faq'),
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // Progression Indicator
+          // ── Progress steps ─────────────────────────────────────────────────
           Container(
-            padding: EdgeInsets.all(spacingUnit(2)),
             color: Colors.white,
-            child: Row(
+            padding: EdgeInsets.symmetric(
+                horizontal: spacingUnit(2), vertical: spacingUnit(1.5)),
+            child: const Row(
               children: [
-                _buildProgressStep(1, 'Search', true),
-                _buildProgressLine(true),
-                _buildProgressStep(2, 'Details', true),
-                _buildProgressLine(true),
-                _buildProgressStep(3, 'Payment', false),
-                _buildProgressLine(false),
-                _buildProgressStep(4, 'Confirm', false),
+                _Step(num: 1, label: 'Hotel', done: true),
+                _StepLine(done: true),
+                _Step(num: 2, label: 'Rooms', done: true),
+                _StepLine(done: true),
+                _Step(num: 3, label: 'Guests', done: false, active: true),
+                _StepLine(done: false),
+                _Step(num: 4, label: 'Checkout', done: false),
+                _StepLine(done: false),
+                _Step(num: 5, label: 'Payment', done: false),
+                _StepLine(done: false),
+                _Step(num: 6, label: 'Done', done: false),
               ],
             ),
           ),
+
           Expanded(
             child: Form(
               key: _formKey,
               child: ListView(
                 padding: EdgeInsets.all(spacingUnit(2)),
                 children: [
-                  // Hotel Summary
+                  // ── Booking summary strip ──────────────────────────────────
                   Container(
-                    padding: EdgeInsets.all(spacingUnit(2)),
+                    padding: EdgeInsets.all(spacingUnit(1.75)),
                     decoration: BoxDecoration(
                       color:
-                          colorScheme(context).primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(16),
+                          colorScheme(context).primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color:
-                            colorScheme(context).primary.withValues(alpha: 0.3),
-                      ),
+                          color: colorScheme(context)
+                              .primary
+                              .withValues(alpha: 0.25)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Container(
-                              padding: EdgeInsets.all(spacingUnit(1)),
-                              decoration: BoxDecoration(
-                                color: colorScheme(context)
-                                    .primary
-                                    .withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(8),
+                            Expanded(
+                              child: Text(
+                                  roomType != null
+                                      ? roomType!.name
+                                      : hotel.name,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis),
+                            ),
+                            Text(
+                                'PKR ${fmt.format((roomType?.pricePerNight ?? hotel.pricePerNight).round())}/night',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: colorScheme(context).primary,
+                                    fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.location_on,
+                                size: 13, color: colorScheme(context).primary),
+                            const SizedBox(width: 3),
+                            Expanded(
+                                child: Text(hotel.name,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis)),
+                          ],
+                        ),
+                        if (roomType?.isRefundable == true ||
+                            hotel.isRefundable) ...[
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.check_circle,
+                                  size: 13, color: Color(0xFF2E7D32)),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Free cancellation until ${DateFormat('d MMM').format(checkInDate.subtract(const Duration(days: 1)))}',
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF2E7D32),
+                                    fontWeight: FontWeight.w500),
                               ),
-                              child: Icon(
-                                Icons.hotel,
-                                color: colorScheme(context).primary,
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: spacingUnit(2)),
+
+                  // ── Contact Details header ─────────────────────────────────
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: spacingUnit(1.75),
+                        vertical: spacingUnit(1.25)),
+                    decoration: BoxDecoration(
+                      color:
+                          colorScheme(context).primary.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: colorScheme(context)
+                              .primary
+                              .withValues(alpha: 0.18)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.contact_page_outlined,
+                            color: colorScheme(context).primary, size: 20),
+                        const SizedBox(width: 10),
+                        Text('Contact Details',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme(context).primary)),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: spacingUnit(1.5)),
+
+                  // ── Primary Guest ──────────────────────────────────────────
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Primary Guest',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  SizedBox(height: spacingUnit(1)),
+                  Container(
+                    padding: EdgeInsets.all(spacingUnit(2)),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: colorScheme(context)
+                              .primary
+                              .withValues(alpha: 0.4),
+                          width: 1.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Name
+                        Row(
+                          children: [
+                            Expanded(
+                                child: _field(_firstNameCtrl, 'First Name *',
+                                    Icons.person_outline,
+                                    required: true)),
+                            SizedBox(width: spacingUnit(1.5)),
+                            Expanded(
+                                child: _field(_lastNameCtrl, 'Last Name *',
+                                    Icons.person_outline,
+                                    required: true)),
+                          ],
+                        ),
+                        SizedBox(height: spacingUnit(1.5)),
+
+                        // CNIC
+                        TextFormField(
+                          controller: _cnicCtrl,
+                          style: const TextStyle(color: Colors.black),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [_CnicFormatter()],
+                          decoration: InputDecoration(
+                            labelText: 'CNIC Number *',
+                            hintText: 'XXXXX-XXXXXXX-X',
+                            prefixIcon: const Icon(Icons.credit_card),
+                            suffixIcon: _cnicVerified
+                                ? const Icon(Icons.verified,
+                                    color: Colors.green)
+                                : null,
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    BorderSide(color: Colors.grey.shade300)),
+                            focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                    color: colorScheme(context).primary)),
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'CNIC is required';
+                            }
+                            final raw = v.replaceAll('-', '');
+                            if (raw.length != 13) {
+                              return 'Enter valid 13-digit CNIC';
+                            }
+                            return null;
+                          },
+                          onChanged: (v) {
+                            final digits = v.replaceAll(RegExp(r'\D'), '');
+                            setState(() => _cnicVerified = digits.length == 13);
+                          },
+                        ),
+                        SizedBox(height: spacingUnit(1.5)),
+
+                        // Phone + Gender
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _phoneCtrl,
+                                style: const TextStyle(color: Colors.black),
+                                keyboardType: TextInputType.phone,
+                                maxLength: 11,
+                                buildCounter: (_,
+                                        {required currentLength,
+                                        required isFocused,
+                                        maxLength}) =>
+                                    null,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(11),
+                                ],
+                                decoration: InputDecoration(
+                                  labelText: 'Mobile *',
+                                  hintText: '03XX-XXXXXXX',
+                                  prefixIcon: const Icon(Icons.phone),
+                                  prefixText: '+92 ',
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                  enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                          color: Colors.grey.shade300)),
+                                  focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                          color: colorScheme(context).primary)),
+                                ),
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Phone required';
+                                  }
+                                  final digits =
+                                      v.replaceAll(RegExp(r'[^0-9]'), '');
+                                  if (digits.length != 11) {
+                                    return 'Enter 11-digit Pakistan number';
+                                  }
+                                  if (!digits.startsWith('0')) {
+                                    return 'Number must start with 0';
+                                  }
+                                  if (!digits.startsWith('03') &&
+                                      !digits.startsWith('02')) {
+                                    return 'Must be a valid Pakistan mobile (03XX) or landline (02X)';
+                                  }
+                                  return null;
+                                },
                               ),
                             ),
                             SizedBox(width: spacingUnit(1.5)),
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    hotel.name,
-                                    style: ThemeText.subtitle.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    hotel.category,
-                                    style: ThemeText.caption,
-                                  ),
-                                ],
+                              child: DropdownButtonFormField<String>(
+                                initialValue: _gender,
+                                decoration: InputDecoration(
+                                  labelText: 'Gender',
+                                  prefixIcon: const Icon(Icons.wc),
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                  enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                          color: Colors.grey.shade300)),
+                                  focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                          color: colorScheme(context).primary)),
+                                ),
+                                items: ['Male', 'Female']
+                                    .map((g) => DropdownMenuItem(
+                                        value: g, child: Text(g)))
+                                    .toList(),
+                                onChanged: (v) =>
+                                    setState(() => _gender = v ?? 'Male'),
                               ),
                             ),
                           ],
                         ),
                         SizedBox(height: spacingUnit(1.5)),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Check-in',
-                                      style: ThemeText.caption),
-                                  Text(
-                                    DateFormat('MMM d, yyyy')
-                                        .format(checkInDate),
-                                    style: ThemeText.subtitle,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(Icons.arrow_forward,
-                                color: colorScheme(context).primary),
-                            SizedBox(width: spacingUnit(1)),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Check-out',
-                                      style: ThemeText.caption),
-                                  Text(
-                                    DateFormat('MMM d, yyyy')
-                                        .format(checkOutDate),
-                                    style: ThemeText.subtitle,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: spacingUnit(1)),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '$numberOfNights ${numberOfNights == 1 ? 'Night' : 'Nights'} • $rooms ${rooms == 1 ? 'Room' : 'Rooms'}',
-                              style: ThemeText.caption,
-                            ),
-                            Text(
-                              'PKR ${totalPrice.toStringAsFixed(0)}',
-                              style: ThemeText.subtitle.copyWith(
-                                color: colorScheme(context).primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+
+                        // Email (optional)
+                        TextFormField(
+                          controller: _emailCtrl,
+                          keyboardType: TextInputType.emailAddress,
+                          style: const TextStyle(color: Colors.black),
+                          decoration: InputDecoration(
+                            labelText: 'Email (optional)',
+                            hintText: 'For confirmation',
+                            prefixIcon: const Icon(Icons.email_outlined),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide:
+                                    BorderSide(color: Colors.grey.shade300)),
+                            focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                    color: colorScheme(context).primary)),
+                          ),
+                          validator: (v) {
+                            if (v != null &&
+                                v.isNotEmpty &&
+                                !GetUtils.isEmail(v)) {
+                              return 'Invalid email';
+                            }
+                            return null;
+                          },
                         ),
                       ],
                     ),
                   ),
+                  SizedBox(height: spacingUnit(1)),
 
-                  SizedBox(height: spacingUnit(3)),
-
-                  // Guest Information Header
-                  const Text(
-                    'Guest Information',
-                    style: ThemeText.title2,
+                  // ── Save Details Checkbox ──────────────────────────────────
+                  InkWell(
+                    onTap: () =>
+                        setState(() => _saveGuestDetails = !_saveGuestDetails),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Checkbox(
+                            value: _saveGuestDetails,
+                            onChanged: (v) =>
+                                setState(() => _saveGuestDetails = v ?? false),
+                            activeColor: colorScheme(context).primary,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Save guest details for next time',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500)),
+                              Text('Auto-fills this form on your next booking',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade600)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  SizedBox(height: spacingUnit(0.5)),
-                  Text(
-                    'Please provide details for the primary guest (additional guests can check-in later)',
-                    style: ThemeText.caption
-                        .copyWith(color: const Color(0xFFB3B3B3)),
-                  ),
+                  SizedBox(height: spacingUnit(1.5)),
 
+                  // ── NADRA Banner ───────────────────────────────────────────
+                  Container(
+                    padding: EdgeInsets.all(spacingUnit(1.5)),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3CD),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color:
+                              const Color(0xFFFFCC00).withValues(alpha: 0.7)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
+                          children: [
+                            Text('🇵🇰', style: TextStyle(fontSize: 16)),
+                            SizedBox(width: 6),
+                            Expanded(
+                                child: Text('NADRA CNIC Required',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: Color(0xFF856404)))),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                            'All adult guests must show valid CNIC at check-in. Married couples require original Nikah Nama per Pakistan hotel policy.',
+                            style: TextStyle(
+                                fontSize: 12, color: Colors.brown.shade700)),
+                      ],
+                    ),
+                  ),
                   SizedBox(height: spacingUnit(2)),
 
-                  // Guest Forms
-                  ...List.generate(_guestControllers.length, (index) {
-                    return _buildGuestForm(index);
-                  }),
-
-                  // Room Type Summary (if available)
-                  if (roomType != null) ...[
-                    SizedBox(height: spacingUnit(2)),
+                  // ── Additional Guests (dynamic loop for guests 2…N) ─────────
+                  for (int i = 0; i < _extraNameCtrls.length; i++) ...[
+                    Text(
+                      'Guest ${i + 2}',
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: spacingUnit(1)),
                     Container(
                       padding: EdgeInsets.all(spacingUnit(2)),
                       decoration: BoxDecoration(
@@ -289,149 +721,174 @@ class _HotelGuestFormScreenState extends State<HotelGuestFormScreen> {
                         border: Border.all(color: Colors.grey.shade300),
                       ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Icon(Icons.bed,
-                                  color: colorScheme(context).primary),
-                              SizedBox(width: spacingUnit(1)),
-                              const Text('Room Selection',
-                                  style: ThemeText.subtitle),
-                            ],
-                          ),
+                          _field(_extraNameCtrls[i], 'Full Name *',
+                              Icons.person_outline,
+                              required: true),
                           SizedBox(height: spacingUnit(1.5)),
-                          Text(
-                            roomType!.name,
-                            style: ThemeText.subtitle.copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
-                          SizedBox(height: spacingUnit(0.5)),
-                          Text(
-                            roomType!.description,
-                            style: ThemeText.caption.copyWith(fontSize: 13),
-                          ),
-                          SizedBox(height: spacingUnit(1)),
-                          Row(
-                            children: [
-                              Icon(Icons.people,
-                                  size: 16, color: Colors.grey.shade600),
-                              SizedBox(width: spacingUnit(0.5)),
-                              Text('${roomType!.maxOccupancy} guests',
-                                  style: ThemeText.caption),
-                              SizedBox(width: spacingUnit(2)),
-                              Icon(Icons.aspect_ratio,
-                                  size: 16, color: Colors.grey.shade600),
-                              SizedBox(width: spacingUnit(0.5)),
-                              Text('${roomType!.sizeInSqFt} sq ft',
-                                  style: ThemeText.caption),
-                            ],
-                          ),
-                          SizedBox(height: spacingUnit(0.5)),
-                          Text(
-                            roomType!.bedType,
-                            style: ThemeText.caption.copyWith(
-                              color: colorScheme(context).primary,
-                              fontWeight: FontWeight.w600,
+                          TextFormField(
+                            controller: _extraDocCtrls[i],
+                            style: const TextStyle(color: Colors.black),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [_CnicFormatter()],
+                            validator: (v) {
+                              if (v == null || v.isEmpty) {
+                                return 'CNIC / B-Form is required';
+                              }
+                              final raw = v.replaceAll('-', '');
+                              if (raw.length != 13 ||
+                                  !RegExp(r'^\d+$').hasMatch(raw)) {
+                                return 'Enter a valid 13-digit CNIC / B-Form';
+                              }
+                              // Duplicate check against primary guest
+                              if (raw == _cnicCtrl.text.replaceAll('-', '')) {
+                                return 'CNIC already used for primary guest';
+                              }
+                              // Duplicate check against other extra guests
+                              for (int j = 0; j < _extraDocCtrls.length; j++) {
+                                if (j == i) continue; // skip self
+                                final other =
+                                    _extraDocCtrls[j].text.replaceAll('-', '');
+                                if (other.isNotEmpty && other == raw) {
+                                  return 'CNIC already used for another guest';
+                                }
+                              }
+                              return null;
+                            },
+                            decoration: InputDecoration(
+                              labelText: 'CNIC / B-Form',
+                              hintText: 'XXXXX-XXXXXXX-X',
+                              prefixIcon: const Icon(Icons.credit_card),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide:
+                                      BorderSide(color: Colors.grey.shade300)),
+                              focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                      color: colorScheme(context).primary)),
                             ),
                           ),
                         ],
                       ),
                     ),
+                    SizedBox(height: spacingUnit(2)),
                   ],
 
-                  // Protection Plan
-                  SizedBox(height: spacingUnit(2)),
-                  Container(
-                    padding: EdgeInsets.all(spacingUnit(2)),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: addProtectionPlan
-                            ? colorScheme(context)
-                                .primary
-                                .withValues(alpha: 0.5)
-                            : Colors.grey.shade300,
-                        width: addProtectionPlan ? 2 : 1,
+                  // ── Add Extras ─────────────────────────────────────────────
+                  const Text('Add extras',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  SizedBox(height: spacingUnit(1)),
+                  if (roomType?.breakfastIncluded == true)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.green.shade200),
                       ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle,
+                              color: Colors.green.shade600, size: 20),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              'Breakfast already included in your room',
+                              style: TextStyle(
+                                  fontSize: 14, color: Colors.black87),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    _ExtraCard(
+                      icon: Icons.free_breakfast,
+                      title: 'Breakfast for $guests',
+                      subtitle:
+                          'Served 7–10 AM · PKR ${fmt.format(_breakfastCost.round())}/night ×$numberOfNights nights${rooms > 1 ? " ×$rooms rooms" : ""}',
+                      price:
+                          '+PKR ${fmt.format((_breakfastCost * numberOfNights * rooms).round())}',
+                      selected: _addBreakfast,
+                      onToggle: () =>
+                          setState(() => _addBreakfast = !_addBreakfast),
+                    ),
+                  SizedBox(height: spacingUnit(1)),
+                  _ExtraCard(
+                    icon: Icons.airport_shuttle,
+                    title: 'Airport transfer',
+                    subtitle: _airportName,
+                    price:
+                        '+PKR ${fmt.format((_airportTransferCost * rooms).round())}',
+                    selected: _addAirportTransfer,
+                    onToggle: () => setState(
+                        () => _addAirportTransfer = !_addAirportTransfer),
+                  ),
+                  SizedBox(height: spacingUnit(1)),
+                  _ExtraCard(
+                    icon: Icons.schedule,
+                    title: 'Late check-out',
+                    subtitle:
+                        'Until 3:00 PM${rooms > 1 ? " ×$rooms rooms" : ""}',
+                    price:
+                        '+PKR ${fmt.format((_lateCheckoutCost * rooms).round())}',
+                    selected: _addLateCheckout,
+                    onToggle: () =>
+                        setState(() => _addLateCheckout = !_addLateCheckout),
+                  ),
+                  SizedBox(height: spacingUnit(2)),
+
+                  // ── House Rules ─────────────────────────────────────────────
+                  Container(
+                    padding: EdgeInsets.all(spacingUnit(1.75)),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.amber.shade300),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            Icon(
-                              Icons.verified_user,
-                              color: colorScheme(context).primary,
-                            ),
-                            SizedBox(width: spacingUnit(1)),
-                            const Expanded(
-                              child: Text(
-                                'Travel Protection Plan',
-                                style: ThemeText.subtitle,
-                              ),
-                            ),
-                            Text(
-                              'PKR ${protectionPlanCost.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme(context).primary,
-                              ),
-                            ),
+                            Icon(Icons.house,
+                                color: Colors.amber.shade800, size: 18),
+                            const SizedBox(width: 6),
+                            const Text('House rules',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 14)),
                           ],
                         ),
-                        SizedBox(height: spacingUnit(1.5)),
-                        Text(
-                          'Protect your booking with our comprehensive travel insurance:',
-                          style: ThemeText.caption.copyWith(fontSize: 13),
-                        ),
-                        SizedBox(height: spacingUnit(1)),
-                        _buildProtectionBenefit(
-                            'Full refund if you cancel for any reason'),
-                        _buildProtectionBenefit(
-                            'Coverage for medical emergencies'),
-                        _buildProtectionBenefit(
-                            '24/7 travel assistance hotline'),
-                        _buildProtectionBenefit(
-                            'Trip delay & interruption coverage'),
-                        SizedBox(height: spacingUnit(1.5)),
-                        InkWell(
-                          onTap: () {
-                            setState(() {
-                              addProtectionPlan = !addProtectionPlan;
-                            });
-                          },
-                          child: Row(
-                            children: [
-                              Checkbox(
-                                value: addProtectionPlan,
-                                onChanged: (value) {
-                                  setState(() {
-                                    addProtectionPlan = value ?? false;
-                                  });
-                                },
-                                activeColor: colorScheme(context).primary,
+                        const SizedBox(height: 8),
+                        ...[
+                          'Check-in: 2:00 PM · Check-out: 12:00 PM',
+                          'No smoking on premises',
+                          'Married couples must carry Nikah Nama',
+                          'Valid CNIC/Passport required at reception',
+                        ].map((rule) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('• ',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                  Expanded(
+                                      child: Text(rule,
+                                          style:
+                                              const TextStyle(fontSize: 12))),
+                                ],
                               ),
-                              Expanded(
-                                child: Text(
-                                  'Yes, add protection for PKR ${protectionPlanCost.toStringAsFixed(0)}',
-                                  style: ThemeText.paragraph.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                            )),
                       ],
                     ),
                   ),
-
                   SizedBox(height: spacingUnit(10)),
                 ],
               ),
@@ -440,66 +897,72 @@ class _HotelGuestFormScreenState extends State<HotelGuestFormScreen> {
         ],
       ),
 
-      // Bottom Bar
+      // ── Bottom Bar ─────────────────────────────────────────────────────────
       bottomNavigationBar: Container(
         padding: EdgeInsets.all(spacingUnit(2)),
         decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 10,
+                offset: const Offset(0, -2))
           ],
         ),
         child: SafeArea(
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Total', style: ThemeText.caption),
-                    Text(
-                      'PKR ${finalTotal.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme(context).primary,
-                      ),
-                    ),
-                    if (addProtectionPlan)
+              // Extras summary
+              if (extrasTotal > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.add_circle_outline,
+                          size: 14, color: colorScheme(context).primary),
+                      const SizedBox(width: 4),
                       Text(
-                        'Includes protection',
-                        style: ThemeText.caption.copyWith(fontSize: 11),
-                      )
-                    else
-                      Text(
-                        '$guests ${guests == 1 ? 'Guest' : 'Guests'}',
-                        style: ThemeText.caption.copyWith(fontSize: 11),
-                      ),
-                  ],
-                ),
-              ),
-              SizedBox(width: spacingUnit(2)),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _proceedToPayment,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme(context).primary,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: spacingUnit(2)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    'Proceed to Payment',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                          'Extras: PKR ${NumberFormat('#,##0').format(extrasTotal.round())}',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme(context).primary,
+                              fontWeight: FontWeight.w500)),
+                    ],
                   ),
                 ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Total amount',
+                            style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        Text(
+                            'PKR ${NumberFormat('#,##0').format(finalTotal.round())}',
+                            style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme(context).primary)),
+                        Text(
+                            '$guests ${guests == 1 ? 'guest' : 'guests'} · $numberOfNights nights',
+                            style: const TextStyle(
+                                fontSize: 11, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: spacingUnit(2)),
+                  DSButton(
+                    label: 'Continue to Checkout',
+                    trailingIcon: Icons.arrow_forward_rounded,
+                    onTap: _proceedToPayment,
+                    disabled: !_isFormValid,
+                    width: 200,
+                    height: 52,
+                  ),
+                ],
               ),
             ],
           ),
@@ -508,226 +971,206 @@ class _HotelGuestFormScreenState extends State<HotelGuestFormScreen> {
     );
   }
 
-  Widget _buildGuestForm(int index) {
-    final controllers = _guestControllers[index];
-    final isPrimary = index == 0;
-
-    return Container(
-      margin: EdgeInsets.only(bottom: spacingUnit(2)),
-      padding: EdgeInsets.all(spacingUnit(2)),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isPrimary
-              ? colorScheme(context).primary.withValues(alpha: 0.5)
-              : Colors.grey.shade300,
-          width: isPrimary ? 2 : 1,
-        ),
+  Widget _field(TextEditingController ctrl, String label, IconData icon,
+      {bool required = false}) {
+    return TextFormField(
+      controller: ctrl,
+      style: const TextStyle(color: Colors.black),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: colorScheme(context).primary)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                isPrimary ? 'Primary Guest' : 'Guest ${index + 1}',
-                style: TextStyle(
-                  color: isPrimary
-                      ? colorScheme(context).primary
-                      : Colors.grey.shade700,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-              if (isPrimary) ...[
-                SizedBox(width: spacingUnit(1)),
-                Icon(
-                  Icons.star,
-                  size: 16,
-                  color: colorScheme(context).primary,
-                ),
-              ],
-            ],
-          ),
-          SizedBox(height: spacingUnit(2)),
-
-          // First Name
-          TextFormField(
-            controller: controllers['firstName'],
-            style: const TextStyle(color: Colors.black),
-            decoration: InputDecoration(
-              labelText: 'First Name *',
-              prefixIcon: const Icon(Icons.person_outline),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Please enter first name';
-              }
+      validator: required
+          ? (v) {
+              if (v == null || v.trim().isEmpty) return 'Required';
+              final nameRegex = RegExp(r"^[a-zA-Z .'-]+$");
+              if (!nameRegex.hasMatch(v.trim())) return 'Letters only';
+              if (v.trim().length < 2) return 'Too short';
               return null;
-            },
-          ),
-
-          SizedBox(height: spacingUnit(1.5)),
-
-          // Last Name
-          TextFormField(
-            controller: controllers['lastName'],
-            style: const TextStyle(color: Colors.black),
-            decoration: InputDecoration(
-              labelText: 'Last Name *',
-              prefixIcon: const Icon(Icons.person_outline),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Please enter last name';
-              }
-              return null;
-            },
-          ),
-
-          SizedBox(height: spacingUnit(1.5)),
-
-          // Email (required for primary guest only)
-          TextFormField(
-            controller: controllers['email'],
-            keyboardType: TextInputType.emailAddress,
-            style: const TextStyle(color: Colors.black),
-            decoration: InputDecoration(
-              labelText: isPrimary ? 'Email *' : 'Email (optional)',
-              prefixIcon: const Icon(Icons.email_outlined),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            validator: isPrimary
-                ? (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter email';
-                    }
-                    if (!GetUtils.isEmail(value)) {
-                      return 'Please enter a valid email';
-                    }
-                    return null;
-                  }
-                : null,
-          ),
-
-          SizedBox(height: spacingUnit(1.5)),
-
-          // Phone (required for primary guest only)
-          TextFormField(
-            controller: controllers['phone'],
-            keyboardType: TextInputType.phone,
-            style: const TextStyle(color: Colors.black),
-            decoration: InputDecoration(
-              labelText: isPrimary ? 'Phone Number *' : 'Phone (optional)',
-              prefixIcon: const Icon(Icons.phone_outlined),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              hintText: '03XX-XXXXXXX',
-            ),
-            validator: isPrimary
-                ? (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter phone number';
-                    }
-                    if (value.replaceAll(RegExp(r'[^0-9]'), '').length < 10) {
-                      return 'Please enter a valid phone number';
-                    }
-                    return null;
-                  }
-                : null,
-          ),
-        ],
-      ),
+            }
+          : null,
     );
   }
+}
 
-  Widget _buildProgressStep(int step, String label, bool isCompleted) {
-    final isActive = step == 2;
+// ── Progress Step ──────────────────────────────────────────────────────────────
+
+class _Step extends StatelessWidget {
+  final int num;
+  final String label;
+  final bool done;
+  final bool active;
+  const _Step(
+      {required this.num,
+      required this.label,
+      required this.done,
+      this.active = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final gold = colorScheme(context).primary;
     return Column(
       children: [
         Container(
-          width: 32,
-          height: 32,
+          width: 28,
+          height: 28,
           decoration: BoxDecoration(
-            color: isCompleted || isActive
-                ? colorScheme(context).primary
-                : Colors.grey.shade300,
+            color: done || active ? gold : const Color(0xFFE0E0E0),
             shape: BoxShape.circle,
-            border: Border.all(
-              color:
-                  isActive ? colorScheme(context).primary : Colors.transparent,
-              width: 2,
-            ),
           ),
           child: Center(
-            child: isCompleted
-                ? const Icon(Icons.check, color: Colors.white, size: 16)
-                : Text(
-                    step.toString(),
+            child: done
+                ? const Icon(Icons.check, color: Colors.white, size: 14)
+                : Text('$num',
                     style: TextStyle(
-                      color: isActive ? Colors.white : Colors.grey.shade600,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
+                        color: active ? Colors.white : Colors.grey.shade500,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12)),
           ),
         ),
-        SizedBox(height: spacingUnit(0.5)),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: isCompleted || isActive
-                ? colorScheme(context).primary
-                : Colors.grey.shade600,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
+        const SizedBox(height: 3),
+        Text(label,
+            style: TextStyle(
+                fontSize: 9,
+                color: done || active ? gold : Colors.grey.shade500,
+                fontWeight: active ? FontWeight.bold : FontWeight.normal)),
       ],
     );
   }
+}
 
-  Widget _buildProgressLine(bool isCompleted) {
+class _StepLine extends StatelessWidget {
+  final bool done;
+  const _StepLine({required this.done});
+
+  @override
+  Widget build(BuildContext context) {
     return Expanded(
       child: Container(
         height: 2,
-        margin: EdgeInsets.only(bottom: spacingUnit(3)),
-        color:
-            isCompleted ? colorScheme(context).primary : Colors.grey.shade300,
+        margin: const EdgeInsets.only(bottom: 18),
+        color: done ? colorScheme(context).primary : const Color(0xFFE0E0E0),
       ),
     );
   }
+}
 
-  Widget _buildProtectionBenefit(String text) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: spacingUnit(0.5)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.check_circle,
-            size: 16,
-            color: Colors.green.shade600,
-          ),
-          SizedBox(width: spacingUnit(1)),
-          Expanded(
-            child: Text(
-              text,
-              style: ThemeText.caption.copyWith(fontSize: 13),
+// ── Extra Card ─────────────────────────────────────────────────────────────────
+
+class _ExtraCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String price;
+  final bool selected;
+  final VoidCallback onToggle;
+
+  const _ExtraCard(
+      {required this.icon,
+      required this.title,
+      required this.subtitle,
+      required this.price,
+      required this.selected,
+      required this.onToggle});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onToggle,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: EdgeInsets.all(spacingUnit(1.75)),
+        decoration: BoxDecoration(
+          color: selected
+              ? colorScheme(context).primary.withValues(alpha: 0.07)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: selected
+                  ? colorScheme(context).primary
+                  : Colors.grey.shade300,
+              width: selected ? 1.5 : 1),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: selected
+                    ? colorScheme(context).primary.withValues(alpha: 0.12)
+                    : Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon,
+                  size: 20,
+                  color: selected
+                      ? colorScheme(context).primary
+                      : Colors.grey.shade600),
             ),
-          ),
-        ],
+            SizedBox(width: spacingUnit(1.5)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 14)),
+                  Text(subtitle,
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                ],
+              ),
+            ),
+            Text(price,
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: colorScheme(context).primary)),
+            SizedBox(width: spacingUnit(1)),
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: selected ? colorScheme(context).primary : Colors.white,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                    color: selected
+                        ? colorScheme(context).primary
+                        : Colors.grey.shade400,
+                    width: 1.5),
+              ),
+              child: selected
+                  ? const Icon(Icons.check, color: Colors.white, size: 14)
+                  : null,
+            ),
+          ],
+        ),
       ),
     );
+  }
+}
+
+// ── CNIC Text Input Formatter ──────────────────────────────────────────────────
+
+class _CnicFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue old, TextEditingValue val) {
+    final digits = val.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length && i < 13; i++) {
+      if (i == 5 || i == 12) buffer.write('-');
+      buffer.write(digits[i]);
+    }
+    final str = buffer.toString();
+    return TextEditingValue(
+        text: str, selection: TextSelection.collapsed(offset: str.length));
   }
 }

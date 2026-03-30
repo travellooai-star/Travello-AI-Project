@@ -22,7 +22,7 @@ class TabMenu extends StatelessWidget {
     return Container(
       margin: EdgeInsets.all(spacingUnit(1)),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      width: MediaQuery.of(context).size.width,
+      width: MediaQuery.of(context).size.width.clamp(0.0, 600.0),
       height: 40,
       decoration: BoxDecoration(
         color: colorScheme(context).surface,

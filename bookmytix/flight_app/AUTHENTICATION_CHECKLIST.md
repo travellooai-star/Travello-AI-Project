@@ -32,7 +32,7 @@
 | Icons for Fields | ✅ **DONE** | Person & Lock icons |
 
 ### ✅ **3. Security**
-| Requirement | Status | Details |
+| Requirement | Status | Details |   
 |------------|--------|---------|
 | Password Masked | ✅ **DONE** | obscureText: true |
 | Backend Authentication | ✅ **READY** | Space prepared for JWT/Sessions |

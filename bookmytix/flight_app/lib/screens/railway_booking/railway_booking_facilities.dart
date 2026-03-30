@@ -515,13 +515,11 @@ class _RailwayBookingFacilitiesState extends State<RailwayBookingFacilities> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                     decoration: BoxDecoration(
-                      color:
-                          _transferAdded ? Colors.red.shade50 : primaryColor,
+                      color: _transferAdded ? Colors.red.shade50 : primaryColor,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: _transferAdded
-                            ? Colors.red.shade300
-                            : primaryColor,
+                        color:
+                            _transferAdded ? Colors.red.shade300 : primaryColor,
                       ),
                     ),
                     child: Text(
@@ -759,6 +757,13 @@ class _RailwayBookingFacilitiesState extends State<RailwayBookingFacilities> {
           fontWeight: FontWeight.w600,
         ),
       ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline, color: Colors.white),
+          onPressed: () => Get.toNamed('/faq'),
+          tooltip: 'Help & FAQs',
+        ),
+      ],
     );
   }
 
@@ -766,9 +771,10 @@ class _RailwayBookingFacilitiesState extends State<RailwayBookingFacilities> {
   //  5-STEP STEPPER - Green Theme for Trains
   // ─────────────────────────────────────────────
   Widget _buildStepper(BuildContext context) {
+    const goldColor = Color(0xFFD4AF37);
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Row(
         children: List.generate(9, (i) {
           if (i.isOdd) {
@@ -778,9 +784,8 @@ class _RailwayBookingFacilitiesState extends State<RailwayBookingFacilities> {
             return Expanded(
               child: Container(
                 height: 2,
-                color: isCompleted
-                    ? const Color(0xFFD4AF37)
-                    : Colors.grey.shade300,
+                margin: const EdgeInsets.only(bottom: 18),
+                color: isCompleted ? goldColor : const Color(0xFFE0E0E0),
               ),
             );
           }
@@ -793,25 +798,26 @@ class _RailwayBookingFacilitiesState extends State<RailwayBookingFacilities> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   color: isCompleted || isActive
-                      ? const Color(0xFFD4AF37)
-                      : Colors.grey.shade300,
+                      ? goldColor
+                      : const Color(0xFFE0E0E0),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      color: isCompleted || isActive
-                          ? Colors.white
-                          : const Color(0xFFB3B3B3),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: isCompleted
+                      ? const Icon(Icons.check, color: Colors.white, size: 14)
+                      : Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color:
+                                isActive ? Colors.white : Colors.grey.shade500,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -821,11 +827,9 @@ class _RailwayBookingFacilitiesState extends State<RailwayBookingFacilities> {
                 style: TextStyle(
                   fontSize: 9,
                   color: isCompleted || isActive
-                      ? const Color(0xFFD4AF37)
-                      : const Color(0xFFB3B3B3),
-                  fontWeight: isCompleted || isActive
-                      ? FontWeight.w600
-                      : FontWeight.normal,
+                      ? goldColor
+                      : Colors.grey.shade500,
+                  fontWeight: FontWeight.normal,
                 ),
               ),
             ],

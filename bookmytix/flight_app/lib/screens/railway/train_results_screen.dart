@@ -68,6 +68,11 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
   RangeValues _departureTimeRange = const RangeValues(0, 24);
   bool _refundableOnly = false;
 
+  // Passengers
+  int _adults = 1;
+  int _children = 0;
+  int _infants = 0;
+
   // Loading state
   bool _isLoading = false;
 
@@ -94,6 +99,11 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
     } else {
       _selectedReturnDate = null;
     }
+
+    // Initialize passengers
+    _adults = (searchParams['adults'] as int?) ?? 1;
+    _children = (searchParams['children'] as int?) ?? 0;
+    _infants = (searchParams['infants'] as int?) ?? 0;
 
     _fetchTrains();
   }
@@ -800,7 +810,8 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
                               vertical: spacingUnit(0.5),
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFD4AF37).withValues(alpha: 0.08),
+                              color: const Color(0xFFD4AF37)
+                                  .withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -845,7 +856,8 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
                               vertical: spacingUnit(0.5),
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFD4AF37).withValues(alpha: 0.08),
+                              color: const Color(0xFFD4AF37)
+                                  .withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -890,12 +902,14 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: tempRefundable
-                                ? const Color(0xFFD4AF37).withValues(alpha: 0.06)
+                                ? const Color(0xFFD4AF37)
+                                    .withValues(alpha: 0.06)
                                 : Colors.grey.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: tempRefundable
-                                  ? const Color(0xFFD4AF37).withValues(alpha: 0.3)
+                                  ? const Color(0xFFD4AF37)
+                                      .withValues(alpha: 0.3)
                                   : Colors.transparent,
                             ),
                           ),
@@ -1142,6 +1156,9 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
               ),
             ),
 
+          // Always-visible search summary bar (like flight screen)
+          _buildAlwaysVisibleSearchForm(),
+
           // Sort options
           Container(
             padding: EdgeInsets.symmetric(
@@ -1183,8 +1200,7 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(
-                    child: CircularProgressIndicator(
-                        color: Color(0xFFD4AF37)))
+                    child: CircularProgressIndicator(color: Color(0xFFD4AF37)))
                 : _trains.isEmpty
                     ? Center(
                         child: Column(
@@ -1213,6 +1229,1343 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
                       ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // MODIFY SEARCH MODAL (Train version)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  void _showSearchModificationModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildSearchModificationSheet(),
+    );
+  }
+
+  Widget _buildSearchModificationSheet() {
+    RailwayStation? selectedFrom =
+        searchParams['fromStation'] as RailwayStation?;
+    RailwayStation? selectedTo = searchParams['toStation'] as RailwayStation?;
+    DateTime selectedDepartureDate = _selectedDate;
+    DateTime? selectedReturnDate = _selectedReturnDate;
+    int selectedAdults = _adults;
+    int selectedChildren = _children;
+    int selectedInfants = _infants;
+    String selectedClass = _selectedTrainClass;
+    String tripType = _isRoundTrip ? 'Round-trip' : 'One-way';
+
+    return StatefulBuilder(
+      builder: (context, setFormState) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.92,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+
+              // Header
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: spacingUnit(2)),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Modify Search',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Divider(height: 1),
+
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(spacingUnit(2)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Trip Type Toggle
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setFormState(() {
+                                  tripType = 'One-way';
+                                  selectedReturnDate = null;
+                                }),
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: tripType == 'One-way'
+                                        ? const Color(0xFFD4AF37)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    'One-way',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: tripType == 'One-way'
+                                          ? Colors.white
+                                          : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setFormState(() {
+                                  tripType = 'Round-trip';
+                                  selectedReturnDate = selectedDepartureDate
+                                      .add(const Duration(days: 7));
+                                }),
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: tripType == 'Round-trip'
+                                        ? const Color(0xFFD4AF37)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    'Round-trip',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: tripType == 'Round-trip'
+                                          ? Colors.white
+                                          : Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      SizedBox(height: spacingUnit(2)),
+
+                      // FROM station
+                      _buildInlineStationDropdown(
+                        label: 'FROM',
+                        icon: Icons.train,
+                        selectedStation: selectedFrom,
+                        onChanged: (RailwayStation? s) =>
+                            setFormState(() => selectedFrom = s),
+                      ),
+
+                      SizedBox(height: spacingUnit(1.5)),
+
+                      // Swap button
+                      Center(
+                        child: InkWell(
+                          onTap: () {
+                            setFormState(() {
+                              final temp = selectedFrom;
+                              selectedFrom = selectedTo;
+                              selectedTo = temp;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(30),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD4AF37),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFD4AF37)
+                                      .withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.swap_vert,
+                                color: Colors.white, size: 20),
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(height: spacingUnit(1.5)),
+
+                      // TO station
+                      _buildInlineStationDropdown(
+                        label: 'TO',
+                        icon: Icons.location_on,
+                        selectedStation: selectedTo,
+                        onChanged: (RailwayStation? s) =>
+                            setFormState(() => selectedTo = s),
+                      ),
+
+                      SizedBox(height: spacingUnit(2)),
+
+                      // Dates
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildInlineDatePicker(
+                              label: 'DEPARTURE',
+                              date: selectedDepartureDate,
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: selectedDepartureDate,
+                                  firstDate: DateTime.now(),
+                                  lastDate: DateTime.now()
+                                      .add(const Duration(days: 365)),
+                                  builder: (ctx, child) => Theme(
+                                    data: Theme.of(ctx).copyWith(
+                                      colorScheme: const ColorScheme.light(
+                                          primary: Color(0xFFD4AF37)),
+                                    ),
+                                    child: child!,
+                                  ),
+                                );
+                                if (picked != null) {
+                                  setFormState(() {
+                                    selectedDepartureDate = picked;
+                                    if (selectedReturnDate != null &&
+                                        selectedReturnDate!.isBefore(picked)) {
+                                      selectedReturnDate =
+                                          picked.add(const Duration(days: 1));
+                                    }
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                          if (tripType == 'Round-trip') ...[
+                            SizedBox(width: spacingUnit(1.5)),
+                            Expanded(
+                              child: _buildInlineDatePicker(
+                                label: 'RETURN',
+                                date: selectedReturnDate ??
+                                    selectedDepartureDate
+                                        .add(const Duration(days: 7)),
+                                onTap: () async {
+                                  final picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: selectedReturnDate ??
+                                        selectedDepartureDate
+                                            .add(const Duration(days: 7)),
+                                    firstDate: selectedDepartureDate,
+                                    lastDate: DateTime.now()
+                                        .add(const Duration(days: 365)),
+                                    builder: (ctx, child) => Theme(
+                                      data: Theme.of(ctx).copyWith(
+                                        colorScheme: const ColorScheme.light(
+                                            primary: Color(0xFFD4AF37)),
+                                      ),
+                                      child: child!,
+                                    ),
+                                  );
+                                  if (picked != null) {
+                                    setFormState(
+                                        () => selectedReturnDate = picked);
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+
+                      SizedBox(height: spacingUnit(2)),
+
+                      // Passengers
+                      _buildInlinePassengerSelector(
+                        adults: selectedAdults,
+                        children: selectedChildren,
+                        infants: selectedInfants,
+                        onChanged: (Map<String, int> counts) {
+                          setFormState(() {
+                            selectedAdults = counts['adults']!;
+                            selectedChildren = counts['children']!;
+                            selectedInfants = counts['infants']!;
+                          });
+                        },
+                      ),
+
+                      SizedBox(height: spacingUnit(2)),
+
+                      // Train Class
+                      _buildInlineTrainClassSelector(
+                        selectedClass: selectedClass,
+                        onChanged: (String? newClass) {
+                          if (newClass != null) {
+                            setFormState(() => selectedClass = newClass);
+                          }
+                        },
+                      ),
+
+                      SizedBox(height: spacingUnit(2.5)),
+
+                      // Search Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            if (selectedFrom == null || selectedTo == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Please select origin and destination stations'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+                            if (selectedFrom?.code == selectedTo?.code) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Origin and destination cannot be the same'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
+                            setState(() {
+                              searchParams['fromStation'] = selectedFrom;
+                              searchParams['toStation'] = selectedTo;
+                              searchParams['departureDate'] =
+                                  selectedDepartureDate;
+                              searchParams['returnDate'] = selectedReturnDate;
+                              searchParams['adults'] = selectedAdults;
+                              searchParams['children'] = selectedChildren;
+                              searchParams['infants'] = selectedInfants;
+                              searchParams['tripType'] = tripType;
+                              searchParams['trainClass'] = selectedClass;
+
+                              _adults = selectedAdults;
+                              _children = selectedChildren;
+                              _infants = selectedInfants;
+                              _selectedTrainClass = selectedClass;
+                              _selectedDate = selectedDepartureDate;
+
+                              if (tripType == 'Round-trip') {
+                                _isRoundTrip = true;
+                                _currentJourneyIndex = 0;
+                                _selectedOutboundTrain = null;
+                                _selectedReturnDate = selectedReturnDate;
+                              } else {
+                                _isRoundTrip = false;
+                                _currentJourneyIndex = 0;
+                              }
+                            });
+
+                            _fetchTrains();
+                            Navigator.pop(context);
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Search updated: ${selectedFrom?.code} → ${selectedTo?.code}'),
+                                backgroundColor: const Color(0xFFD4AF37),
+                                duration: const Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFD4AF37),
+                            foregroundColor: Colors.white,
+                            elevation: 3,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.search, size: 20),
+                              SizedBox(width: spacingUnit(1)),
+                              const Text(
+                                'Update Search',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Station dropdown widget
+  Widget _buildInlineStationDropdown({
+    required String label,
+    required IconData icon,
+    required RailwayStation? selectedStation,
+    required Function(RailwayStation?) onChanged,
+  }) {
+    return InkWell(
+      onTap: () async {
+        final result = await _showStationSelectionModal(
+          context: context,
+          title: label,
+          currentStation: selectedStation,
+        );
+        if (result != null) {
+          onChanged(result);
+        }
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        padding: EdgeInsets.all(spacingUnit(1.5)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 16, color: const Color(0xFFD4AF37)),
+                SizedBox(width: spacingUnit(0.75)),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: spacingUnit(0.75)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    selectedStation != null
+                        ? '${selectedStation.code} – ${selectedStation.city}'
+                        : 'Select Station',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: selectedStation != null
+                          ? Colors.black87
+                          : Colors.grey.shade500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Icon(Icons.keyboard_arrow_down,
+                    color: Color(0xFFD4AF37), size: 20),
+              ],
+            ),
+            if (selectedStation != null)
+              Text(
+                selectedStation.name,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Date picker widget (reusable)
+  Widget _buildInlineDatePicker({
+    required String label,
+    required DateTime date,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.all(spacingUnit(1.5)),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(CupertinoIcons.calendar,
+                    size: 14, color: Color(0xFFD4AF37)),
+                SizedBox(width: spacingUnit(0.75)),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: spacingUnit(0.75)),
+            Text(
+              DateFormat('d MMM yyyy').format(date),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              DateFormat('EEEE').format(date),
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Passenger selector widget
+  Widget _buildInlinePassengerSelector({
+    required int adults,
+    required int children,
+    required int infants,
+    required Function(Map<String, int>) onChanged,
+  }) {
+    String passengerText = '';
+    if (adults > 0) passengerText += '$adults Adult${adults > 1 ? "s" : ""}';
+    if (children > 0) {
+      if (passengerText.isNotEmpty) passengerText += ', ';
+      passengerText += '$children Child${children > 1 ? "ren" : ""}';
+    }
+    if (infants > 0) {
+      if (passengerText.isNotEmpty) passengerText += ', ';
+      passengerText += '$infants Infant${infants > 1 ? "s" : ""}';
+    }
+
+    return InkWell(
+      onTap: () async {
+        final result = await _showPassengerSelectionModal(
+            context, adults, children, infants);
+        if (result != null) onChanged(result);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.all(spacingUnit(1.5)),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Icon(CupertinoIcons.person_2_fill,
+                    size: 16, color: Color(0xFFD4AF37)),
+                SizedBox(width: spacingUnit(0.75)),
+                Text(
+                  'PASSENGERS',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Text(
+                  passengerText.isNotEmpty ? passengerText : '1 Adult',
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87),
+                ),
+                SizedBox(width: spacingUnit(0.75)),
+                const Icon(Icons.keyboard_arrow_down, color: Color(0xFFD4AF37)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Train class selector widget
+  Widget _buildInlineTrainClassSelector({
+    required String selectedClass,
+    required Function(String?) onChanged,
+  }) {
+    return InkWell(
+      onTap: () async {
+        final result =
+            await _showTrainClassSelectionModal(context, selectedClass);
+        if (result != null) onChanged(result);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.all(spacingUnit(1.5)),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.train, size: 16, color: Color(0xFFD4AF37)),
+                SizedBox(width: spacingUnit(0.75)),
+                Text(
+                  'TRAIN CLASS',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade600,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Text(
+                  selectedClass,
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87),
+                ),
+                SizedBox(width: spacingUnit(0.75)),
+                const Icon(Icons.keyboard_arrow_down, color: Color(0xFFD4AF37)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Station selection sheet
+  Future<RailwayStation?> _showStationSelectionModal({
+    required BuildContext context,
+    required String title,
+    RailwayStation? currentStation,
+  }) async {
+    return await showModalBottomSheet<RailwayStation>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext bsContext) {
+        String searchQuery = '';
+        final TextEditingController searchController = TextEditingController();
+        final allStations = PakistanRailwayStations.getAllStations();
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final filtered = allStations.where((s) {
+              final q = searchQuery.toLowerCase();
+              return s.name.toLowerCase().contains(q) ||
+                  s.code.toLowerCase().contains(q) ||
+                  s.city.toLowerCase().contains(q);
+            }).toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.9,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              padding: EdgeInsets.all(spacingUnit(2)),
+              child: Column(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Text(
+                    'Select Station ($title)',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: spacingUnit(2)),
+                  TextField(
+                    controller: searchController,
+                    onChanged: (v) => setModalState(() => searchQuery = v),
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Search by city, station or code',
+                      prefixIcon: const Icon(CupertinoIcons.search),
+                      suffixIcon: searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(
+                                  CupertinoIcons.clear_circled_solid),
+                              onPressed: () => setModalState(() {
+                                searchController.clear();
+                                searchQuery = '';
+                              }),
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: Colors.grey.withValues(alpha: 0.3)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: Colors.grey.withValues(alpha: 0.3)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                            color: Color(0xFFD4AF37), width: 1.5),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: spacingUnit(2)),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: filtered.length,
+                      itemBuilder: (context, idx) {
+                        final station = filtered[idx];
+                        final isCurrent = currentStation?.code == station.code;
+                        return ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD4AF37)
+                                  .withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              CupertinoIcons.train_style_one,
+                              color: Color(0xFFD4AF37),
+                              size: 18,
+                            ),
+                          ),
+                          title: Text(
+                            station.name,
+                            style: TextStyle(
+                              fontWeight: isCurrent
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                          subtitle: Text(station.city,
+                              style: const TextStyle(fontSize: 12)),
+                          trailing: Text(
+                            station.code,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFD4AF37),
+                            ),
+                          ),
+                          onTap: () => Navigator.pop(context, station),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Passenger dialog
+  Future<Map<String, int>?> _showPassengerSelectionModal(BuildContext context,
+      int currentAdults, int currentChildren, int currentInfants) async {
+    int adults = currentAdults;
+    int children = currentChildren;
+    int infants = currentInfants;
+
+    return await showDialog<Map<String, int>>(
+      context: context,
+      barrierColor: Colors.grey.shade800.withValues(alpha: 0.7),
+      builder: (BuildContext context) {
+        return StatefulBuilder(builder: (context, setModalState) {
+          return Dialog(
+            backgroundColor: Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 400),
+              padding: EdgeInsets.all(spacingUnit(3)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Passengers',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: spacingUnit(3)),
+                  _buildPassengerRow(
+                    label: 'Adults',
+                    subtitle: '12+ years',
+                    count: adults,
+                    onDecrement:
+                        adults > 1 ? () => setModalState(() => adults--) : null,
+                    onIncrement:
+                        adults < 9 ? () => setModalState(() => adults++) : null,
+                  ),
+                  SizedBox(height: spacingUnit(2.5)),
+                  _buildPassengerRow(
+                    label: 'Children',
+                    subtitle: '2-11 years',
+                    count: children,
+                    onDecrement: children > 0
+                        ? () => setModalState(() => children--)
+                        : null,
+                    onIncrement: children < 9
+                        ? () => setModalState(() => children++)
+                        : null,
+                  ),
+                  SizedBox(height: spacingUnit(2.5)),
+                  _buildPassengerRow(
+                    label: 'Infants',
+                    subtitle: 'Under 2 years',
+                    count: infants,
+                    onDecrement: infants > 0
+                        ? () => setModalState(() => infants--)
+                        : null,
+                    onIncrement: infants < 9
+                        ? () => setModalState(() => infants++)
+                        : null,
+                  ),
+                  SizedBox(height: spacingUnit(3)),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context, {
+                        'adults': adults > 0 ? adults : 1,
+                        'children': children,
+                        'infants': infants,
+                      }),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD4AF37),
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: const Text('Done',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        });
+      },
+    );
+  }
+
+  Widget _buildPassengerRow({
+    required String label,
+    required String subtitle,
+    required int count,
+    required VoidCallback? onDecrement,
+    required VoidCallback? onIncrement,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            Text(subtitle,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF666666))),
+          ],
+        ),
+        Row(
+          children: [
+            InkWell(
+              onTap: onDecrement,
+              borderRadius: BorderRadius.circular(50),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: onDecrement != null
+                      ? const Color(0xFFD4AF37)
+                      : Colors.grey.shade300,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.remove,
+                    size: 20,
+                    color: onDecrement != null
+                        ? Colors.black
+                        : Colors.grey.shade500),
+              ),
+            ),
+            SizedBox(width: spacingUnit(2)),
+            SizedBox(
+              width: 36,
+              child: Text('$count',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold)),
+            ),
+            SizedBox(width: spacingUnit(2)),
+            InkWell(
+              onTap: onIncrement,
+              borderRadius: BorderRadius.circular(50),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: onIncrement != null
+                      ? const Color(0xFFD4AF37)
+                      : Colors.grey.shade300,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.add,
+                    size: 20,
+                    color: onIncrement != null
+                        ? Colors.black
+                        : Colors.grey.shade500),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Train class selection dialog
+  Future<String?> _showTrainClassSelectionModal(
+      BuildContext context, String currentClass) async {
+    String? selectedClass = currentClass;
+
+    return await showDialog<String>(
+      context: context,
+      barrierColor: Colors.grey.shade800.withValues(alpha: 0.7),
+      builder: (BuildContext context) {
+        return StatefulBuilder(builder: (context, setModalState) {
+          return Dialog(
+            backgroundColor: Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 450),
+              padding: EdgeInsets.all(spacingUnit(3)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Train Class',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: spacingUnit(3)),
+                  _buildTrainClassOption(
+                    label: 'Economy (Seat)',
+                    subtitle: 'Sitting seats, budget friendly',
+                    icon: Icons.airline_seat_recline_normal,
+                    iconColor: const Color(0xFF3B82F6),
+                    isSelected: selectedClass == 'Economy (Seat)',
+                    onTap: () =>
+                        setModalState(() => selectedClass = 'Economy (Seat)'),
+                  ),
+                  SizedBox(height: spacingUnit(1.25)),
+                  _buildTrainClassOption(
+                    label: 'Economy (Berth)',
+                    subtitle: 'Sleeping berths, economy class',
+                    icon: Icons.bed,
+                    iconColor: const Color(0xFF10B981),
+                    isSelected: selectedClass == 'Economy (Berth)',
+                    onTap: () =>
+                        setModalState(() => selectedClass = 'Economy (Berth)'),
+                  ),
+                  SizedBox(height: spacingUnit(1.25)),
+                  _buildTrainClassOption(
+                    label: 'AC Lower / Standard (Berth)',
+                    subtitle: 'Air-conditioned sleeping berths',
+                    icon: Icons.ac_unit,
+                    iconColor: const Color(0xFFD946EF),
+                    isSelected: selectedClass == 'AC Lower / Standard (Berth)',
+                    onTap: () => setModalState(
+                        () => selectedClass = 'AC Lower / Standard (Berth)'),
+                  ),
+                  SizedBox(height: spacingUnit(1.25)),
+                  _buildTrainClassOption(
+                    label: 'AC Business',
+                    subtitle: 'Premium AC class, extra comfort',
+                    icon: Icons.star,
+                    iconColor: const Color(0xFFD4AF37),
+                    isSelected: selectedClass == 'AC Business',
+                    onTap: () =>
+                        setModalState(() => selectedClass = 'AC Business'),
+                  ),
+                  SizedBox(height: spacingUnit(3)),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context, selectedClass),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD4AF37),
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: const Text('Done',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        });
+      },
+    );
+  }
+
+  Widget _buildTrainClassOption({
+    required String label,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: spacingUnit(1.5),
+          vertical: spacingUnit(1.5),
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFD4AF37) : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
+          color: isSelected
+              ? const Color(0xFFD4AF37).withValues(alpha: 0.05)
+              : Colors.white,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 22, color: iconColor),
+            ),
+            SizedBox(width: spacingUnit(1.5)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(subtitle,
+                      style:
+                          TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                ],
+              ),
+            ),
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected
+                      ? const Color(0xFFD4AF37)
+                      : Colors.grey.shade400,
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? Center(
+                      child: Container(
+                        width: 11,
+                        height: 11,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFFD4AF37),
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ALWAYS-VISIBLE SEARCH FORM (matches flight screen header)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildAlwaysVisibleSearchForm() {
+    final fromStation = searchParams['fromStation'] as RailwayStation?;
+    final toStation = searchParams['toStation'] as RailwayStation?;
+    final tripType = _isRoundTrip ? 'Round-trip' : 'One-way';
+
+    // Build passenger display text
+    String passengerText = '';
+    if (_adults > 0) passengerText += '$_adults Adult${_adults > 1 ? "s" : ""}';
+    if (_children > 0) {
+      if (passengerText.isNotEmpty) passengerText += ', ';
+      passengerText += '$_children Child${_children > 1 ? "ren" : ""}';
+    }
+    if (_infants > 0) {
+      if (passengerText.isNotEmpty) passengerText += ', ';
+      passengerText += '$_infants Infant${_infants > 1 ? "s" : ""}';
+    }
+
+    return Container(
+      color: const Color(0xFFD4AF37),
+      padding: EdgeInsets.symmetric(
+        horizontal: spacingUnit(2),
+        vertical: spacingUnit(1.5),
+      ),
+      child: Column(
+        children: [
+          // Top row: Trip type tabs + passenger/class info
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  _buildTripTypeTab('Round Trip', tripType == 'Round-trip'),
+                  SizedBox(width: spacingUnit(1)),
+                  _buildTripTypeTab('One Way', tripType == 'One-way'),
+                ],
+              ),
+              Row(
+                children: [
+                  const Icon(CupertinoIcons.person,
+                      color: Colors.white, size: 16),
+                  SizedBox(width: spacingUnit(0.5)),
+                  Text(
+                    passengerText.isNotEmpty ? passengerText : '1 Adult',
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                  SizedBox(width: spacingUnit(2)),
+                  Text(
+                    _selectedTrainClass,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          SizedBox(height: spacingUnit(1.5)),
+
+          // Bottom row: FROM-TO pill | Date pill | Modify Search button
+          Row(
+            children: [
+              // FROM — TO
+              Expanded(
+                flex: 3,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: spacingUnit(1.5),
+                    vertical: spacingUnit(1),
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD4AF37).withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(8),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(CupertinoIcons.train_style_one,
+                          color: Colors.white70, size: 16),
+                      SizedBox(width: spacingUnit(0.75)),
+                      Expanded(
+                        child: Text(
+                          '${fromStation?.code ?? 'FROM'} - ${fromStation?.city ?? ''}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Icon(Icons.swap_horiz,
+                          color: Colors.white70, size: 20),
+                      Expanded(
+                        child: Text(
+                          '${toStation?.code ?? 'TO'} - ${toStation?.city ?? ''}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              SizedBox(width: spacingUnit(1.5)),
+
+              // Date
+              Expanded(
+                flex: 2,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: spacingUnit(1.5),
+                    vertical: spacingUnit(1),
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD4AF37).withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(8),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(CupertinoIcons.calendar,
+                          color: Colors.white70, size: 16),
+                      SizedBox(width: spacingUnit(0.75)),
+                      Flexible(
+                        child: Text(
+                          _isRoundTrip && _selectedReturnDate != null
+                              ? '${DateFormat('d MMM').format(_selectedDate)} - ${DateFormat('d MMM yyyy').format(_selectedReturnDate!)}'
+                              : DateFormat('d MMM yyyy').format(_selectedDate),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              SizedBox(width: spacingUnit(1.5)),
+
+              // Modify Search Button
+              ElevatedButton.icon(
+                onPressed: _showSearchModificationModal,
+                icon: const Icon(Icons.search, size: 18),
+                label: const Text('Modify Search'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFFD4AF37),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: spacingUnit(2),
+                    vertical: spacingUnit(1.25),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTripTypeTab(String label, bool isSelected) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: spacingUnit(1.5),
+        vertical: spacingUnit(0.75),
+      ),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.white : Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? const Color(0xFFD4AF37) : Colors.white70,
+          fontSize: 13,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
       ),
     );
   }
@@ -1323,7 +2676,8 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
                         color: isSelected
                             ? const Color(0xFFD4AF37).withValues(alpha: 0.12)
                             : isHovered && !isNA
-                                ? const Color(0xFFD4AF37).withValues(alpha: 0.05)
+                                ? const Color(0xFFD4AF37)
+                                    .withValues(alpha: 0.05)
                                 : Colors.transparent,
                         borderRadius: BorderRadius.circular(10),
                         border: isSelected
@@ -1478,7 +2832,8 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
                             width: 50,
                             height: 50,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFD4AF37).withValues(alpha: 0.2),
+                              color: const Color(0xFFD4AF37)
+                                  .withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
@@ -1586,8 +2941,7 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
                                                 width: 8,
                                                 height: 8,
                                                 decoration: const BoxDecoration(
-                                                  color:
-                                                      Color(0xFFD4AF37),
+                                                  color: Color(0xFFD4AF37),
                                                   shape: BoxShape.circle,
                                                 ),
                                               ),
@@ -1602,8 +2956,7 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
                                                 width: 8,
                                                 height: 8,
                                                 decoration: const BoxDecoration(
-                                                  color:
-                                                      Color(0xFFD4AF37),
+                                                  color: Color(0xFFD4AF37),
                                                   shape: BoxShape.circle,
                                                 ),
                                               ),

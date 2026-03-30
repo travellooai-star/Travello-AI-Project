@@ -62,6 +62,8 @@ class HeroSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = _heroContent;
     final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 400),
@@ -75,7 +77,7 @@ class HeroSection extends StatelessWidget {
       },
       child: Container(
         key: ValueKey(serviceType),
-        height: screenHeight * 0.55,
+        height: screenHeight * (isMobile ? 0.50 : 0.55),
         width: double.infinity,
         decoration: BoxDecoration(
           image: DecorationImage(
@@ -97,7 +99,8 @@ class HeroSection extends StatelessWidget {
           ),
           child: SafeArea(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: spacingUnit(3)),
+              padding: EdgeInsets.symmetric(
+                  horizontal: spacingUnit(isMobile ? 2 : 3)),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -118,13 +121,13 @@ class HeroSection extends StatelessWidget {
                     child: Text(
                       content['title'],
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 36,
+                      style: TextStyle(
+                        fontSize: isMobile ? 26 : 36,
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
                         height: 1.2,
                         letterSpacing: -0.5,
-                        shadows: [
+                        shadows: const [
                           Shadow(
                             color: Colors.black45,
                             blurRadius: 12,
@@ -171,7 +174,7 @@ class HeroSection extends StatelessWidget {
                     ),
                   ),
 
-                  SizedBox(height: spacingUnit(4)),
+                  SizedBox(height: spacingUnit(isMobile ? 2 : 4)),
 
                   // Premium CTA Button
                   TweenAnimationBuilder<double>(
@@ -187,7 +190,7 @@ class HeroSection extends StatelessWidget {
                         ),
                       );
                     },
-                    child: _buildPremiumCTA(content['cta']),
+                    child: _buildPremiumCTA(content['cta'], isMobile),
                   ),
                 ],
               ),
@@ -198,13 +201,13 @@ class HeroSection extends StatelessWidget {
     );
   }
 
-  Widget _buildPremiumCTA(String label) {
+  Widget _buildPremiumCTA(String label, bool isMobile) {
     return _HoverScaleButton(
       onTap: onCtaTap,
       child: Container(
         padding: EdgeInsets.symmetric(
-          horizontal: spacingUnit(5),
-          vertical: spacingUnit(2),
+          horizontal: spacingUnit(isMobile ? 3 : 5),
+          vertical: spacingUnit(isMobile ? 1.5 : 2),
         ),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -231,9 +234,9 @@ class HeroSection extends StatelessWidget {
           children: [
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white,
-                fontSize: 18,
+                fontSize: isMobile ? 15 : 18,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
               ),

@@ -47,7 +47,9 @@ class _BookingDetailState extends State<BookingDetail> {
 
   @override
   Widget build(BuildContext context) {
-    final isTrainBooking = (_booking['bookingType'] ?? 'flight') == 'train';
+    final bookingType = _booking['bookingType'] ?? 'flight';
+    final isTrainBooking = bookingType == 'train';
+    final isHotelBooking = bookingType == 'hotel';
 
     return Scaffold(
       backgroundColor: colorScheme(context).surfaceContainerLowest,
@@ -72,22 +74,25 @@ class _BookingDetailState extends State<BookingDetail> {
         child: Column(
           children: [
             // ━━━ Header with Type & PNR ━━━
-            _buildHeader(isTrainBooking),
+            _buildHeader(isTrainBooking, isHotelBooking),
 
-            // ━━━ E-Ticket Section with QR/Barcode ━━━
-            _buildETicketSection(isTrainBooking),
+            // ━━━ E-Ticket Section with QR/Barcode (Train/Flight only) ━━━
+            if (!isHotelBooking) _buildETicketSection(isTrainBooking),
 
-            // ━━━ Journey Details ━━━
-            _buildJourneySection(isTrainBooking),
+            // ━━━ Hotel Booking Card (Hotels only) ━━━
+            if (isHotelBooking) _buildHotelBookingCard(),
 
-            // ━━━ Passenger Details ━━━
-            _buildPassengerSection(),
+            // ━━━ Journey Details (Train/Flight only) ━━━
+            if (!isHotelBooking) _buildJourneySection(isTrainBooking),
+
+            // ━━━ Guest/Passenger Details ━━━
+            _buildPassengerSection(isHotelBooking),
 
             // ━━━ Payment Summary ━━━
             _buildPaymentSection(),
 
             // ━━━ Important Information ━━━
-            _buildInfoSection(isTrainBooking),
+            _buildInfoSection(isTrainBooking, isHotelBooking),
 
             const SizedBox(height: 100),
           ],
@@ -101,16 +106,32 @@ class _BookingDetailState extends State<BookingDetail> {
   //  🎨 UI COMPONENTS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  Widget _buildHeader(bool isTrainBooking) {
+  Widget _buildHeader(bool isTrainBooking, bool isHotelBooking) {
+    List<Color> gradientColors;
+    IconData icon;
+    String label;
+
+    if (isHotelBooking) {
+      gradientColors = [const Color(0xFFD4AF37), const Color(0xFFB8941F)];
+      icon = Icons.hotel;
+      label = 'HOTEL BOOKING';
+    } else if (isTrainBooking) {
+      gradientColors = [const Color(0xFF059669), const Color(0xFF047857)];
+      icon = Icons.train;
+      label = 'TRAIN BOOKING';
+    } else {
+      gradientColors = [const Color(0xFF3B82F6), const Color(0xFF2563EB)];
+      icon = Icons.flight;
+      label = 'FLIGHT BOOKING';
+    }
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: isTrainBooking
-              ? [const Color(0xFF059669), const Color(0xFF047857)]
-              : [const Color(0xFF3B82F6), const Color(0xFF2563EB)],
+          colors: gradientColors,
         ),
       ),
       padding: EdgeInsets.all(spacingUnit(2)),
@@ -131,13 +152,13 @@ class _BookingDetailState extends State<BookingDetail> {
                 child: Row(
                   children: [
                     Icon(
-                      isTrainBooking ? Icons.train : Icons.flight,
+                      icon,
                       color: Colors.white,
                       size: 18,
                     ),
                     SizedBox(width: spacingUnit(0.5)),
                     Text(
-                      isTrainBooking ? 'TRAIN BOOKING' : 'FLIGHT BOOKING',
+                      label,
                       style: ThemeText.subtitle2.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
@@ -365,9 +386,16 @@ class _BookingDetailState extends State<BookingDetail> {
 
     if (details == null) return const SizedBox();
 
+    final isRoundTrip = _booking['isRoundTrip'] == true;
+    final returnDetails = isTrainBooking
+        ? _booking['returnTrainDetails'] as Map<String, dynamic>?
+        : _booking['returnFlightDetails'] as Map<String, dynamic>?;
+
+    final accentColor =
+        isTrainBooking ? const Color(0xFF059669) : const Color(0xFF3B82F6);
+
     return Container(
       margin: EdgeInsets.symmetric(horizontal: spacingUnit(2)),
-      padding: EdgeInsets.all(spacingUnit(2.5)),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -382,126 +410,245 @@ class _BookingDetailState extends State<BookingDetail> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(
-                isTrainBooking ? Icons.train : Icons.flight,
-                color: isTrainBooking
-                    ? const Color(0xFF059669)
-                    : const Color(0xFF3B82F6),
-              ),
-              SizedBox(width: spacingUnit(1)),
-              Text(
-                'JOURNEY DETAILS',
-                style: ThemeText.subtitle.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(height: spacingUnit(1.5)),
-
-          // Route display (City(CODE) - City(CODE))
-          Text(
-            isTrainBooking
-                ? _buildTrainRouteText(details)
-                : _buildFlightRouteText(details),
-            style: ThemeText.subtitle.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-
-          SizedBox(height: spacingUnit(2.5)),
-
-          // Journey Timeline
-          isTrainBooking
-              ? _buildTrainJourney(details)
-              : _buildFlightJourney(details),
-
-          SizedBox(height: spacingUnit(2)),
-          Divider(color: Colors.grey.shade200),
-          SizedBox(height: spacingUnit(2)),
-
-          // Additional Details
-          Row(
-            children: [
-              Expanded(
-                child: _buildInfoTile(
-                  'Date',
-                  isTrainBooking ? _getTrainDateDisplay(details) : (details['date'] ?? 'N/A'),
-                  Icons.calendar_today,
-                ),
-              ),
-              Expanded(
-                child: _buildInfoTile(
-                  'Class',
-                  details['class'] ?? 'Economy',
-                  Icons.airline_seat_recline_extra,
-                ),
-              ),
-              Expanded(
-                child: _buildInfoTile(
-                  'Duration',
-                  details['duration'] ?? 'N/A',
-                  Icons.schedule,
-                ),
-              ),
-            ],
-          ),
-
-          if (isTrainBooking) ...[
-            SizedBox(height: spacingUnit(1.5)),
-            Row(
+          // ── Header ──
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+                spacingUnit(2.5), spacingUnit(2.5), spacingUnit(2.5), 0),
+            child: Row(
               children: [
-                Expanded(
-                  child: _buildInfoTile(
-                    'Train',
-                    details['trainName'] ?? 'N/A',
-                    Icons.train,
-                  ),
+                Icon(isTrainBooking ? Icons.train : Icons.flight,
+                    color: accentColor),
+                SizedBox(width: spacingUnit(1)),
+                Text(
+                  'JOURNEY DETAILS',
+                  style: ThemeText.subtitle
+                      .copyWith(fontWeight: FontWeight.w800),
                 ),
-                Expanded(
-                  child: _buildInfoTile(
-                    'Number',
-                    details['trainNumber'] ?? 'N/A',
-                    Icons.confirmation_number,
+                const Spacer(),
+                if (isRoundTrip)
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: spacingUnit(1.2),
+                        vertical: spacingUnit(0.4)),
+                    decoration: BoxDecoration(
+                      color: accentColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                          color: accentColor.withOpacity(0.35), width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.compare_arrows,
+                            size: 14, color: accentColor),
+                        SizedBox(width: spacingUnit(0.4)),
+                        Text(
+                          'ROUND TRIP',
+                          style: ThemeText.caption.copyWith(
+                            color: accentColor,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
               ],
             ),
-          ] else ...[
-            SizedBox(height: spacingUnit(1.5)),
-            Row(
+          ),
+
+          // ── Outbound Leg ──
+          Padding(
+            padding: EdgeInsets.fromLTRB(spacingUnit(2.5), spacingUnit(2),
+                spacingUnit(2.5), 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: _buildInfoTile(
-                    'Airline',
-                    details['airline'] ?? 'N/A',
-                    Icons.flight,
-                  ),
+                if (isRoundTrip)
+                  _buildLegLabel('OUTBOUND', Icons.flight_takeoff, accentColor),
+                if (isRoundTrip) SizedBox(height: spacingUnit(1.2)),
+                Text(
+                  isTrainBooking
+                      ? _buildTrainRouteText(details)
+                      : _buildFlightRouteText(details),
+                  style:
+                      ThemeText.subtitle.copyWith(fontWeight: FontWeight.w800),
                 ),
-                Expanded(
-                  child: _buildInfoTile(
-                    'Flight',
-                    details['flightNumber'] ?? 'N/A',
-                    Icons.confirmation_number,
-                  ),
-                ),
+                SizedBox(height: spacingUnit(2.5)),
+                isTrainBooking
+                    ? _buildTrainJourney(details)
+                    : _buildFlightJourney(details),
+                SizedBox(height: spacingUnit(2)),
+                Divider(color: Colors.grey.shade200),
+                SizedBox(height: spacingUnit(1.5)),
+                _buildLegInfoRow(details, isTrainBooking),
               ],
             ),
-          ],
+          ),
+
+          // ── Return Leg (round trips only) ──
+          if (isRoundTrip && returnDetails != null) ...[
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: spacingUnit(2.5)),
+              child: Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey.shade200)),
+                  Padding(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: spacingUnit(1.5)),
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: spacingUnit(1.2),
+                          vertical: spacingUnit(0.5)),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'RETURN FLIGHT',
+                        style: ThemeText.caption.copyWith(
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 10,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey.shade200)),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(spacingUnit(2.5), spacingUnit(1.5),
+                  spacingUnit(2.5), spacingUnit(2.5)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildLegLabel(
+                      'RETURN', Icons.flight_land, accentColor),
+                  SizedBox(height: spacingUnit(1.2)),
+                  Text(
+                    isTrainBooking
+                        ? _buildTrainRouteText(returnDetails)
+                        : _buildFlightRouteText(returnDetails),
+                    style: ThemeText.subtitle
+                        .copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  SizedBox(height: spacingUnit(2.5)),
+                  isTrainBooking
+                      ? _buildTrainJourney(returnDetails)
+                      : _buildFlightJourney(returnDetails),
+                  SizedBox(height: spacingUnit(2)),
+                  Divider(color: Colors.grey.shade200),
+                  SizedBox(height: spacingUnit(1.5)),
+                  _buildLegInfoRow(returnDetails, isTrainBooking),
+                ],
+              ),
+            ),
+          ] else
+            SizedBox(height: spacingUnit(2.5)),
         ],
       ),
     );
   }
 
+  Widget _buildLegLabel(String label, IconData icon, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        SizedBox(width: spacingUnit(0.6)),
+        Text(
+          label,
+          style: ThemeText.caption.copyWith(
+            color: color,
+            fontWeight: FontWeight.w700,
+            fontSize: 11,
+            letterSpacing: 0.6,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegInfoRow(Map<String, dynamic> details, bool isTrainBooking) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _buildInfoTile(
+                'Date',
+                isTrainBooking
+                    ? _getTrainDateDisplay(details)
+                    : (details['date'] ?? 'N/A'),
+                Icons.calendar_today,
+              ),
+            ),
+            Expanded(
+              child: _buildInfoTile(
+                'Class',
+                details['class'] ?? 'Economy',
+                Icons.airline_seat_recline_extra,
+              ),
+            ),
+            Expanded(
+              child: _buildInfoTile(
+                'Duration',
+                details['duration'] ?? 'N/A',
+                Icons.schedule,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: spacingUnit(1.5)),
+        if (isTrainBooking)
+          Row(
+            children: [
+              Expanded(
+                child: _buildInfoTile(
+                  'Train',
+                  details['trainName'] ?? 'N/A',
+                  Icons.train,
+                ),
+              ),
+              Expanded(
+                child: _buildInfoTile(
+                  'Number',
+                  details['trainNumber'] ?? 'N/A',
+                  Icons.confirmation_number,
+                ),
+              ),
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: _buildInfoTile(
+                  'Airline',
+                  details['airline'] ?? 'N/A',
+                  Icons.flight,
+                ),
+              ),
+              Expanded(
+                child: _buildInfoTile(
+                  'Flight',
+                  details['flightNumber'] ?? 'N/A',
+                  Icons.confirmation_number,
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
   String _getTrainDateDisplay(Map<String, dynamic> details) {
     String dateStr = details['date'] ?? 'N/A';
-    
+
     // Check if train arrives next day
     bool arrivesNextDay = details['arrivesNextDay'] ?? false;
-    
+
     // Fallback: detect next-day arrival by comparing times
     if (!arrivesNextDay) {
       final depTime = details['departure'] as String?;
@@ -514,7 +661,9 @@ class _BookingDetailState extends State<BookingDetail> {
             final depHour = int.parse(depParts[0]);
             final arrHour = int.parse(arrParts[0]);
             // If arrival hour is less than departure, it's next day
-            if (arrHour < depHour || (arrHour == depHour && details['duration']?.toString().contains('23h') == true)) {
+            if (arrHour < depHour ||
+                (arrHour == depHour &&
+                    details['duration']?.toString().contains('23h') == true)) {
               arrivesNextDay = true;
             }
           }
@@ -523,7 +672,7 @@ class _BookingDetailState extends State<BookingDetail> {
         }
       }
     }
-    
+
     // If next day arrival, show both dates
     if (arrivesNextDay) {
       // Format: "19 Mar - 20 Mar"
@@ -540,7 +689,7 @@ class _BookingDetailState extends State<BookingDetail> {
         }
       }
     }
-    
+
     return dateStr;
   }
 
@@ -615,7 +764,7 @@ class _BookingDetailState extends State<BookingDetail> {
 
     // Calculate if train arrives next day
     bool arrivesNextDay = details['arrivesNextDay'] ?? false;
-    
+
     // Fallback: detect next-day arrival by comparing times
     if (!arrivesNextDay) {
       final depTime = details['departure'] as String?;
@@ -628,7 +777,9 @@ class _BookingDetailState extends State<BookingDetail> {
             final depHour = int.parse(depParts[0]);
             final arrHour = int.parse(arrParts[0]);
             // If arrival hour is less than departure, it's next day
-            if (arrHour < depHour || (arrHour == depHour && details['duration']?.toString().contains('23h') == true)) {
+            if (arrHour < depHour ||
+                (arrHour == depHour &&
+                    details['duration']?.toString().contains('23h') == true)) {
               arrivesNextDay = true;
             }
           }
@@ -1211,9 +1362,215 @@ class _BookingDetailState extends State<BookingDetail> {
     );
   }
 
-  Widget _buildPassengerSection() {
+  Widget _buildAmenityIcon(IconData icon, String label) {
+    const goldColor = Color(0xFFD4AF37);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: EdgeInsets.all(spacingUnit(1)),
+          decoration: BoxDecoration(
+            color: goldColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: goldColor, size: 20),
+        ),
+        SizedBox(height: spacingUnit(0.5)),
+        Text(
+          label,
+          style: ThemeText.caption.copyWith(
+            fontSize: 10,
+            color: Colors.grey.shade700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHotelBookingCard() {
+    final hotelDetails = _booking['hotelDetails'] as Map<String, dynamic>?;
+    if (hotelDetails == null) return const SizedBox();
+
+    final hotelName = hotelDetails['hotelName'] ?? 'Hotel';
+    final city = hotelDetails['city'] ?? '';
+    final address = hotelDetails['address'] ?? '';
+    final checkIn = hotelDetails['checkIn'] ?? 'N/A';
+    final checkOut = hotelDetails['checkOut'] ?? 'N/A';
+    final roomType = hotelDetails['roomType'] ?? 'Standard Room';
+    final nights = hotelDetails['nights'] ?? 1;
+    final rating = (hotelDetails['rating'] ?? 0) as num;
+
+    const goldColor = Color(0xFFD4AF37);
+    const goldLight = Color(0xFFFFFBEB);
+    const goldDark = Color(0xFFB8941F);
+
+    return Container(
+      margin: EdgeInsets.fromLTRB(
+        spacingUnit(2),
+        spacingUnit(2),
+        spacingUnit(2),
+        0,
+      ),
+      padding: EdgeInsets.all(spacingUnit(2.5)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Hotel Name & Rating
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(spacingUnit(1.5)),
+                decoration: BoxDecoration(
+                  color: goldLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.hotel, color: goldColor, size: 32),
+              ),
+              SizedBox(width: spacingUnit(1.5)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hotelName,
+                      style: ThemeText.title.copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (rating > 0) ...[
+                      SizedBox(height: spacingUnit(0.5)),
+                      Row(
+                        children: List.generate(
+                          rating.toInt(),
+                          (i) => const Icon(Icons.star,
+                              size: 16, color: goldColor),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Address
+          if (address.isNotEmpty || city.isNotEmpty) ...[
+            SizedBox(height: spacingUnit(1.5)),
+            Row(
+              children: [
+                Icon(Icons.location_on, size: 16, color: Colors.grey.shade600),
+                SizedBox(width: spacingUnit(0.5)),
+                Expanded(
+                  child: Text(
+                    address.isNotEmpty ? address : city,
+                    style: ThemeText.paragraph.copyWith(
+                      color: Colors.grey.shade600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          SizedBox(height: spacingUnit(2)),
+          Divider(color: Colors.grey.shade200),
+          SizedBox(height: spacingUnit(2)),
+
+          // Stay Details Grid (Like Train Booking)
+          Row(
+            children: [
+              Expanded(
+                child: _buildInfoTile(
+                  'Check-in',
+                  checkIn,
+                  Icons.calendar_today,
+                ),
+              ),
+              Expanded(
+                child: _buildInfoTile(
+                  'Check-out',
+                  checkOut,
+                  Icons.calendar_today,
+                ),
+              ),
+              Expanded(
+                child: _buildInfoTile(
+                  'Duration',
+                  '$nights Night${nights > 1 ? 's' : ''}',
+                  Icons.nights_stay,
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: spacingUnit(1.5)),
+
+          Row(
+            children: [
+              Expanded(
+                child: _buildInfoTile(
+                  'Room Type',
+                  roomType,
+                  Icons.bed_outlined,
+                ),
+              ),
+              Expanded(
+                child: _buildInfoTile(
+                  'Check-in Time',
+                  '2:00 PM',
+                  Icons.access_time,
+                ),
+              ),
+              Expanded(
+                child: _buildInfoTile(
+                  'Check-out Time',
+                  '12:00 PM',
+                  Icons.access_time,
+                ),
+              ),
+            ],
+          ),
+
+          SizedBox(height: spacingUnit(2)),
+          Divider(color: Colors.grey.shade200),
+          SizedBox(height: spacingUnit(2)),
+
+          // Amenities Section
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildAmenityIcon(Icons.wifi, 'Free WiFi'),
+              _buildAmenityIcon(Icons.pool, 'Pool'),
+              _buildAmenityIcon(Icons.fitness_center, 'Gym'),
+              _buildAmenityIcon(Icons.restaurant, 'Restaurant'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPassengerSection(bool isHotelBooking) {
     final passengers = _booking['allPassengers'] as List<dynamic>?;
     if (passengers == null || passengers.isEmpty) return const SizedBox();
+
+    final sectionLabel = isHotelBooking ? 'GUESTS' : 'PASSENGERS';
 
     return Container(
       margin: EdgeInsets.fromLTRB(
@@ -1242,7 +1599,7 @@ class _BookingDetailState extends State<BookingDetail> {
               Icon(Icons.people, color: colorScheme(context).primary),
               SizedBox(width: spacingUnit(1)),
               Text(
-                'PASSENGERS (${passengers.length})',
+                '$sectionLabel (${passengers.length})',
                 style: ThemeText.subtitle.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
@@ -1269,21 +1626,25 @@ class _BookingDetailState extends State<BookingDetail> {
     );
   }
 
-  Widget _buildPassengerRow(Map<String, dynamic> passenger, int number, int passengerIndex) {
+  Widget _buildPassengerRow(
+      Map<String, dynamic> passenger, int number, int passengerIndex) {
     final firstName = passenger['firstName']?.toString() ?? '';
     final lastName = passenger['lastName']?.toString() ?? '';
     final salutation = passenger['salutation']?.toString() ?? '';
     final fullName = firstName.isNotEmpty && lastName.isNotEmpty
         ? '$firstName $lastName'
         : (passenger['name']?.toString() ?? 'N/A');
-    final nameWithSalutation = salutation.isNotEmpty 
-        ? '$fullName ($salutation)'
-        : fullName;
+    final nameWithSalutation =
+        salutation.isNotEmpty ? '$fullName ($salutation)' : fullName;
 
     // Get seat information
     final seatInfo = _getPassengerSeatInfo(passengerIndex);
 
+    // Get baggage information
+    final baggageInfo = _getPassengerBaggageInfo(passengerIndex);
+
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           width: 40,
@@ -1330,6 +1691,16 @@ class _BookingDetailState extends State<BookingDetail> {
                   ),
                 ),
               ],
+              if (baggageInfo.isNotEmpty) ...[
+                SizedBox(height: spacingUnit(0.5)),
+                Wrap(
+                  spacing: spacingUnit(0.8),
+                  runSpacing: spacingUnit(0.4),
+                  children: baggageInfo
+                      .map((info) => _buildBaggageChip(info))
+                      .toList(),
+                ),
+              ],
             ],
           ),
         ),
@@ -1337,10 +1708,78 @@ class _BookingDetailState extends State<BookingDetail> {
     );
   }
 
+  Widget _buildBaggageChip(Map<String, String> info) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+          horizontal: spacingUnit(1), vertical: spacingUnit(0.4)),
+      decoration: BoxDecoration(
+        color: const Color(0xFF3B82F6).withOpacity(0.08),
+        borderRadius: BorderRadius.circular(6),
+        border:
+            Border.all(color: const Color(0xFF3B82F6).withOpacity(0.25), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.luggage, size: 12, color: const Color(0xFF3B82F6)),
+          SizedBox(width: spacingUnit(0.4)),
+          Text(
+            info['label'] ?? '',
+            style: ThemeText.caption.copyWith(
+              color: const Color(0xFF3B82F6),
+              fontWeight: FontWeight.w600,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Map<String, String>> _getPassengerBaggageInfo(int passengerIndex) {
+    final bookingType = _booking['bookingType'] ?? 'flight';
+    if (bookingType != 'flight') return [];
+
+    final isRoundTrip = _booking['isRoundTrip'] == true;
+    final List<Map<String, String>> chips = [];
+
+    // Outbound baggage
+    final baggageData =
+        _booking['baggageData'] as List<dynamic>? ?? [];
+    if (passengerIndex < baggageData.length) {
+      final b = baggageData[passengerIndex] as Map<String, dynamic>;
+      final kg = (b['totalKg'] as num?)?.toDouble() ?? 0;
+      if (kg > 0) {
+        final label = isRoundTrip
+            ? 'Out: ${kg.toStringAsFixed(0)} kg'
+            : '${kg.toStringAsFixed(0)} kg';
+        chips.add({'label': label});
+      }
+    }
+
+    // Return baggage (round trip)
+    if (isRoundTrip) {
+      final returnBaggageData =
+          _booking['returnBaggageData'] as List<dynamic>? ?? [];
+      if (passengerIndex < returnBaggageData.length) {
+        final b = returnBaggageData[passengerIndex] as Map<String, dynamic>;
+        final mode = b['mode']?.toString() ?? 'custom';
+        final kg = (b['totalKg'] as num?)?.toDouble() ?? 0;
+        if (mode == 'later') {
+          chips.add({'label': 'Ret: Add at airport'});
+        } else if (kg > 0) {
+          chips.add({'label': 'Ret: ${kg.toStringAsFixed(0)} kg'});
+        }
+      }
+    }
+
+    return chips;
+  }
+
   String _getPassengerSeatInfo(int passengerIndex) {
     final isRoundTrip = _booking['isRoundTrip'] == true;
     final bookingType = _booking['bookingType'] ?? 'flight';
-    
+
     if (bookingType == 'train') {
       // For trains, seats are stored differently
       final seats = _booking['seats'] as List<dynamic>? ?? [];
@@ -1358,22 +1797,25 @@ class _BookingDetailState extends State<BookingDetail> {
     } else {
       // For flights
       if (isRoundTrip) {
-        final outboundSeats = _booking['outboundSeatSelections'] as List<dynamic>? ?? [];
-        final returnSeats = _booking['returnSeatSelections'] as List<dynamic>? ?? [];
-        
+        final outboundSeats =
+            _booking['outboundSeatSelections'] as List<dynamic>? ?? [];
+        final returnSeats =
+            _booking['returnSeatSelections'] as List<dynamic>? ?? [];
+
         String outboundSeat = '';
         String returnSeat = '';
-        
+
         if (passengerIndex < outboundSeats.length) {
-          final seatData = outboundSeats[passengerIndex] as Map<String, dynamic>;
+          final seatData =
+              outboundSeats[passengerIndex] as Map<String, dynamic>;
           outboundSeat = seatData['seatName']?.toString() ?? '';
         }
-        
+
         if (passengerIndex < returnSeats.length) {
           final seatData = returnSeats[passengerIndex] as Map<String, dynamic>;
           returnSeat = seatData['seatName']?.toString() ?? '';
         }
-        
+
         if (outboundSeat.isNotEmpty && returnSeat.isNotEmpty) {
           return 'Seats: $outboundSeat (Out) | $returnSeat (Ret)';
         } else if (outboundSeat.isNotEmpty) {
@@ -1382,9 +1824,11 @@ class _BookingDetailState extends State<BookingDetail> {
           return 'Seat (Return): $returnSeat';
         }
       } else {
-        final seatSelections = _booking['seatSelections'] as List<dynamic>? ?? [];
+        final seatSelections =
+            _booking['seatSelections'] as List<dynamic>? ?? [];
         if (passengerIndex < seatSelections.length) {
-          final seatData = seatSelections[passengerIndex] as Map<String, dynamic>;
+          final seatData =
+              seatSelections[passengerIndex] as Map<String, dynamic>;
           final seatName = seatData['seatName']?.toString() ?? '';
           if (seatName.isNotEmpty) {
             return 'Seat: $seatName';
@@ -1392,13 +1836,13 @@ class _BookingDetailState extends State<BookingDetail> {
         }
       }
     }
-    
+
     return '';
   }
 
   String _getPassengerDocumentInfo(Map<String, dynamic> passenger) {
     final documentType = passenger['documentType']?.toString() ?? '';
-    
+
     // Check for CNIC
     final cnic = passenger['cnic']?.toString().trim();
     final nationalId = passenger['nationalId']?.toString().trim();
@@ -1406,19 +1850,20 @@ class _BookingDetailState extends State<BookingDetail> {
       final cnicNumber = cnic ?? nationalId ?? '';
       return cnicNumber.isNotEmpty ? 'CNIC: $cnicNumber' : 'CNIC: N/A';
     }
-    
+
     // Check for B-Form
     final bForm = passenger['bForm']?.toString().trim();
     if (documentType == 'B-Form' || (bForm != null && bForm.isNotEmpty)) {
       return 'B-Form: $bForm';
     }
-    
+
     // Check for Passport
     final passport = passenger['passportNumber']?.toString().trim();
-    if (documentType == 'Passport' || (passport != null && passport.isNotEmpty)) {
+    if (documentType == 'Passport' ||
+        (passport != null && passport.isNotEmpty)) {
       return 'Passport: $passport';
     }
-    
+
     // Fallback to generic ID
     final passportOrId = passenger['passportOrId']?.toString().trim();
     if (passportOrId != null && passportOrId.isNotEmpty) {
@@ -1569,7 +2014,7 @@ class _BookingDetailState extends State<BookingDetail> {
     );
   }
 
-  Widget _buildInfoSection(bool isTrainBooking) {
+  Widget _buildInfoSection(bool isTrainBooking, bool isHotelBooking) {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: spacingUnit(2)),
       padding: EdgeInsets.all(spacingUnit(2.5)),
@@ -1595,7 +2040,15 @@ class _BookingDetailState extends State<BookingDetail> {
             ],
           ),
           SizedBox(height: spacingUnit(1.5)),
-          if (isTrainBooking) ...[
+          if (isHotelBooking) ...[
+            _buildInfoPoint(
+                'Check-in time: 2:00 PM | Check-out time: 12:00 PM'),
+            _buildInfoPoint(
+                'Carry valid CNIC/Passport matching booking details'),
+            _buildInfoPoint('Show booking confirmation at reception'),
+            _buildInfoPoint(
+                'Cancellation allowed up to 24 hours before check-in'),
+          ] else if (isTrainBooking) ...[
             _buildInfoPoint('Arrive at station 30 minutes before departure'),
             _buildInfoPoint(
                 'Carry valid CNIC/Passport matching booking details'),
@@ -1646,70 +2099,57 @@ class _BookingDetailState extends State<BookingDetail> {
   Widget _buildBottomBar() {
     final isConfirmed =
         (_booking['status'] ?? 'confirmed').toLowerCase() == 'confirmed';
-    final isTrainBooking = (_booking['bookingType'] ?? 'flight') == 'train';
+    final bookingType = _booking['bookingType'] ?? 'flight';
+    final isTrainBooking = bookingType == 'train';
+    final isHotelBooking = bookingType == 'hotel';
+
+    Color primaryBtnColor;
+    String downloadBtnText;
+    VoidCallback? buttonAction;
+
+    if (isHotelBooking) {
+      primaryBtnColor = const Color(0xFFD4AF37); // Gold
+      downloadBtnText = 'DOWNLOAD INVOICE';
+      buttonAction = _showInvoiceModal;
+    } else if (isTrainBooking) {
+      primaryBtnColor = const Color(0xFF059669); // Green
+      downloadBtnText = 'DOWNLOAD E-TICKET';
+      buttonAction = _downloadETicket;
+    } else {
+      primaryBtnColor = const Color(0xFF3B82F6); // Blue
+      downloadBtnText = 'DOWNLOAD E-TICKET & BOARDING PASS';
+      buttonAction = _downloadETicket;
+    }
 
     return BottomAppBar(
       elevation: 8,
-      height: 140,
+      height: 80,
       color: Colors.white,
       padding: EdgeInsets.all(spacingUnit(2)),
-      child: Column(
-        children: [
-          // First Row: E-Ticket Button (Full width)
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _downloadingPdf ? null : _downloadETicket,
-              style: ThemeButton.btnBig.merge(
-                FilledButton.styleFrom(
-                  backgroundColor: isTrainBooking
-                      ? const Color(0xFF059669)
-                      : const Color(0xFF3B82F6),
-                  foregroundColor: Colors.white,
-                ),
-              ),
-              child: _downloadingPdf
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : Text(
-                      isTrainBooking
-                          ? 'DOWNLOAD E-TICKET'
-                          : 'DOWNLOAD E-TICKET & BOARDING PASS',
-                      textAlign: TextAlign.center,
-                    ),
+      child: SizedBox(
+        width: double.infinity,
+        child: FilledButton(
+          onPressed: _downloadingPdf ? null : buttonAction,
+          style: ThemeButton.btnBig.merge(
+            FilledButton.styleFrom(
+              backgroundColor: primaryBtnColor,
+              foregroundColor: Colors.white,
             ),
           ),
-          SizedBox(height: spacingUnit(1.5)),
-          // Second Row: Tax Invoice Button (Full width)
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: _downloadingPdf ? null : _downloadInvoice,
-              style: ThemeButton.btnBig.merge(
-                OutlinedButton.styleFrom(
-                  foregroundColor: Colors.grey.shade700,
-                  side: BorderSide(color: Colors.grey.shade400),
+          child: _downloadingPdf
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  downloadBtnText,
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              child: _downloadingPdf
-                  ? SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.grey.shade700,
-                      ),
-                    )
-                  : const Text('DOWNLOAD TAX INVOICE'),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1756,10 +2196,511 @@ class _BookingDetailState extends State<BookingDetail> {
   //  🎫 PDF DOWNLOAD METHODS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+  void _showInvoiceModal() {
+    const gold = Color(0xFFD4AF37);
+    const green = Color(0xFF10B981);
+
+    final hotelDetails = _booking['hotelDetails'] as Map<String, dynamic>?;
+    final hotelName = hotelDetails?['hotelName'] ?? 'Hotel';
+    final hotelCity = hotelDetails?['city'] ?? '';
+    final address = hotelDetails?['address'] ?? '';
+    final checkIn = hotelDetails?['checkIn'] ?? 'N/A';
+    final checkOut = hotelDetails?['checkOut'] ?? 'N/A';
+    final roomType = hotelDetails?['roomType'] ?? 'Standard Room';
+    final nights = hotelDetails?['nights'] ?? 1;
+    final rating = (hotelDetails?['rating'] ?? 0) as num;
+    final pnr = _booking['pnr'] ?? 'N/A';
+    final passengers = _booking['allPassengers'] as List<dynamic>? ?? [];
+    final total = _booking['total'] as double? ?? 0.0;
+    final issuedAt = DateFormat('dd MMM yyyy, HH:mm').format(DateTime.now());
+    final transactionId = _booking['transactionId'] as String? ??
+        'TXN${DateTime.now().millisecondsSinceEpoch}';
+    final basePrice = total * 0.75; // Example calculation
+    final serviceCharge = basePrice * 0.05;
+    final tourismTax = basePrice * 0.03;
+    final gstVal = basePrice * 0.16;
+
+    Widget secHdr(String title) => Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+              color: gold, borderRadius: BorderRadius.circular(4)),
+          child: Row(children: [
+            Container(width: 3, height: 14, color: Colors.white),
+            const SizedBox(width: 8),
+            Text(title,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.6)),
+          ]),
+        );
+
+    Widget kvLight(String k, String v, {bool bold = false}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2.5),
+          child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(k,
+                    style:
+                        TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                const SizedBox(width: 8),
+                Flexible(
+                    child: Text(v,
+                        textAlign: TextAlign.end,
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight:
+                                bold ? FontWeight.bold : FontWeight.w600,
+                            color: Colors.black87))),
+              ]),
+        );
+
+    Widget divLight() =>
+        Divider(color: Colors.grey.shade200, thickness: 1, height: 10);
+
+    Widget tHead(String t, {TextAlign align = TextAlign.left}) => Container(
+          color: gold,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: Text(t,
+              textAlign: align,
+              style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 0.4)),
+        );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        bool dl = false;
+        return StatefulBuilder(builder: (ctx, setSt) {
+          return Container(
+            height: MediaQuery.of(ctx).size.height * 0.93,
+            decoration: const BoxDecoration(
+              color: Color(0xFFF5F5F5),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(children: [
+              const SizedBox(height: 10),
+              Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(2))),
+
+              // Invoice Header
+              Container(
+                color: gold,
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                            color: gold,
+                            borderRadius: BorderRadius.circular(8)),
+                        child: const Center(
+                            child: Text('H',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold))),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Travello AI',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold)),
+                              Text('Hotel Tax Invoice & Stay Receipt',
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 10)),
+                              SizedBox(height: 3),
+                              Text(
+                                  'NTN: 1234567-8  |  STRN: SC-01234-56789',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      letterSpacing: 0.3)),
+                            ]),
+                      ),
+                      Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                  border: Border.all(
+                                      color: Colors.white, width: 1.5),
+                                  borderRadius: BorderRadius.circular(6)),
+                              child: Text(pnr,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5)),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(issuedAt,
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 9)),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                  color: green,
+                                  borderRadius: BorderRadius.circular(20)),
+                              child: const Text('CONFIRMED',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                          ]),
+                    ]),
+              ),
+
+              // Golden Download Bar
+              Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFD4AF37), Color(0xFFE6C68E)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Tax Invoice Preview',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600)),
+                      GestureDetector(
+                        onTap: dl
+                            ? null
+                            : () {
+                                setSt(() => dl = true);
+                                _downloadHotelConfirmation().then((_) {
+                                  if (mounted) setSt(() => dl = false);
+                                });
+                              },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: gold,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: dl
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('PDF',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold)),
+                                    SizedBox(width: 6),
+                                    Text('⬇',
+                                        style: TextStyle(
+                                            color: Colors.white, fontSize: 14)),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ]),
+              ),
+
+              // Scrollable Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Hotel Info Section
+                      secHdr('HOTEL INFORMATION'),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(hotelName,
+                                style: const TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.bold)),
+                            if (rating > 0) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                  '${'⭐' * rating.toInt()} ${rating.toInt()}-Star',
+                                  style: const TextStyle(
+                                      fontSize: 11, color: gold)),
+                            ],
+                            if (address.isNotEmpty || hotelCity.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Text(address.isNotEmpty ? address : hotelCity,
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade600)),
+                            ],
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Stay Details Section
+                      secHdr('STAY DETAILS'),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            kvLight('Check-In', checkIn),
+                            kvLight('Check-Out', checkOut),
+                            kvLight('Nights',
+                                '$nights Night${nights > 1 ? 's' : ''}'),
+                            kvLight('Room Type', roomType),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Guest Details
+                      if (passengers.isNotEmpty) ...[
+                        secHdr('GUEST DETAILS'),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Column(
+                            children: passengers.map((p) {
+                              final pax = p as Map<String, dynamic>;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(pax['name'] ?? 'Guest',
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                        'CNIC: ${pax['cnic'] ?? '—'} | Phone: ${pax['phone'] ?? '—'}',
+                                        style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.grey.shade600)),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Services & Charges Table
+                      secHdr('SERVICES & CHARGES (PBR Tax Invoice)'),
+                      const SizedBox(height: 10),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            Table(
+                              border: TableBorder.all(
+                                  color: Colors.grey.shade300, width: 1),
+                              columnWidths: const {
+                                0: FlexColumnWidth(3),
+                                1: FlexColumnWidth(1),
+                                2: FlexColumnWidth(1),
+                              },
+                              children: [
+                                TableRow(children: [
+                                  tHead('Description'),
+                                  tHead('Rate', align: TextAlign.center),
+                                  tHead('Amount', align: TextAlign.right),
+                                ]),
+                                TableRow(children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text('$roomType — Hotel Accommodation',
+                                            style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600)),
+                                        Text(
+                                            'Check-In: $checkIn\nCheck-Out: $checkOut',
+                                            style: TextStyle(
+                                                fontSize: 9,
+                                                color: Colors.grey.shade600)),
+                                      ],
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Text('$nights x 1',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(fontSize: 10)),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: Text(
+                                        'PKR ${basePrice.toStringAsFixed(0)}',
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(fontSize: 10)),
+                                  ),
+                                ]),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Fare Breakdown
+                      secHdr('FARE BREAKDOWN'),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            kvLight('Base Accommodation',
+                                'PKR ${basePrice.toStringAsFixed(0)}'),
+                            divLight(),
+                            kvLight('Service Charge (5%)',
+                                'PKR ${serviceCharge.toStringAsFixed(0)}'),
+                            kvLight('Tourism / FED Tax (3%)',
+                                'PKR ${tourismTax.toStringAsFixed(0)}'),
+                            divLight(),
+                            kvLight('GST @ 16% (PBR)',
+                                'PKR ${gstVal.toStringAsFixed(0)}'),
+                            const Divider(thickness: 2, height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('TOTAL PAYABLE',
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold)),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: gold,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text('PKR ${total.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Transaction Details
+                      secHdr('DETAIL TRANSACTION'),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            kvLight(
+                                'Date:',
+                                DateFormat('dd MMM yyyy')
+                                    .format(DateTime.now())),
+                            kvLight('Transaction Number:', transactionId),
+                            kvLight(
+                                'Amount:', 'PKR ${total.toStringAsFixed(0)}'),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 100),
+                    ],
+                  ),
+                ),
+              ),
+            ]),
+          );
+        });
+      },
+    );
+  }
+
   Future<void> _downloadETicket() async {
     final bookingType = _booking['bookingType'] as String? ?? 'flight';
 
-    if (bookingType == 'train') {
+    if (bookingType == 'hotel') {
+      await _downloadHotelConfirmation();
+    } else if (bookingType == 'train') {
       await _downloadRailwayTicket();
     } else {
       await _downloadFlightTicket();
@@ -1855,12 +2796,12 @@ class _BookingDetailState extends State<BookingDetail> {
       final paxCount = passengers.isEmpty ? 1 : passengers.length;
       final farePerPax = paxCount > 0 ? baseFare / paxCount : baseFare;
       const rabta = 10.0;
-      
+
       // Get seat selections for both journeys
-      final outboundSeats = isRoundTrip 
+      final outboundSeats = isRoundTrip
           ? (_booking['outboundSeatSelections'] as List<dynamic>? ?? [])
           : (_booking['seatSelections'] as List<dynamic>? ?? []);
-      final returnSeats = isRoundTrip 
+      final returnSeats = isRoundTrip
           ? (_booking['returnSeatSelections'] as List<dynamic>? ?? [])
           : [];
 
@@ -1884,7 +2825,7 @@ class _BookingDetailState extends State<BookingDetail> {
             : rawType == 'INFANT'
                 ? 'INFANT'
                 : 'ADULT';
-        
+
         // Get seat and coach from actual selections (outbound)
         String seat = '${i + 1}'; // fallback
         String seatCoach = coach; // fallback
@@ -1898,7 +2839,7 @@ class _BookingDetailState extends State<BookingDetail> {
         } else if (i < rawSeats.length) {
           seat = rawSeats[i].toString();
         }
-        
+
         final ticketNo = i < rawTickets.length ? rawTickets[i].toString() : pnr;
 
         final double thisFare = rawType == 'CHILD_3_10'
@@ -1976,7 +2917,7 @@ class _BookingDetailState extends State<BookingDetail> {
               : rawType == 'INFANT'
                   ? 'INFANT'
                   : 'ADULT';
-          
+
           // Get seat and coach from actual selections (return)
           String seat = '${i + 1}'; // fallback
           String seatCoach = coach; // fallback
@@ -1990,15 +2931,17 @@ class _BookingDetailState extends State<BookingDetail> {
           } else if (i < rawSeats.length) {
             seat = rawSeats[i].toString();
           }
-          
-          final ticketNo = i < rawTickets.length ? rawTickets[i].toString() : pnr;
+
+          final ticketNo =
+              i < rawTickets.length ? rawTickets[i].toString() : pnr;
 
           final double thisFare = rawType == 'CHILD_3_10'
               ? farePerPax * 0.5
               : rawType == 'INFANT'
                   ? 0.0
                   : farePerPax;
-          final double thisTotal = thisFare + (rawType == 'ADULT' ? rabta : 0.0);
+          final double thisTotal =
+              thisFare + (rawType == 'ADULT' ? rabta : 0.0);
 
           _addRailwayTicketPage(
             doc,
@@ -2051,6 +2994,390 @@ class _BookingDetailState extends State<BookingDetail> {
       await Printing.layoutPdf(
           name: 'Railway-Ticket-${_booking['pnr']}.pdf',
           onLayout: (_) async => doc.save());
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF generation failed: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _downloadingPdf = false);
+    }
+  }
+
+  Future<void> _downloadHotelConfirmation() async {
+    setState(() => _downloadingPdf = true);
+    try {
+      final font = await PdfGoogleFonts.robotoRegular();
+      final fontBold = await PdfGoogleFonts.robotoBold();
+
+      final hotelDetails = _booking['hotelDetails'] as Map<String, dynamic>?;
+      final hotelName = hotelDetails?['hotelName'] ?? 'Hotel';
+      final city = hotelDetails?['city'] ?? '';
+      final address = hotelDetails?['address'] ?? '';
+      final checkIn = hotelDetails?['checkIn'] ?? 'N/A';
+      final checkOut = hotelDetails?['checkOut'] ?? 'N/A';
+      final roomType = hotelDetails?['roomType'] ?? 'Standard Room';
+      final nights = hotelDetails?['nights'] ?? 1;
+      final rating = (hotelDetails?['rating'] ?? 0) as num;
+      final pnr = _booking['pnr'] ?? 'N/A';
+      final passengers = _booking['allPassengers'] as List<dynamic>? ?? [];
+      final total = _booking['total'] as double? ?? 0.0;
+
+      const gold = PdfColor(0.831, 0.686, 0.216); // #D4AF37
+      const goldLight = PdfColor(1.0, 0.984, 0.922); // #FFFBEB
+      const textDark = PdfColor(0.1, 0.1, 0.1);
+      const textGrey = PdfColor(0.5, 0.5, 0.5);
+
+      final doc = pw.Document(
+        creator: 'Travello AI',
+        title: 'Hotel Booking Confirmation - $pnr',
+      );
+
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (ctx) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // Header
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(20),
+                decoration: const pw.BoxDecoration(color: gold),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'HOTEL BOOKING CONFIRMATION',
+                      style: pw.TextStyle(
+                        font: fontBold,
+                        fontSize: 18,
+                        color: PdfColors.white,
+                      ),
+                    ),
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                      'Travello AI - Your Travel Companion',
+                      style: pw.TextStyle(
+                        font: font,
+                        fontSize: 10,
+                        color: PdfColors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 20),
+
+              // Booking Reference
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 20),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'Booking Reference',
+                          style: pw.TextStyle(
+                              font: font, fontSize: 10, color: textGrey),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Text(
+                          pnr,
+                          style: pw.TextStyle(
+                              font: fontBold, fontSize: 16, color: textDark),
+                        ),
+                      ],
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: pw.BoxDecoration(
+                        color: const PdfColor(0.063, 0.725, 0.506), // Green
+                        borderRadius: pw.BorderRadius.circular(4),
+                      ),
+                      child: pw.Text(
+                        'CONFIRMED',
+                        style: pw.TextStyle(
+                          font: fontBold,
+                          fontSize: 10,
+                          color: PdfColors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 20),
+
+              // Hotel Details Section
+              pw.Container(
+                margin: const pw.EdgeInsets.symmetric(horizontal: 20),
+                padding: const pw.EdgeInsets.all(16),
+                decoration: pw.BoxDecoration(
+                  color: goldLight,
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      hotelName,
+                      style: pw.TextStyle(
+                          font: fontBold, fontSize: 16, color: textDark),
+                    ),
+                    if (rating > 0) ...[
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        '${'★' * rating.toInt()} ${rating.toInt()}-Star',
+                        style:
+                            pw.TextStyle(font: font, fontSize: 10, color: gold),
+                      ),
+                    ],
+                    if (address.isNotEmpty || city.isNotEmpty) ...[
+                      pw.SizedBox(height: 8),
+                      pw.Text(
+                        address.isNotEmpty ? address : city,
+                        style: pw.TextStyle(
+                            font: font, fontSize: 10, color: textGrey),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 20),
+
+              // Stay Details
+              pw.Container(
+                margin: const pw.EdgeInsets.symmetric(horizontal: 20),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'STAY DETAILS',
+                      style: pw.TextStyle(
+                          font: fontBold, fontSize: 12, color: textDark),
+                    ),
+                    pw.SizedBox(height: 12),
+                    pw.Row(
+                      children: [
+                        pw.Expanded(
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Text('Check-in',
+                                  style: pw.TextStyle(
+                                      font: font,
+                                      fontSize: 9,
+                                      color: textGrey)),
+                              pw.SizedBox(height: 4),
+                              pw.Text(checkIn,
+                                  style: pw.TextStyle(
+                                      font: fontBold,
+                                      fontSize: 12,
+                                      color: textDark)),
+                              pw.Text('2:00 PM',
+                                  style: pw.TextStyle(
+                                      font: font,
+                                      fontSize: 8,
+                                      color: textGrey)),
+                            ],
+                          ),
+                        ),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: pw.BoxDecoration(
+                            color: gold,
+                            borderRadius: pw.BorderRadius.circular(4),
+                          ),
+                          child: pw.Text(
+                            '$nights Night${nights > 1 ? 's' : ''}',
+                            style: pw.TextStyle(
+                                font: fontBold,
+                                fontSize: 10,
+                                color: PdfColors.white),
+                          ),
+                        ),
+                        pw.Expanded(
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.end,
+                            children: [
+                              pw.Text('Check-out',
+                                  style: pw.TextStyle(
+                                      font: font,
+                                      fontSize: 9,
+                                      color: textGrey)),
+                              pw.SizedBox(height: 4),
+                              pw.Text(checkOut,
+                                  style: pw.TextStyle(
+                                      font: fontBold,
+                                      fontSize: 12,
+                                      color: textDark)),
+                              pw.Text('12:00 PM',
+                                  style: pw.TextStyle(
+                                      font: font,
+                                      fontSize: 8,
+                                      color: textGrey)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.SizedBox(height: 12),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: gold),
+                        borderRadius: pw.BorderRadius.circular(4),
+                      ),
+                      child: pw.Text(
+                        'Room Type: $roomType',
+                        style: pw.TextStyle(
+                            font: font, fontSize: 10, color: textDark),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 20),
+
+              // Guest Details
+              if (passengers.isNotEmpty) ...[
+                pw.Container(
+                  margin: const pw.EdgeInsets.symmetric(horizontal: 20),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        'GUEST DETAILS',
+                        style: pw.TextStyle(
+                            font: fontBold, fontSize: 12, color: textDark),
+                      ),
+                      pw.SizedBox(height: 12),
+                      ...passengers.map((p) {
+                        final pax = p as Map<String, dynamic>;
+                        return pw.Container(
+                          margin: const pw.EdgeInsets.only(bottom: 8),
+                          padding: const pw.EdgeInsets.all(12),
+                          decoration: pw.BoxDecoration(
+                            border: pw.Border.all(
+                                color: const PdfColor(0.9, 0.9, 0.9)),
+                            borderRadius: pw.BorderRadius.circular(4),
+                          ),
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Text(
+                                pax['name'] ?? 'Guest',
+                                style: pw.TextStyle(
+                                    font: fontBold,
+                                    fontSize: 11,
+                                    color: textDark),
+                              ),
+                              pw.SizedBox(height: 4),
+                              pw.Text(
+                                'CNIC: ${pax['cnic'] ?? '—'} | Phone: ${pax['phone'] ?? '—'}',
+                                style: pw.TextStyle(
+                                    font: font, fontSize: 9, color: textGrey),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 20),
+              ],
+
+              // Payment Summary
+              pw.Container(
+                margin: const pw.EdgeInsets.symmetric(horizontal: 20),
+                padding: const pw.EdgeInsets.all(16),
+                decoration: pw.BoxDecoration(
+                  color: const PdfColor(0.98, 0.98, 0.98),
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Column(
+                  children: [
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Text('TOTAL AMOUNT',
+                            style: pw.TextStyle(
+                                font: fontBold, fontSize: 12, color: textDark)),
+                        pw.Text(
+                          'PKR ${total.toStringAsFixed(0)}',
+                          style: pw.TextStyle(
+                              font: fontBold, fontSize: 16, color: gold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 20),
+
+              // Important Information
+              pw.Container(
+                margin: const pw.EdgeInsets.symmetric(horizontal: 20),
+                padding: const pw.EdgeInsets.all(16),
+                decoration: pw.BoxDecoration(
+                  color: const PdfColor(1.0, 0.98, 0.94), // Amber light
+                  borderRadius: pw.BorderRadius.circular(8),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'IMPORTANT INFORMATION',
+                      style: pw.TextStyle(
+                          font: fontBold, fontSize: 10, color: textDark),
+                    ),
+                    pw.SizedBox(height: 8),
+                    pw.Text(
+                        '• Check-in time: 2:00 PM | Check-out time: 12:00 PM',
+                        style: pw.TextStyle(
+                            font: font, fontSize: 8, color: textDark)),
+                    pw.Text(
+                        '• Carry valid CNIC/Passport matching booking details',
+                        style: pw.TextStyle(
+                            font: font, fontSize: 8, color: textDark)),
+                    pw.Text('• Show booking confirmation at reception',
+                        style: pw.TextStyle(
+                            font: font, fontSize: 8, color: textDark)),
+                    pw.Text(
+                        '• Cancellation allowed up to 24 hours before check-in',
+                        style: pw.TextStyle(
+                            font: font, fontSize: 8, color: textDark)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await Printing.layoutPdf(
+        onLayout: (_) async => doc.save(),
+        name: 'Hotel_Confirmation_$pnr.pdf',
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2924,7 +4251,8 @@ class _BookingDetailState extends State<BookingDetail> {
           pw.SizedBox(height: 4),
           pw.Center(
             child: pw.Container(
-              padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding:
+                  const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: pw.BoxDecoration(
                 color: isReturn ? const PdfColor(0.9, 0.5, 0.2) : pgGreen,
                 borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),

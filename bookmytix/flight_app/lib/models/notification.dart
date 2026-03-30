@@ -1,7 +1,8 @@
-import 'package:flight_app/constants/img_api.dart';
-
 class NotificationModel {
-  final String type;
+  final String type; // 'success' | 'warning' | 'error' | 'info'
+  final String category; // 'flight' | 'train' | 'hotel' | 'emergency' | 'ai'
+  final String
+      tag; // e.g. 'PIA', 'AirBlue', 'Train', 'Hotel', 'AI Trip', 'Emergency'
   final String title;
   final String subtitle;
   final String date;
@@ -10,68 +11,120 @@ class NotificationModel {
 
   NotificationModel({
     required this.type,
+    required this.category,
+    required this.tag,
     required this.title,
     required this.subtitle,
     required this.date,
     this.image,
     this.isRead = false,
   });
+
+  NotificationModel copyWith({bool? isRead}) => NotificationModel(
+        type: type,
+        category: category,
+        tag: tag,
+        title: title,
+        subtitle: subtitle,
+        date: date,
+        image: image,
+        isRead: isRead ?? this.isRead,
+      );
 }
 
-final List<NotificationModel> notifList = [
+// ── TODAY ─────────────────────────────────────────────────────────────────────
+final List<NotificationModel> notifListToday = [
   NotificationModel(
-    type: 'success',
-    title: 'Duis at velit eu est',
-    subtitle: 'Vestibulum sed magna at nunc commodo placerat',
-    date: 'Today',
+    type: 'info',
+    category: 'flight',
+    tag: 'PIA',
+    title: 'PIA PK-302 — Boarding open',
+    subtitle: 'Karachi (KHI) → Lahore (LHE) · Gate B4 · Dep. 14:30',
+    date: '2 hours ago',
+    isRead: false,
   ),
   NotificationModel(
     type: 'info',
-    title: 'Quisque erat eros',
-    subtitle: 'Nunc purus. Phasellus in felis',
-    date: 'A week ago',
-    image: ImgApi.photo[2],
+    category: 'hotel',
+    tag: 'Hotel',
+    title: 'Hotel check-in reminder',
+    subtitle: 'Pearl Continental Lahore — Check-in tomorrow at 14:00',
+    date: '5 hours ago',
+    isRead: false,
+  ),
+  NotificationModel(
+    type: 'info',
+    category: 'ai',
+    tag: 'AI Trip',
+    title: 'Your Lahore trip is ready',
+    subtitle:
+        'Hotels, flights and activities have been suggested based on your preferences',
+    date: 'Wednesday',
+    isRead: false,
+  ),
+];
+
+// ── EARLIER ───────────────────────────────────────────────────────────────────
+final List<NotificationModel> notifListEarlier = [
+  NotificationModel(
+    type: 'success',
+    category: 'train',
+    tag: 'Train',
+    title: 'Pakistan Railways — Ticket confirmed',
+    subtitle: 'Karachi Express · Seat 14A · Dep. 7 Apr, 08:00 · PNR: 7842XXX',
+    date: 'Tuesday',
+    isRead: true,
+  ),
+  NotificationModel(
+    type: 'success',
+    category: 'flight',
+    tag: 'AirBlue',
+    title: 'AirBlue PA-201 — E-ticket ready',
+    subtitle: 'Islamabad (ISB) → Karachi (KHI) · 10 Apr · Booking #AB9921',
+    date: 'Monday',
+    isRead: true,
   ),
   NotificationModel(
     type: 'warning',
-    title: 'Pellentesque ultrices mattis odio',
-    subtitle: 'Vestibulum rutrum rutrum neque. Aenean auctor gravida sem',
-    date: '15 Apr'
-  ),
-  NotificationModel(
-    type: 'error',
-    title: 'Duis at velit eu est',
-    subtitle: 'Vestibulum sed magna at nunc commodo placerat',
-    date: '22 Jan',
-    isRead: true,
-  ),
-  NotificationModel(
-    type: 'message',
-    title: 'From: James Doe',
-    subtitle: 'Nunc purus. Phasellus in felis',
-    date: 'A week ago',
+    category: 'emergency',
+    tag: 'Emergency',
+    title: 'Nearby hospitals saved — Lahore',
+    subtitle:
+        'Services Medical Hospital, Shaukat Khanum, Jinnah Hospital nearby',
+    date: 'Monday',
     isRead: true,
   ),
   NotificationModel(
     type: 'info',
-    title: 'Duis at velit eu est',
-    subtitle: 'Vestibulum sed magna at nunc commodo placerat',
-    date: '22 Jan',
-    image: ImgApi.photo[90],
+    category: 'flight',
+    tag: 'AirSial',
+    title: 'Online check-in open — AirSial',
+    subtitle: 'PF-101 Lahore → Multan · Check-in closes 1 hr before departure',
+    date: 'Last week',
     isRead: true,
   ),
   NotificationModel(
     type: 'success',
-    title: 'Nullam molestie nibh in lectus',
-    subtitle: 'Pellentesque eget nunc. Donec quis orci eget orci vehicula condimentum.',
-    date: 'Long time ago',
+    category: 'flight',
+    tag: 'Serene',
+    title: 'Serene Air SR-601 — Booking Confirmed',
+    subtitle:
+        'Karachi (KHI) → Islamabad (ISB) · 15 Apr, 07:45 · Ref: SA20260415C',
+    date: 'Last week',
     isRead: true,
   ),
   NotificationModel(
-    type: 'account',
-    title: 'Pellentesque ultrices mattis odio',
-    subtitle: 'Vestibulum rutrum rutrum neque. Aenean auctor gravida sem',
-    date: '15 Apr',
+    type: 'info',
+    category: 'hotel',
+    tag: 'Hotel',
+    title: 'Early check-in available',
+    subtitle:
+        'Serena Hotel Islamabad — Early check-in from 10:00 AM on your arrival day',
+    date: 'Last week',
     isRead: true,
   ),
 ];
+
+// Combined (for unread badge)
+List<NotificationModel> get notifList =>
+    [...notifListToday, ...notifListEarlier];

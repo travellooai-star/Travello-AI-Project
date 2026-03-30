@@ -78,6 +78,8 @@ class AppLink {
   // TRAVELLO AI FEATURES
   static const railwaySearch = '/railway-search';
   static const railwayList = '/railway-list';
+  static const trainDetailPackage = '/train-detail-package';
+  static const trainPackageAll = '/train-packages-all';
   static const railwayBookingStep1 = '/railway-booking-passengers';
   static const railwayBookingStep2 = '/railway-booking-facilities';
   static const railwayBookingStep3 = '/railway-booking-checkout';
@@ -86,10 +88,16 @@ class AppLink {
   static const healthcare = '/healthcare';
 
   // HOTEL BOOKING
+  static const hotelBookingDetail = '/hotel-booking-detail';
   static const hotelSearch = '/hotel-search';
   static const hotelResults = '/hotel-results';
   static const hotelDetail = '/hotel-detail';
   static const hotelGuestForm = '/hotel-guest-form';
+  static const hotelCheckout = '/hotel-checkout';
+  static const hotelPackageAll = '/hotel-packages-all';
+
+  // WISHLIST / SAVED
+  static const wishlist = '/wishlist';
 
   // LOCAL TRANSPORT
   static const transport = '/transport';

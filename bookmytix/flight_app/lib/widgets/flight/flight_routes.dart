@@ -11,10 +11,12 @@ class FlightRoutes extends StatelessWidget {
     super.key,
     required this.title,
     required this.routes,
+    this.dateLabel,
   });
 
   final String title;
   final List<FlightRoute> routes;
+  final String? dateLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +29,10 @@ class FlightRoutes extends StatelessWidget {
         children: [
           const VSpaceShort(),
           Text(title, style: ThemeText.subtitle2),
+          if (dateLabel != null)
+            Text(dateLabel!,
+                style: ThemeText.caption
+                    .copyWith(color: colorScheme(context).onSurfaceVariant)),
           SizedBox(height: spacingUnit(1)),
           Stack(
             alignment: Alignment.centerLeft,
@@ -34,29 +40,26 @@ class FlightRoutes extends StatelessWidget {
               Positioned(
                 left: 24,
                 child: Container(
-                  width: 3,
-                  height: itemHeight * 5,
-                  decoration: BoxDecoration(
-                    color: colorScheme(context).outline,
-                    borderRadius: BorderRadius.circular(5)
-                  )
-                ),
+                    width: 3,
+                    height: itemHeight * 5,
+                    decoration: BoxDecoration(
+                        color: colorScheme(context).outline,
+                        borderRadius: BorderRadius.circular(5))),
               ),
               ListView.builder(
-                itemCount: routes.length,
-                shrinkWrap: true,
-                physics: const ClampingScrollPhysics(),
-                padding: const EdgeInsets.all(0),
-                itemBuilder: ((context, index) {
-                  FlightRoute item = routes[index];
-                  return FlightRouteCard(
-                    airport: item.airport,
-                    time: DateFormat.jm().format(item.time),
-                    type: item.type,
-                    mini: item.type == RouteType.transit,
-                  );
-                })
-              )
+                  itemCount: routes.length,
+                  shrinkWrap: true,
+                  physics: const ClampingScrollPhysics(),
+                  padding: const EdgeInsets.all(0),
+                  itemBuilder: ((context, index) {
+                    FlightRoute item = routes[index];
+                    return FlightRouteCard(
+                      airport: item.airport,
+                      time: DateFormat.jm().format(item.time),
+                      type: item.type,
+                      mini: item.type == RouteType.transit,
+                    );
+                  }))
             ],
           ),
         ],

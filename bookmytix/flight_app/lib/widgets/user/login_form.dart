@@ -119,7 +119,7 @@ class _LoginFormState extends State<LoginForm> {
               children: [
                 // Beautiful illustration container
                 SizedBox(
-                  height: 180,
+                  height: MediaQuery.of(context).size.height < 640 ? 130 : 180,
                   width: double.infinity,
                   child: Stack(
                     alignment: Alignment.center,

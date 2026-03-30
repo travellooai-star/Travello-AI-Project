@@ -177,6 +177,5 @@ class PaymentFormController extends GetxController {
     firstNameFocus.dispose();
     lastNameFocus.dispose();
     phoneFocus.dispose();
-    super.onClose();
   }
 }

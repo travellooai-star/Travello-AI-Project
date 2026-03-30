@@ -20,6 +20,7 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
   late double totalPrice;
 
   final _formKey = GlobalKey<FormState>();
+  final _mobileFormKey = GlobalKey<FormState>();
 
   String _selectedPaymentMethod = 'Card';
   final List<String> _paymentMethods = [
@@ -39,7 +40,9 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
   final TextEditingController _mobileNumberController = TextEditingController();
   final TextEditingController _pinController = TextEditingController();
 
+  bool _saveCard = false;
   bool _isProcessing = false;
+  bool _isAmex = false;
   bool _showOutboundDetails = false;
   bool _showReturnDetails = false;
   bool _showTrainDetails = false;
@@ -50,6 +53,17 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
     bookingData = Get.arguments ?? {};
     bookingType = bookingData['bookingType'] ?? 'flight';
     totalPrice = bookingData['totalPrice'] ?? 0.0;
+
+    // For hotel bookings, taxes (5% + 3% + 16% = 24%) are added on top of
+    // the base room price. Recompute so Total Amount reflects the real charge.
+    if (bookingType == 'hotel') {
+      final base = (bookingData['basePrice'] as num?)?.toDouble() ?? totalPrice;
+      final extras = (bookingData['extrasTotal'] as num?)?.toDouble() ?? 0.0;
+      final protection = bookingData['protectionPlan'] == true
+          ? ((bookingData['protectionPlanCost'] as num?)?.toDouble() ?? 0.0)
+          : 0.0;
+      totalPrice = base * 1.24 + extras + protection;
+    }
   }
 
   @override
@@ -64,8 +78,10 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
   }
 
   void _processPayment() {
-    // Validate form before processing
-    if (!_formKey.currentState!.validate()) {
+    // Validate the active form based on payment method
+    final isCardMethod = _selectedPaymentMethod == 'Card';
+    final activeKey = isCardMethod ? _formKey : _mobileFormKey;
+    if (!(activeKey.currentState?.validate() ?? true)) {
       // If form is not valid, show error message
       Get.snackbar(
         'Validation Error',
@@ -84,7 +100,41 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
     Future.delayed(const Duration(seconds: 2), () {
       setState(() => _isProcessing = false);
 
-      // Show success dialog
+      final ref =
+          'HTL${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+
+      // For hotel bookings navigate directly — no popup dialog
+      if (bookingType == 'hotel') {
+        Get.to(
+          () => const HotelBookingConfirmation(),
+          arguments: {
+            'bookingReference': ref,
+            'hotel': bookingData['hotel'],
+            'roomType': bookingData['roomType'],
+            'checkInDate': bookingData['checkInDate'],
+            'checkOutDate': bookingData['checkOutDate'],
+            'nights': bookingData['nights'],
+            'rooms': bookingData['rooms'],
+            'guests': bookingData['guests'],
+            'guestsData': bookingData['guestsData'],
+            'protectionPlan': bookingData['protectionPlan'],
+            'protectionPlanCost': bookingData['protectionPlan'] == true
+                ? ((bookingData['basePrice'] ??
+                            bookingData['totalPrice'] ??
+                            0.0) as num)
+                        .toDouble() *
+                    0.05
+                : 0.0,
+            'basePrice': bookingData['basePrice'] ?? bookingData['totalPrice'],
+            'extrasTotal': bookingData['extrasTotal'],
+            'extrasIncluded': bookingData['extrasIncluded'],
+            'totalPrice': totalPrice,
+          },
+        );
+        return;
+      }
+
+      // Show success dialog for non-hotel bookings
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -117,7 +167,7 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
               ),
               SizedBox(height: spacingUnit(1)),
               Text(
-                'Your ${bookingType == 'flight' ? 'flight' : bookingType == 'train' ? 'train' : bookingType == 'hotel' ? 'hotel' : 'transport'} has been booked successfully',
+                'Your ${bookingType == 'flight' ? 'flight' : bookingType == 'train' ? 'train' : 'transport'} has been booked successfully',
                 textAlign: TextAlign.center,
                 style: ThemeText.caption,
               ),
@@ -150,39 +200,7 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).pop();
-
-                  // For hotel bookings, navigate to confirmation screen
-                  if (bookingType == 'hotel') {
-                    Get.to(
-                      () => const HotelBookingConfirmation(),
-                      arguments: {
-                        'bookingReference':
-                            'HTL${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
-                        'hotel': bookingData['hotel'],
-                        'roomType': bookingData['roomType'],
-                        'checkInDate': bookingData['checkInDate'],
-                        'checkOutDate': bookingData['checkOutDate'],
-                        'nights': bookingData['nights'],
-                        'rooms': bookingData['rooms'],
-                        'guests': bookingData['guests'],
-                        'guestsData': bookingData['guestsData'],
-                        'protectionPlan': bookingData['protectionPlan'],
-                        'protectionPlanCost':
-                            bookingData['protectionPlan'] == true
-                                ? (bookingData['basePrice'] ??
-                                        bookingData['totalPrice'] ??
-                                        0.0) *
-                                    0.05
-                                : 0.0,
-                        'basePrice': bookingData['basePrice'] ??
-                            bookingData['totalPrice'],
-                        'totalPrice': totalPrice,
-                      },
-                    );
-                  } else {
-                    // For other bookings, go to home
-                    Get.until((route) => route.isFirst);
-                  }
+                  Get.until((route) => route.isFirst);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colorScheme(context).primary,
@@ -208,24 +226,33 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: primaryColor,
-        title: const Text('Payment'),
+        foregroundColor: Colors.white,
+        title: const Text('Payment',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
           onPressed: () => Get.back(),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline, color: Colors.white),
+            onPressed: () => Get.toNamed('/faq'),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
             // Progress Stepper
             Container(
-              padding: EdgeInsets.all(spacingUnit(2)),
+              padding: EdgeInsets.symmetric(
+                  horizontal: spacingUnit(2), vertical: spacingUnit(1.5)),
               decoration: BoxDecoration(
-                color: colorScheme(context).surface,
+                color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -233,36 +260,103 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
               ),
               child: bookingType == 'hotel'
                   ? Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         _buildStepIndicatorWithNumber(
-                            1, 'Search', true, false, primaryColor),
-                        _buildStepLine(true, primaryColor),
+                            1, 'Hotel', true, false, const Color(0xFFD4AF37)),
+                        Expanded(
+                            child:
+                                _buildStepLine(true, const Color(0xFFD4AF37))),
                         _buildStepIndicatorWithNumber(
-                            2, 'Details', true, false, primaryColor),
-                        _buildStepLine(true, primaryColor),
+                            2, 'Rooms', true, false, const Color(0xFFD4AF37)),
+                        Expanded(
+                            child:
+                                _buildStepLine(true, const Color(0xFFD4AF37))),
                         _buildStepIndicatorWithNumber(
-                            3, 'Payment', false, true, primaryColor),
-                        _buildStepLine(false, primaryColor),
+                            3, 'Guests', true, false, const Color(0xFFD4AF37)),
+                        Expanded(
+                            child:
+                                _buildStepLine(true, const Color(0xFFD4AF37))),
+                        _buildStepIndicatorWithNumber(4, 'Checkout', true,
+                            false, const Color(0xFFD4AF37)),
+                        Expanded(
+                            child:
+                                _buildStepLine(true, const Color(0xFFD4AF37))),
                         _buildStepIndicatorWithNumber(
-                            4, 'Confirm', false, false, primaryColor),
+                            5, 'Payment', false, true, const Color(0xFFD4AF37)),
+                        Expanded(
+                            child:
+                                _buildStepLine(false, const Color(0xFFD4AF37))),
+                        _buildStepIndicatorWithNumber(
+                            6, 'Done', false, false, const Color(0xFFD4AF37)),
                       ],
                     )
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildStepIndicator('PASSENGERS', true, primaryColor),
-                        _buildStepLine(true, primaryColor),
-                        _buildStepIndicator(
-                            bookingType == 'flight' ? 'FACILITIES' : 'CLASS',
+                        _buildStepIndicatorWithNumber(
+                            1,
+                            'Passengers',
                             true,
-                            primaryColor),
-                        _buildStepLine(true, primaryColor),
-                        _buildStepIndicator('CHECKOUT', true, primaryColor),
-                        _buildStepLine(true, primaryColor),
-                        _buildStepIndicator('PAYMENT', true, primaryColor),
-                        _buildStepLine(false, primaryColor),
-                        _buildStepIndicator('DONE', false, primaryColor),
+                            false,
+                            bookingType == 'flight'
+                                ? const Color(0xFF3B82F6)
+                                : const Color(0xFF059669)),
+                        Expanded(
+                            child: _buildStepLine(
+                                true,
+                                bookingType == 'flight'
+                                    ? const Color(0xFF3B82F6)
+                                    : const Color(0xFF059669))),
+                        _buildStepIndicatorWithNumber(
+                            2,
+                            bookingType == 'flight' ? 'Facilities' : 'Class',
+                            true,
+                            false,
+                            bookingType == 'flight'
+                                ? const Color(0xFF3B82F6)
+                                : const Color(0xFF059669)),
+                        Expanded(
+                            child: _buildStepLine(
+                                true,
+                                bookingType == 'flight'
+                                    ? const Color(0xFF3B82F6)
+                                    : const Color(0xFF059669))),
+                        _buildStepIndicatorWithNumber(
+                            3,
+                            'Checkout',
+                            true,
+                            false,
+                            bookingType == 'flight'
+                                ? const Color(0xFF3B82F6)
+                                : const Color(0xFF059669)),
+                        Expanded(
+                            child: _buildStepLine(
+                                true,
+                                bookingType == 'flight'
+                                    ? const Color(0xFF3B82F6)
+                                    : const Color(0xFF059669))),
+                        _buildStepIndicatorWithNumber(
+                            4,
+                            'Payment',
+                            false,
+                            true,
+                            bookingType == 'flight'
+                                ? const Color(0xFF3B82F6)
+                                : const Color(0xFF059669)),
+                        Expanded(
+                            child: _buildStepLine(
+                                false,
+                                bookingType == 'flight'
+                                    ? const Color(0xFF3B82F6)
+                                    : const Color(0xFF059669))),
+                        _buildStepIndicatorWithNumber(
+                            5,
+                            'Done',
+                            false,
+                            false,
+                            bookingType == 'flight'
+                                ? const Color(0xFF3B82F6)
+                                : const Color(0xFF059669)),
                       ],
                     ),
             ),
@@ -271,6 +365,7 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
             Container(
               margin: EdgeInsets.all(spacingUnit(2)),
               padding: EdgeInsets.all(spacingUnit(2)),
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: colorScheme(context).surface,
                 borderRadius: BorderRadius.circular(16),
@@ -486,95 +581,66 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Payment Method',
-                    style: ThemeText.title2,
+                  // ── Method rows inside card with header ──────────────────
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.grey.shade200),
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2)),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Section header inside card ────────────────────
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(spacingUnit(2),
+                              spacingUnit(2), spacingUnit(2), spacingUnit(1)),
+                          child: Row(children: [
+                            const Icon(Icons.credit_card,
+                                color: Color(0xFF1E88E5), size: 22),
+                            SizedBox(width: spacingUnit(1)),
+                            const Text('Choose Payment Method',
+                                style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87)),
+                          ]),
+                        ),
+                        _dividerLine(),
+                        _buildMethodRow('Card', 'Credit / Debit Card',
+                            '(Master and VISA Cards)',
+                            bgColor: const Color(0xFFE3F2FD),
+                            iconColor: const Color(0xFF1E88E5),
+                            icon: Icons.credit_card),
+                        _dividerLine(),
+                        _buildMethodRow(
+                            'JazzCash', 'JazzCash', 'Pay with JazzCash wallet',
+                            bgColor: const Color(0xFFFFEBEE),
+                            iconColor: const Color(0xFFE53935),
+                            icon: Icons.account_balance_wallet_rounded),
+                        _dividerLine(),
+                        _buildMethodRow('Easypaisa', 'Easypaisa',
+                            'Pay with Easypaisa wallet',
+                            bgColor: const Color(0xFFE8F5E9),
+                            iconColor: const Color(0xFF43A047),
+                            icon: Icons.account_balance_wallet_rounded),
+                        _dividerLine(),
+                        _buildMethodRow('Bank Transfer', 'Bank Transfer',
+                            'Direct bank transfer',
+                            bgColor: const Color(0xFFE3F2FD),
+                            iconColor: const Color(0xFF1E88E5),
+                            icon: Icons.account_balance),
+                      ],
+                    ),
                   ),
 
                   SizedBox(height: spacingUnit(2)),
-
-                  ...List.generate(_paymentMethods.length, (index) {
-                    final method = _paymentMethods[index];
-                    final isSelected = _selectedPaymentMethod == method;
-
-                    IconData icon;
-                    switch (method) {
-                      case 'Card':
-                        icon = CupertinoIcons.creditcard;
-                        break;
-                      case 'JazzCash':
-                        icon = CupertinoIcons.device_phone_portrait;
-                        break;
-                      case 'Easypaisa':
-                        icon = CupertinoIcons.device_phone_portrait;
-                        break;
-                      case 'Bank Transfer':
-                        icon = CupertinoIcons.building_2_fill;
-                        break;
-                      default:
-                        icon = CupertinoIcons.money_dollar;
-                    }
-
-                    return Container(
-                      margin: EdgeInsets.only(bottom: spacingUnit(1.5)),
-                      child: InkWell(
-                        onTap: () {
-                          setState(() => _selectedPaymentMethod = method);
-                        },
-                        child: Container(
-                          padding: EdgeInsets.all(spacingUnit(2)),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? primaryColor.withValues(alpha: 0.1)
-                                : colorScheme(context).surface,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected
-                                  ? primaryColor
-                                  : Colors.grey.withValues(alpha: 0.3),
-                              width: isSelected ? 2 : 1,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: EdgeInsets.all(spacingUnit(1)),
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? primaryColor
-                                      : Colors.grey.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(
-                                  icon,
-                                  color:
-                                      isSelected ? Colors.white : Colors.grey,
-                                ),
-                              ),
-                              SizedBox(width: spacingUnit(1.5)),
-                              Text(
-                                method,
-                                style: TextStyle(
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const Spacer(),
-                              if (isSelected)
-                                Icon(
-                                  CupertinoIcons.check_mark_circled_solid,
-                                  color: primaryColor,
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-
-                  SizedBox(height: spacingUnit(3)),
 
                   // Payment details form
                   if (_selectedPaymentMethod == 'Card')
@@ -584,6 +650,64 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
                     _buildMobileWalletForm()
                   else
                     _buildBankTransferInfo(),
+
+                  SizedBox(height: spacingUnit(2)),
+
+                  // ── Security Badges ────────────────────────────────────────────
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: spacingUnit(2), vertical: spacingUnit(2.5)),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildSecurityBadge(
+                                icon: Icons.verified_user,
+                                iconColor: Colors.green.shade600,
+                                bgColor: Colors.green.shade50,
+                                label: 'SSL Secured'),
+                            _buildSecurityBadge(
+                                icon: Icons.support_agent,
+                                iconColor: Colors.blue.shade600,
+                                bgColor: Colors.blue.shade50,
+                                label: '24/7 Support'),
+                            _buildSecurityBadge(
+                                icon: Icons.replay,
+                                iconColor: Colors.orange.shade600,
+                                bgColor: Colors.orange.shade50,
+                                label: 'Money Back'),
+                          ],
+                        ),
+                        SizedBox(height: spacingUnit(1.5)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.lock_outline,
+                                size: 14, color: Colors.grey.shade500),
+                            const SizedBox(width: 6),
+                            Text(
+                                'Your payment information is encrypted and secure',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey.shade600)),
+                          ],
+                        ),
+                        SizedBox(height: spacingUnit(0.5)),
+                        Text(
+                          '24/7 Customer Support: +92-300-1234567',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade700),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -640,197 +764,436 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
     );
   }
 
+  Widget _buildSecurityBadge({
+    required IconData icon,
+    required Color iconColor,
+    required Color bgColor,
+    required String label,
+  }) {
+    return Column(
+      children: [
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
+          child: Icon(icon, color: iconColor, size: 26),
+        ),
+        const SizedBox(height: 6),
+        Text(label,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+      ],
+    );
+  }
+
   Widget _buildFareRow(String label, String amount) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: spacingUnit(0.5)),
+      padding: EdgeInsets.symmetric(vertical: spacingUnit(0.6)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: ThemeText.caption),
-          Text('PKR $amount', style: ThemeText.subtitle),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF666666))),
+          Text('PKR $amount',
+              style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF333333))),
         ],
       ),
     );
   }
 
+  // ── helper: single method row ─────────────────────────────────────────────
+  Widget _buildMethodRow(String value, String title, String subtitle,
+      {required Color bgColor,
+      required Color iconColor,
+      required IconData icon}) {
+    final isSelected = _selectedPaymentMethod == value;
+    return Material(
+      color: isSelected ? const Color(0xFFF0F7FF) : Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () => setState(() => _selectedPaymentMethod = value),
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+              horizontal: spacingUnit(2), vertical: spacingUnit(1.75)),
+          child: Row(children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                  color: bgColor, borderRadius: BorderRadius.circular(10)),
+              child: Icon(icon, color: iconColor, size: 22),
+            ),
+            SizedBox(width: spacingUnit(1.75)),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87)),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade600)),
+                  ]),
+            ),
+            isSelected
+                ? const Icon(Icons.radio_button_checked,
+                    color: Color(0xFF1E88E5), size: 22)
+                : Icon(Icons.radio_button_unchecked,
+                    color: Colors.grey.shade400, size: 22),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _dividerLine() =>
+      Divider(height: 1, thickness: 1, color: Colors.grey.shade100, indent: 72);
+
   Widget _buildCardForm() {
     return Form(
       key: _formKey,
       child: Container(
-        padding: EdgeInsets.all(spacingUnit(2)),
+        padding: EdgeInsets.all(spacingUnit(2.5)),
         decoration: BoxDecoration(
-          color: colorScheme(context).surface,
-          borderRadius: BorderRadius.circular(16),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2)),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Card Details', style: ThemeText.subtitle),
+            // Header row
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              const Text('Enter Card Details',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87)),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.green.shade300)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.lock, size: 12, color: Colors.green.shade700),
+                  const SizedBox(width: 4),
+                  Text('Secure',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade700)),
+                ]),
+              ),
+            ]),
             SizedBox(height: spacingUnit(2)),
+
+            // Card number
+            const Text('Credit Card Number',
+                style: TextStyle(fontSize: 12, color: Colors.black54)),
+            const SizedBox(height: 6),
             TextFormField(
               controller: _cardNumberController,
               decoration: InputDecoration(
-                labelText: 'Card Number *',
-                hintText: '0000 0000 0000 0000',
-                prefixIcon: const Icon(CupertinoIcons.creditcard),
+                hintText: '1234 1234 1234 1234',
+                hintStyle: TextStyle(color: Colors.grey.shade400),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide:
+                        const BorderSide(color: Color(0xFF1E88E5), width: 1.5)),
+                suffixIcon: Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Image.asset('assets/images/visa.png',
+                        height: 20,
+                        errorBuilder: (_, __, ___) => const Text('VISA',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1A1F71)))),
+                    const SizedBox(width: 4),
+                    Image.asset('assets/images/master_card.png',
+                        height: 20,
+                        errorBuilder: (_, __, ___) => Container(
+                              width: 24,
+                              height: 16,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(3),
+                                gradient: const LinearGradient(colors: [
+                                  Color(0xFFEB001B),
+                                  Color(0xFFF79E1B)
+                                ]),
+                              ),
+                            )),
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                          color: const Color(0xFF2557D6),
+                          borderRadius: BorderRadius.circular(3)),
+                      child: const Text('AMEX',
+                          style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
+                    ),
+                  ]),
                 ),
               ),
               keyboardType: TextInputType.number,
-              maxLength: 19, // 16 digits + 3 spaces
+              maxLength: 19,
+              buildCounter: (_,
+                      {required currentLength,
+                      required isFocused,
+                      maxLength}) =>
+                  null,
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter card number';
                 }
-                String cleanValue = value.replaceAll(' ', '');
-                if (cleanValue.length != 16) {
+                final clean = value.replaceAll(' ', '');
+                if (clean.length != 16) {
                   return 'Card number must be 16 digits';
                 }
-                if (!RegExp(r'^[0-9]+$').hasMatch(cleanValue)) {
+                if (!RegExp(r'^[0-9]+$').hasMatch(clean)) {
                   return 'Card number should only contain numbers';
                 }
                 return null;
               },
               onChanged: (value) {
-                // Auto-format card number with spaces
-                String cleanValue = value.replaceAll(' ', '');
-                if (cleanValue.length <= 16) {
+                String clean = value.replaceAll(' ', '');
+                final amex = clean.startsWith('34') || clean.startsWith('37');
+                if (amex != _isAmex) setState(() => _isAmex = amex);
+                if (clean.length <= 16) {
                   String formatted = '';
-                  for (int i = 0; i < cleanValue.length; i++) {
-                    if (i > 0 && i % 4 == 0) {
-                      formatted += ' ';
-                    }
-                    formatted += cleanValue[i];
+                  for (int i = 0; i < clean.length; i++) {
+                    if (i > 0 && i % 4 == 0) formatted += ' ';
+                    formatted += clean[i];
                   }
                   if (formatted != value) {
                     _cardNumberController.value = TextEditingValue(
-                      text: formatted,
-                      selection:
-                          TextSelection.collapsed(offset: formatted.length),
-                    );
+                        text: formatted,
+                        selection:
+                            TextSelection.collapsed(offset: formatted.length));
                   }
                 }
               },
             ),
-            SizedBox(height: spacingUnit(2)),
-            TextFormField(
-              controller: _cardHolderController,
-              decoration: InputDecoration(
-                labelText: 'Card Holder Name *',
-                prefixIcon: const Icon(CupertinoIcons.person),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+            SizedBox(height: spacingUnit(1.5)),
+
+            // Expiry + CVC row
+            Row(children: [
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Expiry Date',
+                          style:
+                              TextStyle(fontSize: 12, color: Colors.black54)),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _expiryController,
+                        decoration: InputDecoration(
+                          hintText: 'MM/YY',
+                          hintStyle: TextStyle(color: Colors.grey.shade400),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 14),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade300)),
+                          enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade300)),
+                          focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                  color: Color(0xFF1E88E5), width: 1.5)),
+                        ),
+                        keyboardType: TextInputType.number,
+                        maxLength: 5,
+                        buildCounter: (_,
+                                {required currentLength,
+                                required isFocused,
+                                maxLength}) =>
+                            null,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter expiry date';
+                          }
+                          if (!RegExp(r'^\d{2}/\d{2}$').hasMatch(value)) {
+                            return 'Format must be MM/YY';
+                          }
+                          final parts = value.split('/');
+                          final month = int.parse(parts[0]);
+                          final year = int.parse(parts[1]) + 2000;
+                          if (month < 1 || month > 12) {
+                            return 'Invalid month (01–12)';
+                          }
+                          final now = DateTime.now();
+                          final expiry = DateTime(year, month);
+                          if (expiry.isBefore(DateTime(now.year, now.month))) {
+                            return 'Card is expired';
+                          }
+                          return null;
+                        },
+                        onChanged: (value) {
+                          String clean = value.replaceAll('/', '');
+                          if (clean.length >= 2 && !value.contains('/')) {
+                            String formatted =
+                                '${clean.substring(0, 2)}/${clean.substring(2)}';
+                            if (formatted.length <= 5) {
+                              _expiryController.value = TextEditingValue(
+                                  text: formatted,
+                                  selection: TextSelection.collapsed(
+                                      offset: formatted.length));
+                            }
+                          }
+                        },
+                      ),
+                    ]),
               ),
-              textCapitalization: TextCapitalization.words,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter card holder name';
-                }
-                if (value.trim().length < 3) {
-                  return 'Name must be at least 3 characters';
-                }
-                if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(value)) {
-                  return 'Name should only contain letters';
-                }
-                return null;
-              },
-            ),
+              SizedBox(width: spacingUnit(2)),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        const Text('CVC',
+                            style:
+                                TextStyle(fontSize: 12, color: Colors.black54)),
+                        const SizedBox(width: 4),
+                        Icon(Icons.help_outline,
+                            size: 14, color: Colors.grey.shade400),
+                      ]),
+                      const SizedBox(height: 6),
+                      TextFormField(
+                        controller: _cvvController,
+                        decoration: InputDecoration(
+                          hintText: 'CVC',
+                          hintStyle: TextStyle(color: Colors.grey.shade400),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 14),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade300)),
+                          enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade300)),
+                          focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                  color: Color(0xFF1E88E5), width: 1.5)),
+                        ),
+                        keyboardType: TextInputType.number,
+                        obscureText: true,
+                        maxLength: _isAmex ? 4 : 3,
+                        buildCounter: (_,
+                                {required currentLength,
+                                required isFocused,
+                                maxLength}) =>
+                            null,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter CVC';
+                          }
+                          final expected = _isAmex ? 4 : 3;
+                          if (value.length != expected) {
+                            return _isAmex
+                                ? 'Amex CVC is 4 digits'
+                                : 'CVC must be 3 digits';
+                          }
+                          if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+                            return 'Numbers only';
+                          }
+                          return null;
+                        },
+                      ),
+                    ]),
+              ),
+            ]),
             SizedBox(height: spacingUnit(2)),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _expiryController,
-                    decoration: InputDecoration(
-                      labelText: 'Expiry *',
-                      hintText: 'MM/YY',
-                      prefixIcon: const Icon(CupertinoIcons.calendar),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    keyboardType: TextInputType.number,
-                    maxLength: 5, // MM/YY
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter expiry date';
-                      }
-                      if (!RegExp(r'^\d{2}/\d{2}$').hasMatch(value)) {
-                        return 'Format: MM/YY';
-                      }
-                      List<String> parts = value.split('/');
-                      int month = int.parse(parts[0]);
-                      int year = int.parse(parts[1]) + 2000;
 
-                      if (month < 1 || month > 12) {
-                        return 'Invalid month';
-                      }
-
-                      DateTime now = DateTime.now();
-                      DateTime expiry = DateTime(year, month);
-
-                      if (expiry.isBefore(DateTime(now.year, now.month))) {
-                        return 'Card expired';
-                      }
-
-                      return null;
-                    },
-                    onChanged: (value) {
-                      // Auto-format expiry with slash
-                      String cleanValue = value.replaceAll('/', '');
-                      if (cleanValue.length >= 2 && !value.contains('/')) {
-                        String formatted =
-                            '${cleanValue.substring(0, 2)}/${cleanValue.substring(2)}';
-                        if (formatted.length <= 5) {
-                          _expiryController.value = TextEditingValue(
-                            text: formatted,
-                            selection: TextSelection.collapsed(
-                                offset: formatted.length),
-                          );
-                        }
-                      }
-                    },
+            // Save card checkbox
+            InkWell(
+              onTap: () => setState(() => _saveCard = !_saveCard),
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                        color:
+                            _saveCard ? const Color(0xFF1E88E5) : Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                            color: _saveCard
+                                ? const Color(0xFF1E88E5)
+                                : Colors.grey.shade400,
+                            width: 1.5)),
+                    child: _saveCard
+                        ? const Icon(Icons.check, size: 13, color: Colors.white)
+                        : null,
                   ),
-                ),
-                SizedBox(width: spacingUnit(2)),
+                  const SizedBox(width: 10),
+                  Text('Save card for future payments',
+                      style:
+                          TextStyle(fontSize: 13, color: Colors.grey.shade800)),
+                ]),
+              ),
+            ),
+            SizedBox(height: spacingUnit(1.5)),
+
+            // SSL notice
+            Container(
+              padding: EdgeInsets.symmetric(
+                  horizontal: spacingUnit(1.5), vertical: spacingUnit(1.25)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFE3F2FD),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Row(children: [
+                const Icon(Icons.info_outline,
+                    size: 16, color: Color(0xFF1E88E5)),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: TextFormField(
-                    controller: _cvvController,
-                    decoration: InputDecoration(
-                      labelText: 'CVV *',
-                      hintText: '000',
-                      prefixIcon: const Icon(CupertinoIcons.lock),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    keyboardType: TextInputType.number,
-                    obscureText: true,
-                    maxLength: 4,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter CVV';
-                      }
-                      if (value.length < 3 || value.length > 4) {
-                        return '3-4 digits';
-                      }
-                      if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
-                        return 'Numbers only';
-                      }
-                      return null;
-                    },
-                  ),
+                  child: Text(
+                      'Your payment is secured with 256-bit SSL encryption',
+                      style:
+                          TextStyle(fontSize: 12, color: Colors.blue.shade800)),
                 ),
-              ],
+              ]),
             ),
           ],
         ),
@@ -839,86 +1202,122 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
   }
 
   Widget _buildMobileWalletForm() {
-    return Form(
-      key: _formKey,
-      child: Container(
-        padding: EdgeInsets.all(spacingUnit(2)),
-        decoration: BoxDecoration(
-          color: colorScheme(context).surface,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
+    return Container(
+      padding: EdgeInsets.all(spacingUnit(2.5)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            const Text('Add New Account',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87)),
+            InkWell(
+              onTap: () => setState(() => _selectedPaymentMethod = ''),
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Icon(Icons.close, size: 20, color: Colors.grey.shade500),
+              ),
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('$_selectedPaymentMethod Details', style: ThemeText.subtitle),
-            SizedBox(height: spacingUnit(2)),
-            TextFormField(
+          ]),
+          Divider(height: spacingUnit(3), color: Colors.grey.shade200),
+
+          // Phone number label
+          Text('Phone Number',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          SizedBox(height: spacingUnit(0.75)),
+
+          // Phone field with Pakistan flag
+          Form(
+            key: _mobileFormKey,
+            child: TextFormField(
               controller: _mobileNumberController,
               decoration: InputDecoration(
-                labelText: 'Mobile Number *',
-                hintText: '03001234567',
-                prefixIcon: const Icon(CupertinoIcons.phone),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                hintText: 'Enter a phone number',
+                hintStyle: TextStyle(color: Colors.grey.shade400),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                prefixIcon: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('\uD83C\uDDF5\uD83C\uDDF0',
+                        style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 4),
+                    Icon(Icons.keyboard_arrow_down,
+                        size: 16, color: Colors.grey.shade600),
+                  ]),
                 ),
-                prefixText: '+92 ',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide:
+                        const BorderSide(color: Color(0xFF1E88E5), width: 1.5)),
               ),
               keyboardType: TextInputType.phone,
-              maxLength: 11,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Please enter mobile number';
+                  return 'Please enter phone number';
                 }
-                String cleanValue =
-                    value.replaceAll('-', '').replaceAll(' ', '');
-                if (!cleanValue.startsWith('03')) {
-                  return 'Mobile number must start with 03';
-                }
-                if (cleanValue.length != 11) {
-                  return 'Mobile number must be 11 digits';
-                }
-                if (!RegExp(r'^[0-9]+$').hasMatch(cleanValue)) {
-                  return 'Mobile number should only contain numbers';
+                String clean = value.replaceAll('-', '').replaceAll(' ', '');
+                if (!clean.startsWith('03') || clean.length != 11) {
+                  return 'Enter valid Pakistani number (03XXXXXXXXX)';
                 }
                 return null;
               },
             ),
-            SizedBox(height: spacingUnit(2)),
-            TextFormField(
-              controller: _pinController,
-              decoration: InputDecoration(
-                labelText: 'PIN *',
-                hintText: '4-digit PIN',
-                prefixIcon: const Icon(CupertinoIcons.lock),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+          ),
+          SizedBox(height: spacingUnit(2)),
+
+          // Get Code button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                if (_mobileFormKey.currentState!.validate()) {
+                  Get.snackbar(
+                    'Code Sent',
+                    'Verification code sent to ${_mobileNumberController.text}',
+                    snackPosition: SnackPosition.BOTTOM,
+                    backgroundColor: Colors.green.shade600,
+                    colorText: Colors.white,
+                    duration: const Duration(seconds: 3),
+                    margin: const EdgeInsets.all(12),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFC49A22),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                elevation: 0,
               ),
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              maxLength: 4,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter PIN';
-                }
-                if (value.length != 4) {
-                  return 'PIN must be exactly 4 digits';
-                }
-                if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
-                  return 'PIN should only contain numbers';
-                }
-                return null;
-              },
+              child: const Text('Get Code',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -994,22 +1393,45 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
   Widget _buildFlightSummary() {
     final flight = bookingData['flight'];
     if (flight == null) return const SizedBox();
+    final primary = colorScheme(context).primary;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── Gold header bar ──────────────────────────────────────────────
+        Container(
+          margin: EdgeInsets.only(
+            top: -spacingUnit(2),
+            left: -spacingUnit(2),
+            right: -spacingUnit(2),
+            bottom: spacingUnit(2),
+          ),
+          padding: EdgeInsets.symmetric(
+              horizontal: spacingUnit(2), vertical: spacingUnit(1.75)),
+          color: primary,
+          child: Row(children: [
+            const Icon(CupertinoIcons.airplane, color: Colors.white, size: 20),
+            SizedBox(width: spacingUnit(1)),
+            const Text('Flight Summary',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16)),
+          ]),
+        ),
+        // ── Airline row ──────────────────────────────────────────────────
         Row(
           children: [
             Container(
-              padding: EdgeInsets.all(spacingUnit(1.5)),
+              padding: EdgeInsets.all(spacingUnit(1)),
               decoration: BoxDecoration(
-                color: colorScheme(context).primaryContainer,
-                borderRadius: BorderRadius.circular(12),
+                color: primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 CupertinoIcons.airplane,
-                color: colorScheme(context).primary,
-                size: 28,
+                color: primary,
+                size: 22,
               ),
             ),
             SizedBox(width: spacingUnit(1.5)),
@@ -1555,43 +1977,156 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
     final rooms = bookingData['rooms'] ?? 1;
     final guests = bookingData['guests'] ?? 1;
 
+    final primary = colorScheme(context).primary;
+    final hasImage = hotel.images != null && (hotel.images as List).isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(spacingUnit(1.5)),
-              decoration: BoxDecoration(
-                color: colorScheme(context).primaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                CupertinoIcons.building_2_fill,
-                color: colorScheme(context).primary,
-                size: 28,
-              ),
+        // ── Hotel Summary header bar ─────────────────────────────────────
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(
+              horizontal: spacingUnit(2), vertical: spacingUnit(1.25)),
+          decoration: BoxDecoration(
+            color: primary,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
             ),
-            SizedBox(width: spacingUnit(1.5)),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    hotel.name ?? 'Hotel',
-                    style: ThemeText.subtitle
-                        .copyWith(fontWeight: FontWeight.bold),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    '${hotel.category ?? ''} • ${hotel.city ?? ''}',
-                    style: ThemeText.caption,
-                  ),
-                ],
-              ),
+          ),
+          child: const Row(children: [
+            Icon(Icons.hotel, color: Colors.white, size: 18),
+            SizedBox(width: 8),
+            Text('Hotel Summary',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold)),
+          ]),
+        ),
+
+        // ── Hero image + hotel info ──────────────────────────────────────
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(16),
+              bottomRight: Radius.circular(16),
             ),
-          ],
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(16),
+              bottomRight: Radius.circular(16),
+            ),
+            child: Stack(
+              children: [
+                // Image
+                if (hasImage)
+                  Image.network(
+                    (hotel.images as List)[0],
+                    width: double.infinity,
+                    height: 170,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _hotelImageFallback(primary),
+                  )
+                else
+                  _hotelImageFallback(primary),
+                // Gradient overlay
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.65),
+                        ],
+                        stops: const [0.45, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+                // Hotel name + category over image
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Padding(
+                    padding: EdgeInsets.all(spacingUnit(1.75)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          hotel.name ?? 'Hotel',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: primary.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                hotel.category ?? '',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.location_on,
+                                size: 13, color: Colors.white70),
+                            const SizedBox(width: 2),
+                            Text(
+                              hotel.city ?? '',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const Spacer(),
+                            const Icon(Icons.star,
+                                size: 14, color: Colors.amber),
+                            const SizedBox(width: 3),
+                            Text(
+                              '${hotel.rating ?? ''}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         SizedBox(height: spacingUnit(2)),
         Row(
@@ -1776,79 +2311,6 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
               ],
             ),
           ),
-        ],
-
-        // Guest Details
-        if (bookingData['guestsData'] != null &&
-            (bookingData['guestsData'] as List).isNotEmpty) ...[
-          SizedBox(height: spacingUnit(2)),
-          Divider(thickness: 1, color: Colors.grey.withValues(alpha: 0.3)),
-          SizedBox(height: spacingUnit(1.5)),
-          Text(
-            'Guest Details',
-            style: ThemeText.subtitle2.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: spacingUnit(1.5)),
-          ...(bookingData['guestsData'] as List)
-              .asMap()
-              .entries
-              .map<Widget>((entry) {
-            final index = entry.key;
-            final guest = entry.value as Map<String, dynamic>;
-            return Padding(
-              padding: EdgeInsets.only(bottom: spacingUnit(0.75)),
-              child: Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(spacingUnit(0.75)),
-                    decoration: BoxDecoration(
-                      color: colorScheme(context)
-                          .primaryContainer
-                          .withValues(alpha: 0.5),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      CupertinoIcons.person_fill,
-                      size: 16,
-                      color: colorScheme(context).primary,
-                    ),
-                  ),
-                  SizedBox(width: spacingUnit(1.5)),
-                  Expanded(
-                    child: Text(
-                      '${guest['firstName'] ?? ''} ${guest['lastName'] ?? ''}',
-                      style: ThemeText.paragraph.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  if (index == 0)
-                    Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: spacingUnit(1),
-                        vertical: spacingUnit(0.25),
-                      ),
-                      decoration: BoxDecoration(
-                        color: colorScheme(context)
-                            .primary
-                            .withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'Primary',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme(context).primary,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            );
-          }),
         ],
 
         // Cancellation Policy
@@ -2116,6 +2578,22 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
     );
   }
 
+  Widget _hotelImageFallback(Color primary) => Container(
+        width: double.infinity,
+        height: 170,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [primary.withValues(alpha: 0.7), primary],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: const Center(
+          child: Icon(CupertinoIcons.building_2_fill,
+              size: 56, color: Colors.white54),
+        ),
+      );
+
   String _formatDate(DateTime date) {
     final months = [
       'Jan',
@@ -2143,12 +2621,14 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
           height: 24,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isActive ? activeColor : Colors.grey.shade300,
+            color:
+                isActive ? Colors.white : Colors.white.withValues(alpha: 0.3),
+            border: isActive ? Border.all(color: Colors.white, width: 2) : null,
           ),
           child: isActive
-              ? const Icon(
+              ? Icon(
                   Icons.check,
-                  color: Colors.white,
+                  color: activeColor,
                   size: 16,
                 )
               : null,
@@ -2159,7 +2639,8 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
           style: ThemeText.caption.copyWith(
             fontSize: 10,
             fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-            color: isActive ? activeColor : Colors.grey,
+            color:
+                isActive ? Colors.white : Colors.white.withValues(alpha: 0.6),
           ),
         ),
       ],
@@ -2171,35 +2652,32 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
     return Column(
       children: [
         Container(
-          width: 32,
-          height: 32,
+          width: 28,
+          height: 28,
           decoration: BoxDecoration(
-            color: isCompleted || isActive ? activeColor : Colors.grey.shade300,
+            color:
+                isCompleted || isActive ? activeColor : const Color(0xFFE0E0E0),
             shape: BoxShape.circle,
-            border: Border.all(
-              color: isActive ? activeColor : Colors.transparent,
-              width: 2,
-            ),
           ),
           child: Center(
             child: isCompleted
-                ? const Icon(Icons.check, color: Colors.white, size: 16)
+                ? const Icon(Icons.check, color: Colors.white, size: 14)
                 : Text(
                     step.toString(),
                     style: TextStyle(
-                      color: isActive ? Colors.white : Colors.grey.shade600,
+                      color: isActive ? Colors.white : Colors.grey.shade500,
                       fontWeight: FontWeight.bold,
-                      fontSize: 14,
+                      fontSize: 12,
                     ),
                   ),
           ),
         ),
-        SizedBox(height: spacingUnit(0.5)),
+        const SizedBox(height: 3),
         Text(
           label,
           style: TextStyle(
-            fontSize: 10,
-            color: isCompleted || isActive ? activeColor : Colors.grey.shade600,
+            fontSize: 9,
+            color: isCompleted || isActive ? activeColor : Colors.grey.shade500,
             fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
           ),
         ),
@@ -2209,10 +2687,9 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
 
   Widget _buildStepLine(bool isActive, Color activeColor) {
     return Container(
-      width: 30,
       height: 2,
-      margin: EdgeInsets.only(bottom: spacingUnit(2.5)),
-      color: isActive ? activeColor : Colors.grey.shade300,
+      margin: const EdgeInsets.only(bottom: 18),
+      color: isActive ? activeColor : const Color(0xFFE0E0E0),
     );
   }
 }

@@ -95,8 +95,8 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
     if (_selectedPaymentMethod == 'card') {
       final cardNumberLength =
           _cardNumberController.text.replaceAll(' ', '').length;
-      return cardNumberLength == 16 &&
-          _expiryController.text.trim().length == 5 &&
+      return cardNumberLength >= 13 &&
+          _expiryController.text.trim().length >= 4 &&
           _cvvController.text.trim().length >= 3;
     } else if (_selectedPaymentMethod == 'easypaisa') {
       return _easypaisaPhoneController.text.trim().length >= 10;
@@ -451,6 +451,13 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
           fontWeight: FontWeight.w600,
         ),
       ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline, color: Colors.white),
+          onPressed: () => Get.toNamed('/faq'),
+          tooltip: 'Help & FAQs',
+        ),
+      ],
     );
   }
 
@@ -459,11 +466,11 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
   // ────────────────────────────────────────────────────────────
   Widget _buildStepper() {
     const steps = ['PASSENGERS', 'FACILITIES', 'CHECKOUT', 'PAYMENT', 'DONE'];
-    const stepColor = Color(0xFFD4AF37);
+    const goldColor = Color(0xFFD4AF37);
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Row(
         children: List.generate(9, (i) {
           if (i.isOdd) {
@@ -472,37 +479,39 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
             return Expanded(
               child: Container(
                 height: 2,
-                color: isCompleted ? stepColor : Colors.grey.shade300,
+                margin: const EdgeInsets.only(bottom: 18),
+                color: isCompleted ? goldColor : const Color(0xFFE0E0E0),
               ),
             );
           }
           final index = i ~/ 2;
-          final isActive = index == 3;
+          final isActive = index == 3; // PAYMENT
           final isCompleted = index < 3;
 
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   color: isCompleted || isActive
-                      ? stepColor
-                      : Colors.grey.shade300,
+                      ? goldColor
+                      : const Color(0xFFE0E0E0),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      color: isCompleted || isActive
-                          ? Colors.white
-                          : const Color(0xFFB3B3B3),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: isCompleted
+                      ? const Icon(Icons.check, color: Colors.white, size: 14)
+                      : Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color:
+                                isActive ? Colors.white : Colors.grey.shade500,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -512,11 +521,9 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                 style: TextStyle(
                   fontSize: 9,
                   color: isCompleted || isActive
-                      ? stepColor
-                      : const Color(0xFFB3B3B3),
-                  fontWeight: isCompleted || isActive
-                      ? FontWeight.w600
-                      : FontWeight.normal,
+                      ? goldColor
+                      : Colors.grey.shade500,
+                  fontWeight: FontWeight.normal,
                 ),
               ),
             ],

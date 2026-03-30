@@ -1,5 +1,7 @@
 import 'dart:math';
 import 'package:flight_app/app/app_link.dart';
+import 'package:flight_app/utils/wishlist_service.dart';
+import 'package:intl/intl.dart';
 import 'package:flight_app/models/flight_package.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
@@ -95,6 +97,75 @@ class _PackageListSliderState extends State<PackageListSlider> {
     );
   }
 
+  /// Route duration lookup — matches the schedule map in flight_detail_package.
+  static const Map<String, String> _durationMap = {
+    'Karachi-Lahore': '1h 30m',
+    'Lahore-Karachi': '1h 30m',
+    'Karachi-Islamabad': '2h 00m',
+    'Islamabad-Karachi': '2h 00m',
+    'Karachi-Rawalpindi': '2h 00m',
+    'Rawalpindi-Karachi': '2h 00m',
+    'Karachi-Peshawar': '2h 15m',
+    'Peshawar-Karachi': '2h 15m',
+    'Karachi-Multan': '1h 15m',
+    'Multan-Karachi': '1h 15m',
+    'Karachi-Quetta': '1h 30m',
+    'Quetta-Karachi': '1h 30m',
+    'Karachi-Faisalabad': '1h 30m',
+    'Faisalabad-Karachi': '1h 30m',
+    'Karachi-Sialkot': '1h 30m',
+    'Sialkot-Karachi': '1h 30m',
+    'Karachi-Gwadar': '1h 10m',
+    'Gwadar-Karachi': '1h 10m',
+    'Karachi-Gilgit': '2h 30m',
+    'Gilgit-Karachi': '2h 30m',
+    'Karachi-Skardu': '2h 30m',
+    'Skardu-Karachi': '2h 30m',
+    'Lahore-Islamabad': '0h 50m',
+    'Islamabad-Lahore': '0h 50m',
+    'Lahore-Rawalpindi': '0h 50m',
+    'Rawalpindi-Lahore': '0h 50m',
+    'Lahore-Peshawar': '1h 10m',
+    'Peshawar-Lahore': '1h 10m',
+    'Lahore-Multan': '1h 00m',
+    'Multan-Lahore': '1h 00m',
+    'Lahore-Quetta': '2h 00m',
+    'Quetta-Lahore': '2h 00m',
+    'Lahore-Faisalabad': '1h 00m',
+    'Faisalabad-Lahore': '1h 00m',
+    'Lahore-Sialkot': '0h 45m',
+    'Sialkot-Lahore': '0h 45m',
+    'Lahore-Gilgit': '1h 45m',
+    'Gilgit-Lahore': '1h 45m',
+    'Lahore-Skardu': '2h 00m',
+    'Skardu-Lahore': '2h 00m',
+    'Lahore-Gwadar': '2h 30m',
+    'Gwadar-Lahore': '2h 30m',
+    'Islamabad-Peshawar': '0h 45m',
+    'Peshawar-Islamabad': '0h 45m',
+    'Islamabad-Multan': '1h 15m',
+    'Multan-Islamabad': '1h 15m',
+    'Islamabad-Quetta': '1h 45m',
+    'Quetta-Islamabad': '1h 45m',
+    'Islamabad-Gilgit': '1h 30m',
+    'Gilgit-Islamabad': '1h 30m',
+    'Islamabad-Skardu': '1h 30m',
+    'Skardu-Islamabad': '1h 30m',
+    'Islamabad-Gwadar': '2h 15m',
+    'Gwadar-Islamabad': '2h 15m',
+    'Peshawar-Multan': '1h 15m',
+    'Multan-Peshawar': '1h 15m',
+    'Peshawar-Quetta': '2h 30m',
+    'Quetta-Peshawar': '2h 30m',
+    'Faisalabad-Islamabad': '1h 00m',
+    'Islamabad-Faisalabad': '1h 00m',
+    'Sialkot-Islamabad': '1h 00m',
+    'Islamabad-Sialkot': '1h 00m',
+  };
+
+  String _getFlightDuration(String fromName, String toName) =>
+      _durationMap['$fromName-$toName'] ?? '';
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -184,11 +255,23 @@ class _PackageListSliderState extends State<PackageListSlider> {
                   itemCount: packageList.length,
                   itemBuilder: ((context, index) {
                     FlightPackage item = packageList[index];
+                    final departDate =
+                        DateTime.now().add(Duration(days: 30 + index * 2));
+                    final returnDate = item.roundTrip
+                        ? departDate.add(const Duration(days: 2))
+                        : null;
+                    final dateStr = item.roundTrip
+                        ? '${DateFormat('d').format(departDate)} - ${DateFormat('d MMM yyyy').format(returnDate!)}'
+                        : DateFormat('d MMM yyyy').format(departDate);
 
-                    return GestureDetector(
+                    return _FlightCardHover(
+                      packageId: item.id,
                       onTap: () {
-                        Get.toNamed(AppLink.flightDetailPackage,
-                            arguments: item);
+                        Get.toNamed(AppLink.flightDetailPackage, arguments: {
+                          'package': item,
+                          'departDate': departDate,
+                          'returnDate': returnDate,
+                        });
                       },
                       child: SizedBox(
                           width: cardWidth,
@@ -199,7 +282,9 @@ class _PackageListSliderState extends State<PackageListSlider> {
                                 label: item.label!,
                                 from: item.from.name,
                                 to: item.to.name,
-                                date: item.date,
+                                date: dateStr,
+                                duration: _getFlightDuration(
+                                    item.from.name, item.to.name),
                                 tags: item.tags != null ? item.tags! : [],
                                 price: item.price,
                                 plane: item.plane,
@@ -268,3 +353,123 @@ class _PackageListSliderState extends State<PackageListSlider> {
     ]);
   }
 }
+
+class _FlightCardHover extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  final String packageId;
+  const _FlightCardHover(
+      {required this.child, required this.onTap, required this.packageId});
+
+  @override
+  State<_FlightCardHover> createState() => _FlightCardHoverState();
+}
+
+class _FlightCardHoverState extends State<_FlightCardHover>
+    with SingleTickerProviderStateMixin {
+  bool _hovered = false;
+  bool _wishlisted = false;
+  late AnimationController _heartCtrl;
+  late Animation<double> _heartScale;
+
+  @override
+  void initState() {
+    super.initState();
+    _heartCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _heartScale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.5), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.5, end: 0.9), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.0), weight: 30),
+    ]).animate(CurvedAnimation(parent: _heartCtrl, curve: Curves.easeOut));
+    _loadState();
+  }
+
+  Future<void> _loadState() async {
+    final liked = await WishlistService.isLiked('flight', widget.packageId);
+    if (mounted) setState(() => _wishlisted = liked);
+  }
+
+  @override
+  void dispose() {
+    _heartCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    final added = await WishlistService.toggle('flight', widget.packageId);
+    if (mounted) {
+      setState(() => _wishlisted = added);
+      _heartCtrl.forward(from: 0);
+      if (added) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(children: [
+              Icon(Icons.favorite, color: Colors.red, size: 16),
+              SizedBox(width: 8),
+              Text('Added to Saved',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+            ]),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            backgroundColor: const Color(0xFF1A1A1A),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: widget.onTap,
+            child: AnimatedScale(
+              scale: _hovered ? 1.025 : 1.0,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              child: widget.child,
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 22,
+            child: GestureDetector(
+              onTap: _toggle,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 4),
+                  ],
+                ),
+                child: ScaleTransition(
+                  scale: _heartScale,
+                  child: Icon(
+                    _wishlisted ? Icons.favorite : Icons.favorite_border,
+                    size: 16,
+                    color: _wishlisted ? Colors.red : Colors.grey.shade600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

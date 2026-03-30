@@ -2,6 +2,7 @@ import 'package:flight_app/app/app_link.dart';
 import 'package:flight_app/ui/themes/theme_breakpoints.dart';
 import 'package:flight_app/utils/col_row.dart';
 import 'package:flight_app/utils/booking_service.dart';
+import 'package:flight_app/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/route_manager.dart';
@@ -198,7 +199,8 @@ class _PaymentStatusState extends State<PaymentStatus>
       'email': args['contactEmail'] ?? 'N/A',
       'phone': args['contactPhone'] ?? 'N/A',
       'isRoundTrip': isRoundTrip,
-      'returnDate': returnDate,
+      'returnDate': returnDate?.toIso8601String(),
+      'departureDate': departureDate?.toIso8601String(),
       'passengerCount': passengers.length,
       // ── Full passenger list for e-ticket ──
       'allPassengers': passengers
@@ -363,6 +365,16 @@ class _PaymentStatusState extends State<PaymentStatus>
       }
       _bookingData['seatTotal'] = (args['seatTotal'] as double?) ?? 0.0;
 
+      // ── Baggage data ──
+      final rawBaggage = (args['baggageData'] as List<dynamic>?) ?? [];
+      _bookingData['baggageData'] = rawBaggage
+          .map((b) => Map<String, dynamic>.from(b as Map))
+          .toList();
+      final rawReturnBaggage = (args['returnBaggageData'] as List<dynamic>?) ?? [];
+      _bookingData['returnBaggageData'] = rawReturnBaggage
+          .map((b) => Map<String, dynamic>.from(b as Map))
+          .toList();
+
       if (isRoundTrip && returnFlight != null) {
         _bookingData['returnFlightDetails'] = {
           'airline': returnFlight.airlineName,
@@ -387,7 +399,51 @@ class _PaymentStatusState extends State<PaymentStatus>
     // 💾 Save booking to local storage for "My Bookings" page
     await BookingService.saveBooking(_bookingData);
 
+    // 🔔 Push notification for this booking
+    _pushBookingNotification(bookingType, args);
+
     setState(() => _isLoading = false);
+  }
+
+  void _pushBookingNotification(String bookingType, Map<String, dynamic> args) {
+    try {
+      final pnr = _bookingData['pnr']?.toString() ?? 'N/A';
+      if (bookingType == 'train') {
+        final td = _bookingData['trainDetails'] as Map? ?? {};
+        final seats =
+            (_bookingData['seatNumbers'] as List?)?.join(', ') ?? 'N/A';
+        final coach = _bookingData['coach']?.toString() ?? 'N/A';
+        NotificationService.instance.trainBooked(
+          trainName: td['trainName']?.toString() ?? 'N/A',
+          fromStation: td['from']?.toString() ?? 'N/A',
+          toStation: td['to']?.toString() ?? 'N/A',
+          date: td['date']?.toString() ?? 'N/A',
+          departure: td['departure']?.toString() ?? 'N/A',
+          seatClass: td['class']?.toString() ?? 'Economy',
+          coach: coach,
+          seat: seats,
+          pnr: pnr,
+        );
+      } else {
+        final fd = _bookingData['flightDetails'] as Map? ?? {};
+        final airline = fd['airline']?.toString() ?? 'Flight';
+        final flightNum = fd['flightNumber']?.toString() ?? '';
+        final from = fd['from']?.toString() ?? 'N/A';
+        final to = fd['to']?.toString() ?? 'N/A';
+        NotificationService.instance.flightBooked(
+          airline: airline,
+          flightNumber: flightNum,
+          fromCode: from,
+          toCode: to,
+          date: fd['date']?.toString() ?? 'N/A',
+          departure: fd['departure']?.toString() ?? 'N/A',
+          pnr: pnr,
+          seatClass: fd['class']?.toString() ?? 'Economy',
+        );
+      }
+    } catch (_) {
+      // Never crash on notification injection failure
+    }
   }
 
   @override
@@ -1932,10 +1988,6 @@ class _PaymentStatusState extends State<PaymentStatus>
                               // 8️⃣ AI Smart Add-ons
                               _buildSmartAddons(context),
                               SizedBox(height: spacingUnit(2)),
-
-                              // 9️⃣ Quick Actions
-                              _buildQuickActions(context),
-                              SizedBox(height: spacingUnit(3)),
 
                               // 🔟 Action Buttons
                               _buildActionButtons(context),
@@ -4011,7 +4063,7 @@ class _PaymentStatusState extends State<PaymentStatus>
           SizedBox(
             width: ThemeBreakpoints.smUp(context) ? 250 : double.infinity,
             child: FilledButton(
-              onPressed: () => Get.toNamed(AppLink.myTicket),
+              onPressed: () => Get.offAllNamed(AppLink.myTicket),
               style:
                   ThemeButton.btnBig.merge(ThemeButton.tonalPrimary(context)),
               child: const Text('VIEW MY BOOKINGS'),

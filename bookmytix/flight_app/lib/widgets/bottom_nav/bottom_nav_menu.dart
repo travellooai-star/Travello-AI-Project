@@ -64,7 +64,7 @@ class BottomNavMenu extends StatelessWidget {
                         shape: BoxShape.circle,
                         color: colorScheme(context).surface),
                     child: MenuItem(
-                        title: 'My Orders',
+                        title: 'My Booking',
                         icon: CupertinoIcons.tickets_fill,
                         isActive: currentRoute == AppLink.myTicket,
                         onTap: () {
@@ -103,7 +103,7 @@ class MenuItem extends StatelessWidget {
         borderRadius: BorderRadius.circular(30),
         onTap: () => {onTap()},
         child: SizedBox(
-          width: 60,
+          width: (MediaQuery.of(context).size.width / 5).clamp(48.0, 80.0),
           height: 50,
           child: Column(
               mainAxisAlignment: MainAxisAlignment.start,

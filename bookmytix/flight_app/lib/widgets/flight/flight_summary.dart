@@ -125,7 +125,7 @@ class FlightSummary extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       SizedBox(
-                        width: 64,
+                        width: 90,
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
@@ -145,12 +145,6 @@ class FlightSummary extends StatelessWidget {
                               ),
                               depart != null
                                   ? Text(DateFormat.MMMEd().format(depart!),
-                                      style: ThemeText.caption.copyWith(
-                                          color: colorScheme(context)
-                                              .onSurfaceVariant))
-                                  : Container(),
-                              depart != null
-                                  ? Text(DateFormat.jm().format(depart!),
                                       style: ThemeText.caption.copyWith(
                                           color: colorScheme(context)
                                               .onSurfaceVariant))
@@ -175,11 +169,12 @@ class FlightSummary extends StatelessWidget {
                             ]),
                       ),
                       SizedBox(
-                        width: 64,
+                        width: 90,
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Text(to.name,
+                                  overflow: TextOverflow.ellipsis,
                                   style: ThemeText.caption.copyWith(
                                       color: colorScheme(context)
                                           .onSurfaceVariant)),
@@ -194,12 +189,6 @@ class FlightSummary extends StatelessWidget {
                               ),
                               arrival != null
                                   ? Text(DateFormat.MMMEd().format(arrival!),
-                                      style: ThemeText.caption.copyWith(
-                                          color: colorScheme(context)
-                                              .onSurfaceVariant))
-                                  : Container(),
-                              arrival != null
-                                  ? Text(DateFormat.jm().format(arrival!),
                                       style: ThemeText.caption.copyWith(
                                           color: colorScheme(context)
                                               .onSurfaceVariant))

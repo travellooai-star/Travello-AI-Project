@@ -96,13 +96,14 @@ class _BookingPaymentState extends State<BookingPayment>
       _discount;
 
   bool get _isPaymentDetailsValid {
+    if (!_agreedToTerms) return false;
     if (_selectedPaymentMethod.isEmpty) return false;
 
     if (_selectedPaymentMethod == 'card') {
       final cardNumberLength =
           _cardNumberController.text.replaceAll(' ', '').length;
-      return cardNumberLength == 16 &&
-          _expiryController.text.trim().length == 5 &&
+      return cardNumberLength >= 13 &&
+          _expiryController.text.trim().length >= 4 &&
           _cvvController.text.trim().length >= 3;
     } else if (_selectedPaymentMethod == 'easypaisa') {
       return _easypaisaPhoneController.text.trim().length >= 10;
@@ -331,6 +332,7 @@ class _BookingPaymentState extends State<BookingPayment>
     };
 
     paymentData.addAll({
+      'bookingType': 'flight',
       'flight': _flight,
       'outboundFlight': _outboundFlight,
       'returnFlight': _returnFlight,
@@ -387,7 +389,7 @@ class _BookingPaymentState extends State<BookingPayment>
               ),
             ),
           ),
-          _buildBottomBar(),
+          _buildBottomBar(context),
         ],
       ),
     );
@@ -410,16 +412,23 @@ class _BookingPaymentState extends State<BookingPayment>
           fontWeight: FontWeight.w600,
         ),
       ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline, color: Colors.white),
+          onPressed: () => Get.toNamed('/faq'),
+          tooltip: 'Help & FAQs',
+        ),
+      ],
     );
   }
 
   Widget _buildStepper() {
     const steps = ['PASSENGERS', 'FACILITIES', 'CHECKOUT', 'PAYMENT', 'DONE'];
-    final stepColor = colorScheme(context).primary;
+    const goldColor = Color(0xFFD4AF37);
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Row(
         children: List.generate(9, (i) {
           if (i.isOdd) {
@@ -429,7 +438,8 @@ class _BookingPaymentState extends State<BookingPayment>
             return Expanded(
               child: Container(
                 height: 2,
-                color: isCompleted ? stepColor : Colors.grey.shade300,
+                margin: const EdgeInsets.only(bottom: 18),
+                color: isCompleted ? goldColor : const Color(0xFFE0E0E0),
               ),
             );
           }
@@ -442,25 +452,26 @@ class _BookingPaymentState extends State<BookingPayment>
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   color: isCompleted || isActive
-                      ? stepColor
-                      : Colors.grey.shade300,
+                      ? goldColor
+                      : const Color(0xFFE0E0E0),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      color: isCompleted || isActive
-                          ? Colors.white
-                          : const Color(0xFFB3B3B3),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: isCompleted
+                      ? const Icon(Icons.check, color: Colors.white, size: 14)
+                      : Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color:
+                                isActive ? Colors.white : Colors.grey.shade500,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -470,11 +481,9 @@ class _BookingPaymentState extends State<BookingPayment>
                 style: TextStyle(
                   fontSize: 9,
                   color: isCompleted || isActive
-                      ? stepColor
-                      : const Color(0xFFB3B3B3),
-                  fontWeight: isCompleted || isActive
-                      ? FontWeight.w600
-                      : FontWeight.normal,
+                      ? goldColor
+                      : Colors.grey.shade500,
+                  fontWeight: FontWeight.normal,
                 ),
               ),
             ],
@@ -3213,7 +3222,7 @@ class _BookingPaymentState extends State<BookingPayment>
     );
   }
 
-  Widget _buildBottomBar() {
+  Widget _buildBottomBar(BuildContext context) {
     return Container(
       padding: EdgeInsets.all(spacingUnit(2)),
       decoration: BoxDecoration(
@@ -3246,10 +3255,10 @@ class _BookingPaymentState extends State<BookingPayment>
                     const SizedBox(height: 4),
                     Text(
                       _formatPKR(_grandTotal),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E88E5),
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ],

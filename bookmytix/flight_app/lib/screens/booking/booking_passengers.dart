@@ -170,7 +170,10 @@ class _BookingPassengersState extends State<BookingPassengers> {
     });
     _formKeys =
         List.generate(_totalPassengers + 1, (_) => GlobalKey<FormState>());
-    _loadSavedPassengerData();
+    // Defer load until after first frame so setState calls are valid
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSavedPassengerData();
+    });
 
     // Add listeners to trigger UI updates when contact fields change
     _contactNameCtrl.addListener(_onContactFieldChanged);
@@ -192,10 +195,12 @@ class _BookingPassengersState extends State<BookingPassengers> {
   Future<void> _loadSavedPassengerData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (!mounted) return; // widget disposed while awaiting
       for (int idx = 0; idx < _passengers.length; idx++) {
         final savedData = prefs.getString('saved_passenger_data_$idx');
         if (savedData == null || savedData.isEmpty) continue;
         final data = jsonDecode(savedData) as Map<String, dynamic>;
+        if (!mounted) return;
         setState(() {
           final p = _passengers[idx];
           p.salutation = data['salutation'] ?? 'Mr';
@@ -220,6 +225,21 @@ class _BookingPassengersState extends State<BookingPassengers> {
           }
           p.saveDetails = true; // restore checkbox state
         });
+      }
+      // Load saved contact info
+      final contactRaw = prefs.getString('saved_contact_info_flight');
+      if (contactRaw != null) {
+        final c = jsonDecode(contactRaw) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _contactNameCtrl.text = c['contactName'] ?? '';
+            _contactEmailCtrl.text = c['contactEmail'] ?? '';
+            _contactPhoneCtrl.text = c['contactPhone'] ?? '';
+            _emergencyNameCtrl.text = c['emergencyName'] ?? '';
+            _emergencyPhoneCtrl.text = c['emergencyPhone'] ?? '';
+            _emergencyRelationCtrl.text = c['emergencyRelation'] ?? '';
+          });
+        }
       }
     } catch (e) {
       // Ignore errors silently
@@ -418,7 +438,7 @@ class _BookingPassengersState extends State<BookingPassengers> {
         _emergencyRelationCtrl.text.trim().isNotEmpty;
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKeys[_totalPassengers].currentState!.validate()) return;
     final passengersData = List.generate(_totalPassengers, (i) {
       final p = _passengers[i];
@@ -457,6 +477,21 @@ class _BookingPassengersState extends State<BookingPassengers> {
         'phone': _contactPhoneCtrl.text.trim(),
       };
     });
+    // Save contact info for future auto-fill
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          'saved_contact_info_flight',
+          jsonEncode({
+            'contactName': _contactNameCtrl.text.trim(),
+            'contactEmail': _contactEmailCtrl.text.trim(),
+            'contactPhone': _contactPhoneCtrl.text.trim(),
+            'emergencyName': _emergencyNameCtrl.text.trim(),
+            'emergencyPhone': _emergencyPhoneCtrl.text.trim(),
+            'emergencyRelation': _emergencyRelationCtrl.text.trim(),
+          }));
+    } catch (_) {}
+
     Get.toNamed(AppLink.bookingStep2, arguments: {
       'flight': _flight,
       'searchParams': _searchParams,
@@ -526,55 +561,66 @@ class _BookingPassengersState extends State<BookingPassengers> {
         ),
       ),
       centerTitle: true,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline, color: Colors.white),
+          onPressed: () => Get.toNamed('/faq'),
+          tooltip: 'Help & FAQs',
+        ),
+      ],
     );
   }
 
   // â”€â”€ 5-step stepper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildStepper(BuildContext context) {
+    const goldColor = Color(0xFFD4AF37);
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Row(
         children: List.generate(9, (i) {
           if (i.isOdd) {
             // Connecting line
             final stepBefore = i ~/ 2;
-            final isCompleted = stepBefore < -1;
+            final isCompleted = stepBefore < 0;
             return Expanded(
               child: Container(
                 height: 2,
-                color: isCompleted
-                    ? colorScheme(context).primary
-                    : Colors.grey.shade300,
+                margin: const EdgeInsets.only(bottom: 18),
+                color: isCompleted ? goldColor : const Color(0xFFE0E0E0),
               ),
             );
           }
           // Circle
           final index = i ~/ 2;
           final isActive = index == 0; // PASSENGERS
+          final isCompleted = index < 0;
 
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
-                  color: isActive
-                      ? colorScheme(context).primary
-                      : Colors.grey.shade300,
+                  color: isCompleted || isActive
+                      ? goldColor
+                      : const Color(0xFFE0E0E0),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      color: isActive ? Colors.white : const Color(0xFFB3B3B3),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: isCompleted
+                      ? const Icon(Icons.check, color: Colors.white, size: 14)
+                      : Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color:
+                                isActive ? Colors.white : Colors.grey.shade500,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -583,10 +629,10 @@ class _BookingPassengersState extends State<BookingPassengers> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 9,
-                  color: isActive
-                      ? colorScheme(context).primary
-                      : const Color(0xFFB3B3B3),
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  color: isCompleted || isActive
+                      ? goldColor
+                      : Colors.grey.shade500,
+                  fontWeight: FontWeight.normal,
                 ),
               ),
             ],

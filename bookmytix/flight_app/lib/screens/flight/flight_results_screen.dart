@@ -2179,7 +2179,7 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: Colors.black87,
               ),
             ),
             const Spacer(),
@@ -2191,7 +2191,7 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
                 border: Border.all(
                   color: isSelected
                       ? const Color(0xFFD4AF37)
-                      : Colors.grey.shade600,
+                      : Colors.grey.shade400,
                   width: 2,
                 ),
               ),

@@ -5,6 +5,7 @@ import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
 import 'package:flight_app/models/airport.dart';
+import 'package:flight_app/widgets/range_date_picker.dart';
 
 class FlightSearchHome extends StatefulWidget {
   const FlightSearchHome({super.key});
@@ -13,8 +14,13 @@ class FlightSearchHome extends StatefulWidget {
   State<FlightSearchHome> createState() => _FlightSearchHomeState();
 }
 
-class _FlightSearchHomeState extends State<FlightSearchHome> {
+class _FlightSearchHomeState extends State<FlightSearchHome>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   // Trip type
   String _tripType = 'One-way';
@@ -45,6 +51,31 @@ class _FlightSearchHomeState extends State<FlightSearchHome> {
   @override
   void initState() {
     super.initState();
+
+    // Initialize animations
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+    ));
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.8, curve: Curves.easeOutCubic),
+    ));
+
+    _animationController.forward();
+
     // Pre-fill destination if coming from Explore destination card
     final args = Get.arguments;
     if (args is Map && args['toCode'] != null) {
@@ -57,6 +88,12 @@ class _FlightSearchHomeState extends State<FlightSearchHome> {
     }
   }
 
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
   void _swapAirports() {
     setState(() {
       final temp = _fromAirport;
@@ -66,58 +103,60 @@ class _FlightSearchHomeState extends State<FlightSearchHome> {
   }
 
   Future<void> _selectDepartureDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _departureDate ?? DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: colorScheme(context).primary,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null) {
-      setState(() {
-        _departureDate = picked;
-        // Reset return date if it's before departure
-        if (_returnDate != null && _returnDate!.isBefore(_departureDate!)) {
-          _returnDate = null;
-        }
-      });
+    if (_tripType == 'Round-trip') {
+      // Open the range picker so the user selects both dates at once
+      final range = await RangeDatePickerSheet.show(
+        context,
+        startLabel: 'Departure',
+        endLabel: 'Return',
+        initialStart: _departureDate,
+        initialEnd: _returnDate,
+        firstDate: DateTime.now(),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+        singleDate: false,
+      );
+      if (range != null) {
+        setState(() {
+          _departureDate = range.start;
+          _returnDate = range.end != range.start ? range.end : null;
+        });
+      }
+    } else {
+      final range = await RangeDatePickerSheet.show(
+        context,
+        startLabel: 'Departure',
+        initialStart: _departureDate,
+        firstDate: DateTime.now(),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+        singleDate: true,
+      );
+      if (range != null) {
+        setState(() {
+          _departureDate = range.start;
+          if (_returnDate != null && _returnDate!.isBefore(_departureDate!)) {
+            _returnDate = null;
+          }
+        });
+      }
     }
   }
 
   Future<void> _selectReturnDate() async {
     if (_tripType != 'Round-trip') return;
-
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _returnDate ??
-          (_departureDate ?? DateTime.now()).add(const Duration(days: 1)),
-      firstDate: _departureDate ?? DateTime.now(),
+    final range = await RangeDatePickerSheet.show(
+      context,
+      startLabel: 'Departure',
+      endLabel: 'Return',
+      initialStart: _departureDate,
+      initialEnd: _returnDate,
+      firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: colorScheme(context).primary,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      singleDate: false,
     );
-
-    if (picked != null) {
+    if (range != null) {
       setState(() {
-        _returnDate = picked;
+        _departureDate = range.start;
+        _returnDate = range.end != range.start ? range.end : null;
       });
     }
   }
@@ -341,30 +380,135 @@ class _FlightSearchHomeState extends State<FlightSearchHome> {
       backgroundColor: Colors.grey.shade50,
       body: CustomScrollView(
         slivers: [
-          // App Bar
+          // ── Premium Fintech Header ──────────────────────────────────────
           SliverAppBar(
-            expandedHeight: 120.0,
+            expandedHeight: 140.0,
             floating: false,
             pinned: true,
-            backgroundColor: colorScheme(context).primary,
+            elevation: 0,
+            backgroundColor: Colors.white,
+            leading: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new,
+                    color: Color(0xFFD4AF37), size: 18),
+                onPressed: () => Get.back(),
+              ),
+            ),
             flexibleSpace: FlexibleSpaceBar(
-              title: const Text('Book Flights', style: TextStyle(fontSize: 20)),
               background: Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      colorScheme(context).primary,
-                      colorScheme(context).primary.withValues(alpha: 0.8),
+                      Color(0xFFD4AF37),
+                      Color(0xFFDAB853),
+                      Color(0xFFE8C76A),
                     ],
                   ),
                 ),
+                child: SafeArea(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          left: 20,
+                          right: 20,
+                          top: constraints.maxHeight > 120 ? 24 : 16,
+                          bottom: 8,
+                        ),
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.25),
+                                        borderRadius: BorderRadius.circular(14),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.1),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.flight_takeoff_rounded,
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Text(
+                                            'Flight Booking',
+                                            style: TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.white,
+                                              letterSpacing: -0.8,
+                                              height: 1.1,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Discover flights effortlessly',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.9),
+                                              letterSpacing: 0.2,
+                                              height: 1.2,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new),
-              onPressed: () => Get.back(),
             ),
           ),
 

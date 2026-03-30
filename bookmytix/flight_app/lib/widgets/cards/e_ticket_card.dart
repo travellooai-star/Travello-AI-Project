@@ -94,9 +94,11 @@ class ETicketCard extends StatelessWidget {
                 child: Text('A1234J', style: ThemeText.title.copyWith(color: Colors.black, fontWeight: FontWeight.bold,))
               ),
               const VSpace(),
-              SizedBox(
-                width: double.infinity * 0.8,
-                child: Image.asset('assets/images/barcode.gif', fit: BoxFit.contain)
+              LayoutBuilder(
+                builder: (context, constraints) => SizedBox(
+                  width: constraints.maxWidth * 0.8,
+                  child: Image.asset('assets/images/barcode.gif', fit: BoxFit.contain),
+                ),
               ),
             ])
           ),

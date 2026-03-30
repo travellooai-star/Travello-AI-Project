@@ -16,15 +16,18 @@ import 'package:flight_app/screens/mode_selection/travel_mode_selection.dart';
 import 'package:flight_app/screens/home/unified_home_screen.dart';
 import 'package:flight_app/screens/not_found.dart';
 import 'package:flight_app/screens/orders/booking_detail.dart';
+import 'package:flight_app/screens/orders/hotel_booking_confirmation.dart';
 import 'package:flight_app/screens/orders/my_bookings.dart';
 import 'package:flight_app/screens/profile/contact.dart';
 import 'package:flight_app/screens/profile/faq_list.dart';
 import 'package:flight_app/screens/profile/terms_condition.dart';
-import 'package:flight_app/screens/promo/promo_detail.dart';
+import 'package:flight_app/screens/promo/flight_package_detail.dart';
 import 'package:flight_app/screens/promo/promo_main.dart';
 import 'package:flight_app/screens/promo/voucher_detail.dart';
 import 'package:flight_app/screens/railway/train_results_screen.dart';
 import 'package:flight_app/screens/railway/train_search_home.dart';
+import 'package:flight_app/screens/railway/train_detail_package.dart';
+import 'package:flight_app/screens/railway/train_package_detail.dart';
 import 'package:flight_app/screens/railway_booking/railway_booking_passengers.dart';
 import 'package:flight_app/screens/railway_booking/railway_booking_facilities.dart';
 import 'package:flight_app/screens/railway_booking/railway_booking_checkout.dart';
@@ -107,6 +110,10 @@ final List<GetPage> appRoutes = [
     name: AppLink.ticketDetail,
     page: () => const GeneralLayout(content: BookingDetail()),
   ),
+  GetPage(
+    name: AppLink.hotelBookingDetail,
+    page: () => const GeneralLayout(content: HotelBookingConfirmation()),
+  ),
 
   /// SEARCH
   GetPage(
@@ -156,6 +163,16 @@ final List<GetPage> appRoutes = [
   GetPage(
     name: AppLink.railwayList,
     page: () => const GeneralLayout(content: TrainResultsScreen()),
+    transition: Transition.rightToLeft,
+    transitionDuration: const Duration(milliseconds: pageTransitionDuration),
+  ),
+  GetPage(
+    name: AppLink.trainDetailPackage,
+    page: () => const GeneralLayout(content: TrainDetailPackage()),
+  ),
+  GetPage(
+    name: AppLink.trainPackageAll,
+    page: () => const GeneralLayout(content: TrainPackageDetail()),
     transition: Transition.rightToLeft,
     transitionDuration: const Duration(milliseconds: pageTransitionDuration),
   ),

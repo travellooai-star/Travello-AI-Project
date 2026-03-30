@@ -1,11 +1,12 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:flight_app/app/app_link.dart';
-import 'package:flight_app/models/train.dart';
 import 'package:flight_app/models/train_package.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
+import 'package:flight_app/utils/wishlist_service.dart';
 import 'package:flight_app/widgets/cards/train_package_card.dart';
 import 'package:flight_app/widgets/title/title_action.dart';
 import 'package:flight_app/utils/auth_service.dart';
@@ -166,7 +167,7 @@ class _TrainPackageSliderState extends State<TrainPackageSlider> {
             title: 'Featured Packages',
             textAction: 'See All',
             onTap: () {
-              Get.toNamed('/train-search-home');
+              Get.toNamed(AppLink.trainPackageAll);
             },
           ),
         ),
@@ -189,32 +190,15 @@ class _TrainPackageSliderState extends State<TrainPackageSlider> {
                   itemBuilder: (context, index) {
                     final item = packageList[index];
 
-                    return GestureDetector(
+                    return _TrainCardHover(
+                      packageId: item.id,
                       onTap: () {
-                        final double discountPct = _getDiscountPercent(item);
-                        final double discountedPrice =
-                            item.price * (1 - discountPct / 100);
-                        final Train train = Train(
-                          id: item.id,
-                          name: item.name,
-                          trainNumber: item.trainNumber,
-                          fromStation: item.fromStation,
-                          toStation: item.toStation,
-                          departureTime: item.departureTime,
-                          arrivalTime: '—',
-                          duration: item.duration,
-                          trainClass: item.trainClass,
-                          price: discountedPrice,
-                          availableSeats: 50,
-                          operatedBy: 'Pakistan Railways',
-                        );
                         Get.toNamed(
-                          AppLink.railwayBookingStep1,
+                          AppLink.trainDetailPackage,
                           arguments: {
-                            'train': train,
-                            'adults': 1,
-                            'children': 0,
-                            'infants': 0,
+                            'package': item,
+                            'departDate':
+                                DateTime.now().add(Duration(days: 7 + index)),
                           },
                         );
                       },
@@ -229,7 +213,8 @@ class _TrainPackageSliderState extends State<TrainPackageSlider> {
                             trainNumber: item.trainNumber,
                             from: _getShortStationName(item.fromStation),
                             to: _getShortStationName(item.toStation),
-                            date: item.departureTime,
+                            date: _getDateString(item, index),
+                            duration: item.duration,
                             tags: [
                               ...item.amenities
                                   .where(
@@ -310,6 +295,13 @@ class _TrainPackageSliderState extends State<TrainPackageSlider> {
     );
   }
 
+  String _getDateString(TrainPackage pkg, int index) {
+    // Show upcoming departure date + time — round-trip is shown via badge
+    final base = DateTime.now().add(Duration(days: 7 + index));
+    final dateFmt = DateFormat('d MMM yyyy');
+    return '${dateFmt.format(base)} · ${pkg.departureTime}';
+  }
+
   double _getDiscountPercent(TrainPackage package) {
     switch (package.packageType) {
       case 'business':
@@ -354,3 +346,123 @@ class _TrainPackageSliderState extends State<TrainPackageSlider> {
     return fullName.split(' ').first;
   }
 }
+
+class _TrainCardHover extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+  final String packageId;
+  const _TrainCardHover(
+      {required this.child, required this.onTap, required this.packageId});
+
+  @override
+  State<_TrainCardHover> createState() => _TrainCardHoverState();
+}
+
+class _TrainCardHoverState extends State<_TrainCardHover>
+    with SingleTickerProviderStateMixin {
+  bool _hovered = false;
+  bool _wishlisted = false;
+  late AnimationController _heartCtrl;
+  late Animation<double> _heartScale;
+
+  @override
+  void initState() {
+    super.initState();
+    _heartCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _heartScale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.5), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 1.5, end: 0.9), weight: 30),
+      TweenSequenceItem(tween: Tween(begin: 0.9, end: 1.0), weight: 30),
+    ]).animate(CurvedAnimation(parent: _heartCtrl, curve: Curves.easeOut));
+    _loadState();
+  }
+
+  Future<void> _loadState() async {
+    final liked = await WishlistService.isLiked('train', widget.packageId);
+    if (mounted) setState(() => _wishlisted = liked);
+  }
+
+  @override
+  void dispose() {
+    _heartCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle() async {
+    final added = await WishlistService.toggle('train', widget.packageId);
+    if (mounted) {
+      setState(() => _wishlisted = added);
+      _heartCtrl.forward(from: 0);
+      if (added) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(children: [
+              Icon(Icons.favorite, color: Colors.red, size: 16),
+              SizedBox(width: 8),
+              Text('Added to Saved',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+            ]),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            backgroundColor: const Color(0xFF1A1A1A),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: widget.onTap,
+            child: AnimatedScale(
+              scale: _hovered ? 1.025 : 1.0,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              child: widget.child,
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 22,
+            child: GestureDetector(
+              onTap: _toggle,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 4),
+                  ],
+                ),
+                child: ScaleTransition(
+                  scale: _heartScale,
+                  child: Icon(
+                    _wishlisted ? Icons.favorite : Icons.favorite_border,
+                    size: 16,
+                    color: _wishlisted ? Colors.red : Colors.grey.shade600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

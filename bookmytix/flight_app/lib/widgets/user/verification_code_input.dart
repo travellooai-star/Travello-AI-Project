@@ -225,29 +225,37 @@ class _VerificationCodeInputState extends State<VerificationCodeInput> {
               SizedBox(height: spacingUnit(5)),
 
               // Code Input Boxes
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(6, (index) {
-                  return Padding(
-                    padding: EdgeInsets.symmetric(horizontal: spacingUnit(0.5)),
-                    child: _CodeInputBox(
-                      controller: _controllers[index],
-                      focusNode: _focusNodes[index],
-                      onChanged: (value) {
-                        if (value.isNotEmpty && index < 5) {
-                          _focusNodes[index + 1].requestFocus();
-                        }
-                        if (value.isEmpty && index > 0) {
-                          _focusNodes[index - 1].requestFocus();
-                        }
-                        // Auto-verify when all 6 digits are entered
-                        if (index == 5 && value.isNotEmpty) {
-                          _verifyCode();
-                        }
-                      },
-                    ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final availableWidth = constraints.maxWidth;
+                  // 6 boxes + 12 horizontal gaps (spacingUnit(0.5) = 4px each side)
+                  final boxSize = ((availableWidth - 12 * spacingUnit(0.5)) / 6).clamp(36.0, 56.0);
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(6, (index) {
+                      return Padding(
+                        padding: EdgeInsets.symmetric(horizontal: spacingUnit(0.5)),
+                        child: _CodeInputBox(
+                          size: boxSize,
+                          controller: _controllers[index],
+                          focusNode: _focusNodes[index],
+                          onChanged: (value) {
+                            if (value.isNotEmpty && index < 5) {
+                              _focusNodes[index + 1].requestFocus();
+                            }
+                            if (value.isEmpty && index > 0) {
+                              _focusNodes[index - 1].requestFocus();
+                            }
+                            // Auto-verify when all 6 digits are entered
+                            if (index == 5 && value.isNotEmpty) {
+                              _verifyCode();
+                            }
+                          },
+                        ),
+                      );
+                    }),
                   );
-                }),
+                },
               ),
 
               SizedBox(height: spacingUnit(4)),
@@ -350,11 +358,13 @@ class _CodeInputBox extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final ValueChanged<String> onChanged;
+  final double size;
 
   const _CodeInputBox({
     required this.controller,
     required this.focusNode,
     required this.onChanged,
+    this.size = 50,
   });
 
   @override
@@ -362,8 +372,8 @@ class _CodeInputBox extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      width: 50,
-      height: 60,
+      width: size,
+      height: size * 1.2,
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),

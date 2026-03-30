@@ -6,7 +6,6 @@ import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/widgets/explore/banner.dart';
 import 'package:flight_app/widgets/explore/header.dart';
-import 'package:flight_app/widgets/explore/search.dart';
 import 'package:flight_app/widgets/explore/explore_category_filter.dart';
 import 'package:flight_app/widgets/explore/explore_destinations_section.dart';
 
@@ -43,9 +42,6 @@ class _ExploreMainState extends State<ExploreMain> {
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  /// SEARCH BAR
-                  const SearchExplore(),
-
                   /// CATEGORY FILTER CHIPS
                   Container(
                     color: colorScheme(context).surfaceContainerLowest,

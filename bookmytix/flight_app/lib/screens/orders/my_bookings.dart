@@ -1,17 +1,14 @@
-import 'package:flight_app/app/app_link.dart';
+﻿import 'package:flight_app/app/app_link.dart';
 import 'package:flight_app/ui/themes/theme_button.dart';
-import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
 import 'package:flight_app/utils/booking_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/route_manager.dart';
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  📱 PROFESSIONAL MY BOOKINGS PAGE
-//  Industry-Level Design - Consistent UI for Train & Flight Bookings
-//  Inspired by: MakeMyTrip, Cleartrip, Booking.com, Expedia
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const _gold = Color(0xFFD4AF37);
+const _goldLight = Color(0xFFFEF9EC);
+const _goldDark = Color(0xFFB8935C);
 
 class MyBookings extends StatefulWidget {
   const MyBookings({super.key});
@@ -24,29 +21,27 @@ class _MyBookingsState extends State<MyBookings>
     with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> _allBookings = [];
   List<Map<String, dynamic>> _filteredBookings = [];
-  String _selectedFilter = 'All'; // All, Upcoming, Past, Canceled
-  String _selectedType = 'All'; // All, Train, Flight
+  String _selectedFilter = 'All';
+  String _selectedType = 'All';
   bool _isLoading = true;
-  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadBookings();
   }
 
   @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reload every time this screen becomes visible (handles back-navigation
+    // and GetX route reuse without re-running initState)
+    _loadBookings();
   }
 
   Future<void> _loadBookings() async {
     setState(() => _isLoading = true);
-
     final bookings = await BookingService.getAllBookings();
-
     setState(() {
       _allBookings = bookings;
       _applyFilters();
@@ -56,155 +51,123 @@ class _MyBookingsState extends State<MyBookings>
 
   void _applyFilters() {
     List<Map<String, dynamic>> filtered = List.from(_allBookings);
-
-    // Filter by type
     if (_selectedType != 'All') {
       filtered = filtered
           .where((b) => b['bookingType'] == _selectedType.toLowerCase())
           .toList();
     }
-
-    // Filter by status/time
     final now = DateTime.now();
     if (_selectedFilter == 'Upcoming') {
       filtered = filtered.where((b) {
         if (b['status'] == 'canceled') return false;
-
-        final details = b['bookingType'] == 'train'
-            ? b['trainDetails']
-            : b['flightDetails'];
-
-        if (details == null) return false;
-
-        try {
-          final dateStr = details['date'];
-          final timeStr = details['departure'];
-          if (dateStr == null || timeStr == null) return false;
-
-          // Parse date (format: "dd MMM yyyy")
-          final dateParts = dateStr.toString().split(' ');
-          if (dateParts.length < 3) return false;
-
-          final day = int.tryParse(dateParts[0]) ?? 1;
-          final month = _monthToNumber(dateParts[1]);
-          final year = int.tryParse(dateParts[2]) ?? DateTime.now().year;
-
-          // Parse time (format: "HH:mm")
-          final timeParts = timeStr.toString().split(':');
-          final hour = int.tryParse(timeParts[0]) ?? 0;
-          final minute =
-              timeParts.length > 1 ? int.tryParse(timeParts[1]) ?? 0 : 0;
-
-          final departureDateTime = DateTime(year, month, day, hour, minute);
-          return departureDateTime.isAfter(now);
-        } catch (e) {
-          return false;
-        }
+        return _getTravelDate(b)?.isAfter(now) ?? false;
       }).toList();
     } else if (_selectedFilter == 'Past') {
       filtered = filtered.where((b) {
-        final details = b['bookingType'] == 'train'
-            ? b['trainDetails']
-            : b['flightDetails'];
-
-        if (details == null) return true;
-
-        try {
-          final dateStr = details['date'];
-          final timeStr = details['departure'];
-          if (dateStr == null || timeStr == null) return true;
-
-          final dateParts = dateStr.toString().split(' ');
-          if (dateParts.length < 3) return true;
-
-          final day = int.tryParse(dateParts[0]) ?? 1;
-          final month = _monthToNumber(dateParts[1]);
-          final year = int.tryParse(dateParts[2]) ?? DateTime.now().year;
-
-          final timeParts = timeStr.toString().split(':');
-          final hour = int.tryParse(timeParts[0]) ?? 0;
-          final minute =
-              timeParts.length > 1 ? int.tryParse(timeParts[1]) ?? 0 : 0;
-
-          final departureDateTime = DateTime(year, month, day, hour, minute);
-          return departureDateTime.isBefore(now);
-        } catch (e) {
-          return true;
-        }
+        if (b['status'] == 'canceled') return false;
+        final d = _getTravelDate(b);
+        return d == null || d.isBefore(now);
       }).toList();
     } else if (_selectedFilter == 'Canceled') {
       filtered = filtered.where((b) => b['status'] == 'canceled').toList();
     }
-
-    setState(() {
-      _filteredBookings = filtered;
-    });
+    setState(() => _filteredBookings = filtered);
   }
 
-  int _monthToNumber(String month) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
-    ];
-    return months.indexOf(month) + 1;
+  DateTime? _getTravelDate(Map<String, dynamic> b) {
+    try {
+      final type = b['bookingType'] ?? 'flight';
+      if (type == 'hotel') {
+        final h = b['hotelDetails'] as Map<String, dynamic>?;
+        if (h == null) return null;
+        return _parseDate(h['checkIn']?.toString());
+      } else {
+        final details =
+            type == 'train' ? b['trainDetails'] : b['flightDetails'];
+        if (details == null) return null;
+        final date = _parseDate(details['date']?.toString());
+        if (date == null) return null;
+        final timeStr = details['departure']?.toString();
+        if (timeStr != null) {
+          final parts = timeStr.split(':');
+          final h = int.tryParse(parts[0]) ?? 0;
+          final m = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+          return DateTime(date.year, date.month, date.day, h, m);
+        }
+        return date;
+      }
+    } catch (_) {
+      return null;
+    }
+  }
+
+  DateTime? _parseDate(String? s) {
+    if (s == null) return null;
+    try {
+      const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+      ];
+      final p = s.trim().split(' ');
+      if (p.length < 3) return null;
+      return DateTime(int.tryParse(p[2]) ?? DateTime.now().year,
+          months.indexOf(p[1]) + 1, int.tryParse(p[0]) ?? 1);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  int get _upcomingCount {
+    final now = DateTime.now();
+    return _allBookings.where((b) {
+      if (b['status'] == 'canceled') return false;
+      return _getTravelDate(b)?.isAfter(now) ?? false;
+    }).length;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: colorScheme(context).surfaceContainerLowest,
+      backgroundColor: const Color(0xFFF9F5E8),
       body: CustomScrollView(
         slivers: [
-          // ━━━ Gradient App Bar with Stats ━━━
-          _buildGradientAppBar(),
-
-          // ━━━ Filter Tabs ━━━
+          _buildGoldAppBar(),
           _buildFilterTabs(),
-
-          // ━━━ Bookings List ━━━
           if (_isLoading)
             SliverFillRemaining(
               child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const CircularProgressIndicator(
-                      color: Color(0xFF0D9488),
-                    ),
-                    SizedBox(height: spacingUnit(2)),
-                    Text('Loading your bookings...',
-                        style: ThemeText.paragraph.copyWith(
-                            color: colorScheme(context).onSurfaceVariant)),
-                  ],
-                ),
-              ),
+                  child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(color: _gold),
+                  SizedBox(height: spacingUnit(2)),
+                  Text('Loading your bookings...',
+                      style: ThemeText.paragraph
+                          .copyWith(color: Colors.grey.shade600)),
+                ],
+              )),
             )
           else if (_filteredBookings.isEmpty)
-            SliverFillRemaining(
-              child: _buildEmptyState(),
-            )
+            SliverFillRemaining(child: _buildEmptyState())
           else
             SliverPadding(
               padding: EdgeInsets.all(spacingUnit(2)),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final booking = _filteredBookings[index];
-                    return Padding(
-                      padding: EdgeInsets.only(bottom: spacingUnit(2)),
-                      child: _buildBookingCard(booking),
-                    );
-                  },
+                  (context, index) => Padding(
+                    padding: EdgeInsets.only(bottom: spacingUnit(2)),
+                    child: _buildBookingCard(_filteredBookings[index]),
+                  ),
                   childCount: _filteredBookings.length,
                 ),
               ),
@@ -214,40 +177,26 @@ class _MyBookingsState extends State<MyBookings>
     );
   }
 
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  //  🎨 UI COMPONENTS
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  Widget _buildGradientAppBar() {
-    final upcomingCount = _allBookings.where((b) {
-      final details =
-          b['bookingType'] == 'train' ? b['trainDetails'] : b['flightDetails'];
-      if (details == null) return false;
-      // Simplified check - just check status
-      return b['status'] != 'canceled';
-    }).length;
-
+  Widget _buildGoldAppBar() {
     return SliverAppBar(
-      expandedHeight: 200,
+      expandedHeight: 160,
       floating: false,
       pinned: true,
       elevation: 0,
-      backgroundColor: const Color(0xFF0D9488),
+      backgroundColor: _gold,
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF0D9488),
-                Color(0xFF14B8A6),
-              ],
+              colors: [Color(0xFFD4AF37), Color(0xFFB8935C)],
             ),
           ),
           child: SafeArea(
             child: Padding(
-              padding: EdgeInsets.all(spacingUnit(2)),
+              padding: EdgeInsets.fromLTRB(spacingUnit(2), spacingUnit(1),
+                  spacingUnit(2), spacingUnit(2)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -258,35 +207,28 @@ class _MyBookingsState extends State<MyBookings>
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          Text('My Bookings',
+                              style: ThemeText.title.copyWith(
+                                  color: Colors.white,
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w800)),
+                          SizedBox(height: spacingUnit(0.4)),
                           Text(
-                            'My Bookings',
-                            style: ThemeText.title.copyWith(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          SizedBox(height: spacingUnit(0.5)),
-                          Text(
-                            '${_allBookings.length} Total • $upcomingCount Active',
-                            style: ThemeText.paragraph.copyWith(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 14,
-                            ),
-                          ),
+                              '${_allBookings.length} Total  •  $_upcomingCount Upcoming',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500)),
                         ],
                       ),
                       Container(
                         padding: EdgeInsets.all(spacingUnit(1.5)),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(
-                          Icons.confirmation_number_outlined,
-                          color: Colors.white,
-                          size: 28,
-                        ),
+                        child: const Icon(Icons.confirmation_number_outlined,
+                            color: Colors.white, size: 28),
                       ),
                     ],
                   ),
@@ -306,35 +248,31 @@ class _MyBookingsState extends State<MyBookings>
   Widget _buildFilterTabs() {
     return SliverToBoxAdapter(
       child: Container(
-        color: colorScheme(context).surfaceContainerLowest,
+        color: Colors.white,
         padding: EdgeInsets.all(spacingUnit(2)),
         child: Column(
           children: [
-            // Type Filter (All, Train, Flight)
-            Row(
-              children: [
-                _buildTypeChip('All', Icons.list_alt),
-                SizedBox(width: spacingUnit(1)),
-                _buildTypeChip('Train', Icons.train),
-                SizedBox(width: spacingUnit(1)),
-                _buildTypeChip('Flight', Icons.flight),
-              ],
-            ),
+            Row(children: [
+              _buildTypeChip('All', Icons.list_alt),
+              SizedBox(width: spacingUnit(1)),
+              _buildTypeChip('Train', Icons.train),
+              SizedBox(width: spacingUnit(1)),
+              _buildTypeChip('Flight', Icons.flight),
+              SizedBox(width: spacingUnit(1)),
+              _buildTypeChip('Hotel', Icons.hotel),
+            ]),
             SizedBox(height: spacingUnit(1.5)),
-            // Status Filter
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildFilterChip('All'),
-                  SizedBox(width: spacingUnit(1)),
-                  _buildFilterChip('Upcoming'),
-                  SizedBox(width: spacingUnit(1)),
-                  _buildFilterChip('Past'),
-                  SizedBox(width: spacingUnit(1)),
-                  _buildFilterChip('Canceled'),
-                ],
-              ),
+              child: Row(children: [
+                _buildFilterChip('All'),
+                SizedBox(width: spacingUnit(1)),
+                _buildFilterChip('Upcoming'),
+                SizedBox(width: spacingUnit(1)),
+                _buildFilterChip('Past'),
+                SizedBox(width: spacingUnit(1)),
+                _buildFilterChip('Canceled'),
+              ]),
             ),
           ],
         ),
@@ -346,58 +284,39 @@ class _MyBookingsState extends State<MyBookings>
     final isSelected = _selectedType == label;
     return Expanded(
       child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedType = label;
-            _applyFilters();
-          });
-        },
+        onTap: () => setState(() {
+          _selectedType = label;
+          _applyFilters();
+        }),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: EdgeInsets.symmetric(
-            horizontal: spacingUnit(1.5),
-            vertical: spacingUnit(1),
-          ),
+              horizontal: spacingUnit(0.5), vertical: spacingUnit(1)),
           decoration: BoxDecoration(
-            color: isSelected
-                ? const Color(0xFF0D9488)
-                : colorScheme(context).surface,
-            borderRadius: BorderRadius.circular(12),
+            color: isSelected ? _gold : Colors.white,
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected
-                  ? const Color(0xFF0D9488)
-                  : colorScheme(context).outline.withOpacity(0.3),
-              width: 1.5,
-            ),
+                color: isSelected ? _gold : Colors.grey.shade300, width: 1.5),
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF0D9488).withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
+                        color: _gold.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2))
                   ]
                 : null,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Column(
             children: [
-              Icon(
-                icon,
-                size: 18,
-                color:
-                    isSelected ? Colors.white : colorScheme(context).onSurface,
-              ),
-              SizedBox(width: spacingUnit(0.5)),
-              Text(
-                label,
-                style: ThemeText.subtitle2.copyWith(
-                  color: isSelected
-                      ? Colors.white
-                      : colorScheme(context).onSurface,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                ),
-              ),
+              Icon(icon,
+                  size: 18,
+                  color: isSelected ? Colors.white : Colors.grey.shade600),
+              SizedBox(height: spacingUnit(0.3)),
+              Text(label,
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? Colors.white : Colors.grey.shade600)),
             ],
           ),
         ),
@@ -408,492 +327,398 @@ class _MyBookingsState extends State<MyBookings>
   Widget _buildFilterChip(String label) {
     final isSelected = _selectedFilter == label;
     return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedFilter = label;
-          _applyFilters();
-        });
-      },
+      onTap: () => setState(() {
+        _selectedFilter = label;
+        _applyFilters();
+      }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.symmetric(
-          horizontal: spacingUnit(2),
-          vertical: spacingUnit(1),
-        ),
+            horizontal: spacingUnit(2), vertical: spacingUnit(0.75)),
         decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF0D9488).withOpacity(0.15)
-              : Colors.transparent,
+          color: isSelected ? _goldLight : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected
-                ? const Color(0xFF0D9488)
-                : colorScheme(context).outline.withOpacity(0.3),
-          ),
+          border: Border.all(color: isSelected ? _gold : Colors.grey.shade300),
         ),
-        child: Text(
-          label,
-          style: ThemeText.paragraph.copyWith(
-            color: isSelected
-                ? const Color(0xFF0D9488)
-                : colorScheme(context).onSurfaceVariant,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-          ),
-        ),
+        child: Text(label,
+            style: TextStyle(
+                color: isSelected ? _goldDark : Colors.grey.shade600,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 13)),
       ),
     );
   }
 
   Widget _buildBookingCard(Map<String, dynamic> booking) {
     final bookingType = booking['bookingType'] ?? 'flight';
-    final isTrainBooking = bookingType == 'train';
-
+    Color headerBg;
+    Color accentColor;
+    IconData typeIcon;
+    String typeLabel;
+    switch (bookingType) {
+      case 'train':
+        headerBg = const Color(0xFFF0FDF4);
+        accentColor = const Color(0xFF059669);
+        typeIcon = Icons.train;
+        typeLabel = 'TRAIN';
+        break;
+      case 'hotel':
+        headerBg = const Color(0xFFFFFBEB);
+        accentColor = _gold;
+        typeIcon = Icons.hotel;
+        typeLabel = 'HOTEL';
+        break;
+      default:
+        headerBg = const Color(0xFFEFF6FF);
+        accentColor = const Color(0xFF3B82F6);
+        typeIcon = Icons.flight;
+        typeLabel = 'FLIGHT';
+    }
     return GestureDetector(
-      onTap: () {
-        Get.toNamed(AppLink.ticketDetail, arguments: booking);
-      },
+      onTap: () => Get.toNamed(AppLink.ticketDetail, arguments: booking),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
+                color: Colors.black.withValues(alpha: 0.07),
+                blurRadius: 12,
+                offset: const Offset(0, 4))
           ],
         ),
-        child: Column(
-          children: [
-            // ━━━ Header with Type Badge & Status ━━━
-            Container(
-              padding: EdgeInsets.all(spacingUnit(1.5)),
-              decoration: BoxDecoration(
-                color: isTrainBooking
-                    ? const Color(0xFFF3F4F6)
-                    : const Color(0xFFEFF6FF),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-              ),
-              child: Row(
+        child: Column(children: [
+          Container(
+            padding: EdgeInsets.symmetric(
+                horizontal: spacingUnit(1.75), vertical: spacingUnit(1.25)),
+            decoration: BoxDecoration(
+                color: headerBg,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16))),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: spacingUnit(1), vertical: spacingUnit(0.5)),
+                    decoration: BoxDecoration(
+                        color: accentColor,
+                        borderRadius: BorderRadius.circular(6)),
+                    child: Row(children: [
+                      Icon(typeIcon, size: 13, color: Colors.white),
+                      SizedBox(width: spacingUnit(0.4)),
+                      Text(typeLabel,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11)),
+                    ]),
+                  ),
+                  SizedBox(width: spacingUnit(1)),
+                  Text(
+                    bookingType == 'hotel'
+                        ? 'Ref: ${booking['pnr'] ?? 'N/A'}'
+                        : 'PNR: ${booking['pnr'] ?? 'N/A'}',
+                    style:
+                        ThemeText.caption.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ]),
+                _buildStatusBadge(booking['status'] ?? 'confirmed'),
+              ],
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.all(spacingUnit(2)),
+            child: Column(children: [
+              if (bookingType == 'train')
+                _buildTrainJourneyDetails(booking)
+              else if (bookingType == 'hotel')
+                _buildHotelDetails(booking)
+              else
+                _buildFlightJourneyDetails(booking),
+              SizedBox(height: spacingUnit(1.5)),
+              Divider(color: Colors.grey.shade100, height: 1),
+              SizedBox(height: spacingUnit(1.25)),
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: spacingUnit(1),
-                          vertical: spacingUnit(0.5),
-                        ),
-                        decoration: BoxDecoration(
-                          color: isTrainBooking
-                              ? const Color(0xFF059669)
-                              : const Color(0xFF3B82F6),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              isTrainBooking ? Icons.train : Icons.flight,
-                              size: 14,
-                              color: Colors.white,
-                            ),
-                            SizedBox(width: spacingUnit(0.5)),
-                            Text(
-                              isTrainBooking ? 'TRAIN' : 'FLIGHT',
-                              style: ThemeText.caption.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(width: spacingUnit(1)),
-                      Text(
-                        'PNR: ${booking['pnr'] ?? 'N/A'}',
-                        style: ThemeText.caption.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                  _buildStatusBadge(booking['status'] ?? 'confirmed'),
-                ],
-              ),
-            ),
-
-            // ━━━ Journey Details ━━━
-            Padding(
-              padding: EdgeInsets.all(spacingUnit(2)),
-              child: Column(
-                children: [
-                  isTrainBooking
-                      ? _buildTrainJourneyDetails(booking)
-                      : _buildFlightJourneyDetails(booking),
-
-                  SizedBox(height: spacingUnit(1.5)),
-                  Divider(color: Colors.grey.shade200, height: 1),
-                  SizedBox(height: spacingUnit(1.5)),
-
-                  // ━━━ Footer Info ━━━
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.people_outline,
-                            size: 16,
-                            color: Colors.grey.shade600,
-                          ),
-                          SizedBox(width: spacingUnit(0.5)),
-                          Text(
-                            '${booking['passengerCount'] ?? 1} ${(booking['passengerCount'] ?? 1) > 1 ? 'Passengers' : 'Passenger'}',
-                            style: ThemeText.caption.copyWith(
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        'PKR ${(booking['total'] ?? 0).toStringAsFixed(0)}',
-                        style: ThemeText.subtitle.copyWith(
+                  Row(children: [
+                    Icon(Icons.people_outline,
+                        size: 15, color: Colors.grey.shade500),
+                    SizedBox(width: spacingUnit(0.5)),
+                    Text(
+                      '${booking['passengerCount'] ?? 1} ${bookingType == 'hotel' ? (((booking['passengerCount'] ?? 1) > 1) ? 'Guests' : 'Guest') : (((booking['passengerCount'] ?? 1) > 1) ? 'Passengers' : 'Passenger')}',
+                      style: ThemeText.caption
+                          .copyWith(color: Colors.grey.shade500),
+                    ),
+                  ]),
+                  Text('PKR ${(booking['total'] ?? 0.0).toStringAsFixed(0)}',
+                      style: ThemeText.subtitle.copyWith(
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF0D9488),
-                        ),
-                      ),
-                    ],
-                  ),
+                          color: _gold,
+                          fontSize: 16)),
                 ],
               ),
-            ),
-          ],
-        ),
+            ]),
+          ),
+        ]),
       ),
+    );
+  }
+
+  Widget _buildHotelDetails(Map<String, dynamic> booking) {
+    final h = booking['hotelDetails'] as Map<String, dynamic>?;
+    if (h == null) return const SizedBox();
+    final stars = (h['rating'] ?? 0) as num;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(children: [
+          Container(
+            padding: EdgeInsets.all(spacingUnit(1)),
+            decoration: BoxDecoration(
+                color: _goldLight, borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.hotel, color: _gold, size: 28),
+          ),
+          SizedBox(width: spacingUnit(1.5)),
+          Expanded(
+              child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(h['hotelName'] ?? 'Hotel',
+                  style: ThemeText.subtitle
+                      .copyWith(fontWeight: FontWeight.w800, fontSize: 15),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+              if ((h['city'] ?? '').toString().isNotEmpty)
+                Text(h['city'].toString(),
+                    style: ThemeText.caption
+                        .copyWith(color: Colors.grey.shade500)),
+              if (stars > 0)
+                Row(
+                    children: List.generate(stars.toInt(),
+                        (i) => const Icon(Icons.star, size: 12, color: _gold))),
+            ],
+          )),
+        ]),
+        SizedBox(height: spacingUnit(1.5)),
+        Container(
+          padding: EdgeInsets.symmetric(
+              horizontal: spacingUnit(1.5), vertical: spacingUnit(1)),
+          decoration: BoxDecoration(
+              color: _goldLight, borderRadius: BorderRadius.circular(10)),
+          child: Row(children: [
+            Expanded(
+                child: Column(children: [
+              const Text('CHECK-IN',
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: _goldDark,
+                      letterSpacing: 0.8)),
+              SizedBox(height: spacingUnit(0.3)),
+              Text(h['checkIn'] ?? '—',
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700)),
+            ])),
+            Container(
+              padding: EdgeInsets.symmetric(
+                  horizontal: spacingUnit(1), vertical: spacingUnit(0.5)),
+              decoration: BoxDecoration(
+                  color: _gold.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6)),
+              child: Text('${h['nights'] ?? 1}N',
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _goldDark)),
+            ),
+            Expanded(
+                child: Column(children: [
+              const Text('CHECK-OUT',
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: _goldDark,
+                      letterSpacing: 0.8)),
+              SizedBox(height: spacingUnit(0.3)),
+              Text(h['checkOut'] ?? '—',
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w700)),
+            ])),
+          ]),
+        ),
+        SizedBox(height: spacingUnit(1)),
+        Row(children: [
+          const Icon(Icons.bed_outlined, size: 14, color: _goldDark),
+          SizedBox(width: spacingUnit(0.5)),
+          Text(h['roomType'] ?? 'Standard Room',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500)),
+        ]),
+      ],
     );
   }
 
   Widget _buildTrainJourneyDetails(Map<String, dynamic> booking) {
     final train = booking['trainDetails'] as Map<String, dynamic>?;
     if (train == null) return const SizedBox();
-
-    return Row(
-      children: [
-        // From Station
-        Expanded(
+    const accent = Color(0xFF059669);
+    return Row(children: [
+      Expanded(
           flex: 2,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                train['departure'] ?? 'N/A',
-                style: ThemeText.title2.copyWith(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 20,
-                ),
-              ),
-              SizedBox(height: spacingUnit(0.3)),
-              Text(
-                train['fromCode'] ?? 'N/A',
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(train['departure'] ?? 'N/A',
+                style: ThemeText.title2
+                    .copyWith(fontWeight: FontWeight.w800, fontSize: 20)),
+            SizedBox(height: spacingUnit(0.3)),
+            Text(train['fromCode'] ?? 'N/A',
                 style: ThemeText.headline.copyWith(
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              SizedBox(height: spacingUnit(0.2)),
-              Text(
-                train['from'] ?? 'N/A',
-                style: ThemeText.caption.copyWith(
-                  color: Colors.grey.shade500,
-                ),
+                    color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+            Text(train['from'] ?? 'N/A',
+                style: ThemeText.caption.copyWith(color: Colors.grey.shade400),
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-
-        // Journey Indicator
-        Expanded(
+                overflow: TextOverflow.ellipsis),
+          ])),
+      Expanded(
           flex: 1,
-          child: Column(
-            children: [
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: spacingUnit(0.8),
-                  vertical: spacingUnit(0.3),
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3F4F6),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  train['duration'] ?? 'N/A',
+          child: Column(children: [
+            Container(
+              padding: EdgeInsets.symmetric(
+                  horizontal: spacingUnit(0.8), vertical: spacingUnit(0.3)),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(4)),
+              child: Text(train['duration'] ?? 'N/A',
                   style: ThemeText.caption.copyWith(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade700,
-                  ),
-                ),
-              ),
-              SizedBox(height: spacingUnit(0.5)),
-              Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF059669),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(
-                      height: 2,
-                      color: const Color(0xFF059669),
-                    ),
-                  ),
-                  const Icon(
-                    Icons.train,
-                    size: 16,
-                    color: Color(0xFF059669),
-                  ),
-                  Expanded(
-                    child: Container(
-                      height: 2,
-                      color: const Color(0xFF059669),
-                    ),
-                  ),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF059669),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: spacingUnit(0.5)),
-              Text(
-                train['class'] ?? 'Economy',
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: accent)),
+            ),
+            SizedBox(height: spacingUnit(0.5)),
+            Row(children: [
+              Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                      color: accent, shape: BoxShape.circle)),
+              Expanded(child: Container(height: 2, color: accent)),
+              const Icon(Icons.train, size: 16, color: accent),
+              Expanded(child: Container(height: 2, color: accent)),
+              Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                      color: accent, shape: BoxShape.circle)),
+            ]),
+            SizedBox(height: spacingUnit(0.5)),
+            Text(train['class'] ?? 'Economy',
                 style: ThemeText.caption.copyWith(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF059669),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // To Station
-        Expanded(
+                    fontSize: 10, fontWeight: FontWeight.w600, color: accent)),
+          ])),
+      Expanded(
           flex: 2,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                train['arrival'] ?? 'N/A',
-                style: ThemeText.title2.copyWith(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 20,
-                ),
-              ),
-              SizedBox(height: spacingUnit(0.3)),
-              Text(
-                train['toCode'] ?? 'N/A',
+          child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text(train['arrival'] ?? 'N/A',
+                style: ThemeText.title2
+                    .copyWith(fontWeight: FontWeight.w800, fontSize: 20)),
+            SizedBox(height: spacingUnit(0.3)),
+            Text(train['toCode'] ?? 'N/A',
                 style: ThemeText.headline.copyWith(
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              SizedBox(height: spacingUnit(0.2)),
-              Text(
-                train['to'] ?? 'N/A',
-                style: ThemeText.caption.copyWith(
-                  color: Colors.grey.shade500,
-                ),
+                    color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+            Text(train['to'] ?? 'N/A',
+                style: ThemeText.caption.copyWith(color: Colors.grey.shade400),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.end,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+                textAlign: TextAlign.end),
+          ])),
+    ]);
   }
 
   Widget _buildFlightJourneyDetails(Map<String, dynamic> booking) {
     final flight = booking['flightDetails'] as Map<String, dynamic>?;
     if (flight == null) return const SizedBox();
-
-    // Extract airport codes from the full string
-    String fromCode = 'N/A';
-    String toCode = 'N/A';
-
+    const accent = Color(0xFF3B82F6);
     final fromStr = flight['from'] ?? 'N/A';
     final toStr = flight['to'] ?? 'N/A';
-
-    // Extract code from format "Name (CODE)"
-    final fromMatch = RegExp(r'\(([A-Z]{3})\)').firstMatch(fromStr);
-    final toMatch = RegExp(r'\(([A-Z]{3})\)').firstMatch(toStr);
-
-    if (fromMatch != null) fromCode = fromMatch.group(1)!;
-    if (toMatch != null) toCode = toMatch.group(1)!;
-
-    return Row(
-      children: [
-        // From Airport
-        Expanded(
+    final fromCode =
+        RegExp(r'\(([A-Z]{3})\)').firstMatch(fromStr)?.group(1) ?? 'N/A';
+    final toCode =
+        RegExp(r'\(([A-Z]{3})\)').firstMatch(toStr)?.group(1) ?? 'N/A';
+    return Row(children: [
+      Expanded(
           flex: 2,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                flight['departure'] ?? 'N/A',
-                style: ThemeText.title2.copyWith(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 20,
-                ),
-              ),
-              SizedBox(height: spacingUnit(0.3)),
-              Text(
-                fromCode,
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(flight['departure'] ?? 'N/A',
+                style: ThemeText.title2
+                    .copyWith(fontWeight: FontWeight.w800, fontSize: 20)),
+            SizedBox(height: spacingUnit(0.3)),
+            Text(fromCode,
                 style: ThemeText.headline.copyWith(
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              SizedBox(height: spacingUnit(0.2)),
-              Text(
-                fromStr.replaceAll(RegExp(r'\s*\([A-Z]{3}\)'), ''),
-                style: ThemeText.caption.copyWith(
-                  color: Colors.grey.shade500,
-                ),
+                    color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+            Text(fromStr.replaceAll(RegExp(r'\s*\([A-Z]{3}\)'), ''),
+                style: ThemeText.caption.copyWith(color: Colors.grey.shade400),
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-
-        // Journey Indicator
-        Expanded(
+                overflow: TextOverflow.ellipsis),
+          ])),
+      Expanded(
           flex: 1,
-          child: Column(
-            children: [
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: spacingUnit(0.8),
-                  vertical: spacingUnit(0.3),
-                ),
-                decoration: BoxDecoration(
+          child: Column(children: [
+            Container(
+              padding: EdgeInsets.symmetric(
+                  horizontal: spacingUnit(0.8), vertical: spacingUnit(0.3)),
+              decoration: BoxDecoration(
                   color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  flight['duration'] ?? 'N/A',
+                  borderRadius: BorderRadius.circular(4)),
+              child: Text(flight['duration'] ?? 'N/A',
                   style: ThemeText.caption.copyWith(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF3B82F6),
-                  ),
-                ),
-              ),
-              SizedBox(height: spacingUnit(0.5)),
-              Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF3B82F6),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  Expanded(
-                    child: Container(
-                      height: 2,
-                      color: const Color(0xFF3B82F6),
-                    ),
-                  ),
-                  const Icon(
-                    Icons.flight,
-                    size: 16,
-                    color: Color(0xFF3B82F6),
-                  ),
-                  Expanded(
-                    child: Container(
-                      height: 2,
-                      color: const Color(0xFF3B82F6),
-                    ),
-                  ),
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF3B82F6),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: spacingUnit(0.5)),
-              Text(
-                flight['class'] ?? 'Economy',
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: accent)),
+            ),
+            SizedBox(height: spacingUnit(0.5)),
+            Row(children: [
+              Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                      color: accent, shape: BoxShape.circle)),
+              Expanded(child: Container(height: 2, color: accent)),
+              const Icon(Icons.flight, size: 16, color: accent),
+              Expanded(child: Container(height: 2, color: accent)),
+              Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                      color: accent, shape: BoxShape.circle)),
+            ]),
+            SizedBox(height: spacingUnit(0.5)),
+            Text(flight['class'] ?? 'Economy',
                 style: ThemeText.caption.copyWith(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF3B82F6),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        // To Airport
-        Expanded(
+                    fontSize: 10, fontWeight: FontWeight.w600, color: accent)),
+          ])),
+      Expanded(
           flex: 2,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                flight['arrival'] ?? 'N/A',
-                style: ThemeText.title2.copyWith(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 20,
-                ),
-              ),
-              SizedBox(height: spacingUnit(0.3)),
-              Text(
-                toCode,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text(flight['arrival'] ?? 'N/A',
+                style: ThemeText.title2
+                    .copyWith(fontWeight: FontWeight.w800, fontSize: 20)),
+            SizedBox(height: spacingUnit(0.3)),
+            Text(toCode,
                 style: ThemeText.headline.copyWith(
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              SizedBox(height: spacingUnit(0.2)),
-              Text(
-                toStr.replaceAll(RegExp(r'\s*\([A-Z]{3}\)'), ''),
-                style: ThemeText.caption.copyWith(
-                  color: Colors.grey.shade500,
-                ),
+                    color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+            Text(toStr.replaceAll(RegExp(r'\s*\([A-Z]{3}\)'), ''),
+                style: ThemeText.caption.copyWith(color: Colors.grey.shade400),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.end,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+                textAlign: TextAlign.end),
+          ])),
+    ]);
   }
 
   Widget _buildStatusBadge(String status) {
@@ -901,16 +726,15 @@ class _MyBookingsState extends State<MyBookings>
     Color textColor;
     String label;
     IconData icon;
-
     switch (status.toLowerCase()) {
       case 'confirmed':
-        bgColor = const Color(0xFF10B981).withOpacity(0.15);
+        bgColor = const Color(0xFF10B981).withValues(alpha: 0.15);
         textColor = const Color(0xFF10B981);
         label = 'CONFIRMED';
         icon = Icons.check_circle;
         break;
       case 'canceled':
-        bgColor = const Color(0xFFEF4444).withOpacity(0.15);
+        bgColor = const Color(0xFFEF4444).withValues(alpha: 0.15);
         textColor = const Color(0xFFEF4444);
         label = 'CANCELED';
         icon = Icons.cancel;
@@ -922,35 +746,23 @@ class _MyBookingsState extends State<MyBookings>
         icon = Icons.check_circle_outline;
         break;
       default:
-        bgColor = const Color(0xFFF59E0B).withOpacity(0.15);
-        textColor = const Color(0xFFF59E0B);
+        bgColor = _goldLight;
+        textColor = _goldDark;
         label = 'PENDING';
         icon = Icons.access_time;
     }
-
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: spacingUnit(1),
-        vertical: spacingUnit(0.5),
-      ),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 12, color: textColor),
-          SizedBox(width: spacingUnit(0.3)),
-          Text(
-            label,
+          horizontal: spacingUnit(1), vertical: spacingUnit(0.5)),
+      decoration:
+          BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(6)),
+      child: Row(children: [
+        Icon(icon, size: 12, color: textColor),
+        SizedBox(width: spacingUnit(0.3)),
+        Text(label,
             style: ThemeText.caption.copyWith(
-              color: textColor,
-              fontWeight: FontWeight.w700,
-              fontSize: 10,
-            ),
-          ),
-        ],
-      ),
+                color: textColor, fontWeight: FontWeight.w700, fontSize: 10)),
+      ]),
     );
   }
 
@@ -963,33 +775,30 @@ class _MyBookingsState extends State<MyBookings>
           children: [
             Container(
               padding: EdgeInsets.all(spacingUnit(3)),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0D9488).withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.airplane_ticket_outlined,
+              decoration: const BoxDecoration(
+                  color: _goldLight, shape: BoxShape.circle),
+              child: Icon(
+                _selectedType == 'Hotel'
+                    ? Icons.hotel_outlined
+                    : _selectedType == 'Train'
+                        ? Icons.train_outlined
+                        : Icons.airplane_ticket_outlined,
                 size: 64,
-                color: Color(0xFF0D9488),
+                color: _gold,
               ),
             ),
             SizedBox(height: spacingUnit(2)),
             Text(
-              _selectedFilter == 'All'
-                  ? 'No bookings yet'
-                  : 'No ${_selectedFilter.toLowerCase()} bookings',
-              style: ThemeText.title2.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+              (_selectedFilter != 'All' || _selectedType != 'All')
+                  ? 'No ${_selectedFilter != 'All' ? '${_selectedFilter.toLowerCase()} ' : ''}${_selectedType != 'All' ? '${_selectedType.toLowerCase()} ' : ''}bookings'
+                  : 'No bookings yet',
+              style: ThemeText.title2.copyWith(fontWeight: FontWeight.w700),
             ),
             SizedBox(height: spacingUnit(1)),
-            Text(
-              'Start exploring and book your next trip!',
-              style: ThemeText.paragraph.copyWith(
-                color: Colors.grey.shade600,
-              ),
-              textAlign: TextAlign.center,
-            ),
+            Text('Start exploring and book your next trip!',
+                style:
+                    ThemeText.paragraph.copyWith(color: Colors.grey.shade600),
+                textAlign: TextAlign.center),
             SizedBox(height: spacingUnit(3)),
             SizedBox(
               width: 200,
