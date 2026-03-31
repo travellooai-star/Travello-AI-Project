@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 
 /// ✨ ENTERPRISE-GRADE DYNAMIC HERO SECTION
@@ -28,9 +29,10 @@ class HeroSection extends StatelessWidget {
           'subtitle': 'Reserve your train seat across Pakistan',
           'cta': 'Book Your Train',
           'gradient': [
-            const Color(0xFF1A472A).withValues(alpha: 0.75),
-            const Color(0xFF2D5F3D).withValues(alpha: 0.50),
+            const Color(0xFF0D1A0D).withValues(alpha: 0.72),
+            const Color(0xFF1A3A1A).withValues(alpha: 0.45),
           ],
+          'accentColor': ThemePalette.primaryMain,
         };
       case 'hotel':
         return {
@@ -39,9 +41,10 @@ class HeroSection extends StatelessWidget {
           'subtitle': 'Discover hotels at best nightly rates',
           'cta': 'Book Your Stay',
           'gradient': [
-            const Color(0xFF6B4423).withValues(alpha: 0.75),
-            const Color(0xFF8B5A3C).withValues(alpha: 0.50),
+            const Color(0xFF1A0A00).withValues(alpha: 0.72),
+            const Color(0xFF3D1F00).withValues(alpha: 0.45),
           ],
+          'accentColor': ThemePalette.primaryMain,
         };
       case 'flight':
       default:
@@ -51,9 +54,10 @@ class HeroSection extends StatelessWidget {
           'subtitle': 'Book domestic flights across Pakistan',
           'cta': 'Book Your Flight',
           'gradient': [
-            const Color(0xFF1E3A8A).withValues(alpha: 0.75),
-            const Color(0xFF3B82F6).withValues(alpha: 0.50),
+            const Color(0xFF1A0E00).withValues(alpha: 0.72),
+            const Color(0xFF3D2B00).withValues(alpha: 0.45),
           ],
+          'accentColor': ThemePalette.primaryMain,
         };
     }
   }
@@ -83,8 +87,9 @@ class HeroSection extends StatelessWidget {
           image: DecorationImage(
             image: AssetImage(content['image']),
             fit: BoxFit.cover,
+            alignment: Alignment.center,
             colorFilter: ColorFilter.mode(
-              Colors.black.withValues(alpha: 0.35),
+              Colors.black.withValues(alpha: 0.25),
               BlendMode.darken,
             ),
           ),
@@ -104,6 +109,32 @@ class HeroSection extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  // Gold accent line — luxury brand signal
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeOut,
+                    builder: (context, value, child) => Opacity(
+                      opacity: value,
+                      child: child,
+                    ),
+                    child: Container(
+                      width: isMobile ? 36 : 48,
+                      height: 2,
+                      margin: const EdgeInsets.only(bottom: 14),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            ThemePalette.primaryMain.withValues(alpha: 0.0),
+                            ThemePalette.primaryMain.withValues(alpha: 0.55),
+                            ThemePalette.primaryMain.withValues(alpha: 0.0),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+
                   // Main headline
                   TweenAnimationBuilder<double>(
                     tween: Tween(begin: 0.0, end: 1.0),
@@ -210,20 +241,23 @@ class HeroSection extends StatelessWidget {
           vertical: spacingUnit(isMobile ? 1.5 : 2),
         ),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF4A90E2), Color(0xFF357ABD)],
+          gradient: LinearGradient(
+            colors: [
+              ThemePalette.primaryMain,
+              ThemePalette.primaryDark,
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF4A90E2).withValues(alpha: 0.4),
-              blurRadius: 20,
+              color: ThemePalette.primaryMain.withValues(alpha: 0.45),
+              blurRadius: 22,
               offset: const Offset(0, 10),
             ),
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
+              color: Colors.black.withValues(alpha: 0.25),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),

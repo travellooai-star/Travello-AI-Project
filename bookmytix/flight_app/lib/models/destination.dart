@@ -290,7 +290,7 @@ final List<Destination> trainDestinations = [
   Destination(
     id: 't1',
     name: 'Lahore',
-    code: 'LHE',
+    code: 'LHR',
     description: 'Most popular train destination',
     imageUrl:
         'https://images.unsplash.com/photo-1584204687456-cbed5e3c1e82?w=800&q=80',
@@ -332,7 +332,7 @@ final List<Destination> trainDestinations = [
   Destination(
     id: 't3',
     name: 'Karachi',
-    code: 'KHI',
+    code: 'KRC',
     description: 'Southern terminus & busiest station',
     imageUrl:
         'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80',

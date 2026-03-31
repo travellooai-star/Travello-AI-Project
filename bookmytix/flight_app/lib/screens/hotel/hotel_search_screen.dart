@@ -54,6 +54,17 @@ class _HotelSearchScreenState extends State<HotelSearchScreen>
     ));
 
     _animationController.forward();
+
+    // Pre-fill city if coming from Top Destinations card
+    final args = Get.arguments;
+    if (args is Map && args['cityName'] != null) {
+      final cityName = args['cityName'] as String;
+      if (_cityProvinceMap.containsKey(cityName)) {
+        setState(() {
+          _selectedCity = cityName;
+        });
+      }
+    }
   }
 
   @override

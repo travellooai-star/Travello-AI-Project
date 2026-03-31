@@ -102,7 +102,10 @@ class _FlightListSliderState extends State<FlightListSlider> {
                         padding: EdgeInsets.only(right: spacingUnit(2)),
                         child: GestureDetector(
                           onTap: () {
-                            Get.toNamed(AppLink.flightDetail);
+                            Get.toNamed(AppLink.flightSearchHome, arguments: {
+                              'toCode': item.to.code,
+                              'toCity': item.to.name,
+                            });
                           },
                           child: FlightPortraitCard(
                               from: item.from.name,

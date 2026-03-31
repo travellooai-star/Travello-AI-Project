@@ -1,4 +1,4 @@
-import 'package:flight_app/app/app_link.dart';
+﻿import 'package:flight_app/app/app_link.dart';
 import 'package:flight_app/widgets/app_button/ds_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flight_app/screens/flight/flight_results_screen.dart';
@@ -736,7 +736,7 @@ class _BookingFacilitesState extends State<BookingFacilites> {
           children: [
             Icon(Icons.luggage, color: scheme.primary, size: 22),
             SizedBox(width: spacingUnit(1)),
-            Text(
+            const Text(
               'Return Flight Baggage',
               style: TextStyle(
                 fontSize: 18,
@@ -780,7 +780,7 @@ class _BookingFacilitesState extends State<BookingFacilites> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('✈️', style: const TextStyle(fontSize: 18)),
+              const Text('✈️', style: TextStyle(fontSize: 18)),
               SizedBox(width: spacingUnit(1)),
               Expanded(
                 child: Column(

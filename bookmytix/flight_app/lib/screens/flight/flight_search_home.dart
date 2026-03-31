@@ -196,11 +196,22 @@ class _FlightSearchHomeState extends State<FlightSearchHome>
                     '12+ years',
                     _adults,
                     (val) {
-                      if (val >= 1 && val <= 9) {
-                        setModalState(() => _adults = val);
-                        setState(() => _adults = val);
+                      // Min 1 adult; max 9 total passengers
+                      final maxAllowed = 9 - _children - _infants;
+                      if (val >= 1 && val <= maxAllowed) {
+                        // Clamp infants to not exceed new adult count
+                        final newInfants = _infants > val ? val : _infants;
+                        setModalState(() {
+                          _adults = val;
+                          _infants = newInfants;
+                        });
+                        setState(() {
+                          _adults = val;
+                          _infants = newInfants;
+                        });
                       }
                     },
+                    minCount: 1,
                   ),
 
                   SizedBox(height: spacingUnit(2)),
@@ -211,7 +222,8 @@ class _FlightSearchHomeState extends State<FlightSearchHome>
                     '2-11 years',
                     _children,
                     (val) {
-                      if (val >= 0 && val <= 9) {
+                      final maxAllowed = 9 - _adults - _infants;
+                      if (val >= 0 && val <= maxAllowed) {
                         setModalState(() => _children = val);
                         setState(() => _children = val);
                       }
@@ -220,27 +232,21 @@ class _FlightSearchHomeState extends State<FlightSearchHome>
 
                   SizedBox(height: spacingUnit(2)),
 
-                  // Infants
+                  // Infants (cannot exceed adults; total must stay ≤ 9)
                   _buildPassengerRow(
                     'Infants',
                     'Under 2 years',
                     _infants,
                     (val) {
-                      if (val >= 0 && val <= 9 && val <= _adults) {
+                      final maxInfants = _adults < (9 - _adults - _children)
+                          ? _adults
+                          : (9 - _adults - _children);
+                      if (val >= 0 && val <= maxInfants) {
                         setModalState(() => _infants = val);
                         setState(() => _infants = val);
                       }
                     },
                   ),
-
-                  if (_infants > _adults)
-                    Padding(
-                      padding: EdgeInsets.only(top: spacingUnit(2)),
-                      child: Text(
-                        'Each infant must be accompanied by an adult',
-                        style: ThemeText.caption.copyWith(color: Colors.red),
-                      ),
-                    ),
 
                   SizedBox(height: spacingUnit(3)),
 
@@ -268,7 +274,8 @@ class _FlightSearchHomeState extends State<FlightSearchHome>
   }
 
   Widget _buildPassengerRow(
-      String title, String subtitle, int count, Function(int) onChanged) {
+      String title, String subtitle, int count, Function(int) onChanged,
+      {int minCount = 0}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -282,10 +289,12 @@ class _FlightSearchHomeState extends State<FlightSearchHome>
         Row(
           children: [
             IconButton(
-              onPressed: count > 0 ? () => onChanged(count - 1) : null,
+              onPressed: count > minCount ? () => onChanged(count - 1) : null,
               icon: Icon(
                 CupertinoIcons.minus_circle_fill,
-                color: count > 0 ? colorScheme(context).primary : Colors.grey,
+                color: count > minCount
+                    ? colorScheme(context).primary
+                    : Colors.grey,
               ),
             ),
             SizedBox(

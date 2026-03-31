@@ -1,6 +1,7 @@
 import 'package:flight_app/app/app_link.dart';
 import 'package:flight_app/constants/app_const.dart';
 import 'package:flight_app/constants/img_api.dart';
+import 'package:flight_app/controllers/notification_controller.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_radius.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
@@ -13,7 +14,7 @@ import 'package:flight_app/widgets/home/package_list_slider.dart';
 import 'package:flight_app/widgets/home/quick_access_features.dart';
 import 'package:flight_app/widgets/home/quick_search_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:get/route_manager.dart';
+import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeRailway extends StatefulWidget {
@@ -188,19 +189,25 @@ class _HomeRailwayState extends State<HomeRailway> {
                 _isFixed,
                 () => _showModeSwitch(context),
               ),
-              Badge.count(
-                backgroundColor: Colors.red,
-                count: 3,
-                offset: const Offset(0, -1),
-                child: _iconBtn(
-                  context,
-                  Icons.notifications,
-                  _isFixed,
-                  () {
-                    Get.toNamed(AppLink.notification);
-                  },
-                ),
-              ),
+              Obx(() {
+                final ctrl = Get.find<NotificationController>();
+                final n = ctrl.unreadCount.value;
+                return Badge.count(
+                  backgroundColor: ThemePalette.primaryMain,
+                  textColor: Colors.black,
+                  count: n,
+                  isLabelVisible: n > 0,
+                  offset: const Offset(0, -1),
+                  child: _iconBtn(
+                    context,
+                    Icons.notifications,
+                    _isFixed,
+                    () {
+                      Get.toNamed(AppLink.notification);
+                    },
+                  ),
+                );
+              }),
               Tooltip(
                 message: 'Help and Support',
                 child: _iconBtn(

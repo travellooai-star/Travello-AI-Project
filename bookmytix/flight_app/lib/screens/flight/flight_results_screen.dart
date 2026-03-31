@@ -306,6 +306,8 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
   }
 
   void _showFiltersBottomSheet() {
+    if (_allFlights.isEmpty) return;
+
     // Local temp copies — only committed to parent state on Apply
     RangeValues tempPrice = _priceRange;
     RangeValues tempTime = _departureTimeRange;
@@ -1850,11 +1852,16 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
                       subtitle: '12+ years',
                       count: adults,
                       onDecrement: adults > 1
-                          ? () => setModalState(() => adults--)
+                          ? () => setModalState(() {
+                                adults--;
+                                // Clamp infants to new adult count
+                                if (infants > adults) infants = adults;
+                              })
                           : null,
-                      onIncrement: adults < 9
-                          ? () => setModalState(() => adults++)
-                          : null,
+                      onIncrement:
+                          adults < 9 && (adults + children + infants) < 9
+                              ? () => setModalState(() => adults++)
+                              : null,
                     ),
 
                     SizedBox(height: spacingUnit(2.5)),
@@ -1867,14 +1874,15 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
                       onDecrement: children > 0
                           ? () => setModalState(() => children--)
                           : null,
-                      onIncrement: children < 9
-                          ? () => setModalState(() => children++)
-                          : null,
+                      onIncrement:
+                          children < 9 && (adults + children + infants) < 9
+                              ? () => setModalState(() => children++)
+                              : null,
                     ),
 
                     SizedBox(height: spacingUnit(2.5)),
 
-                    // Infant
+                    // Infant (cannot exceed adults; total must stay ≤ 9)
                     _buildPassengerRow(
                       label: 'Infants',
                       subtitle: 'Under 2 years',
@@ -1882,9 +1890,10 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
                       onDecrement: infants > 0
                           ? () => setModalState(() => infants--)
                           : null,
-                      onIncrement: infants < 9
-                          ? () => setModalState(() => infants++)
-                          : null,
+                      onIncrement:
+                          infants < adults && (adults + children + infants) < 9
+                              ? () => setModalState(() => infants++)
+                              : null,
                     ),
 
                     SizedBox(height: spacingUnit(3)),

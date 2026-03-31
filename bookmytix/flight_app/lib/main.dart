@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:get/route_manager.dart';
-import 'package:get/state_manager.dart';
+import 'package:get/get.dart';
 import 'package:flight_app/constants/app_const.dart';
 import 'package:flight_app/app/app_routes.dart';
+import 'package:flight_app/controllers/notification_controller.dart';
 import 'package:flight_app/ui/themes/theme_data.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flight_app/utils/auth_service.dart';
@@ -12,6 +12,9 @@ void main() async {
 
   // Initialize demo users from user.dart on first launch
   await AuthService.initializeDemoUsers();
+
+  // Register global controllers
+  Get.put(NotificationController(), permanent: true);
 
   runApp(MainApp());
 }

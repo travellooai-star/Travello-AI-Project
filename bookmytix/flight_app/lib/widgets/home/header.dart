@@ -1,8 +1,9 @@
 import 'package:flight_app/app/app_link.dart';
+import 'package:flight_app/controllers/notification_controller.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/utils/custom_tooltip.dart';
 import 'package:flutter/material.dart';
-import 'package:get/route_manager.dart';
+import 'package:get/get.dart';
 import 'package:flight_app/constants/app_const.dart';
 import 'package:flight_app/widgets/action_header/home_action_group.dart';
 import 'package:flight_app/ui/themes/theme_radius.dart';
@@ -142,20 +143,27 @@ class _HomeHeaderState extends State<HomeHeader> {
                 title: 'Check messages, the best deals, or notification here.',
                 controller: controller),
           ),
-          child: Badge.count(
-            backgroundColor: Colors.red,
-            count: 3,
-            offset: const Offset(0, -1),
-            child: iconBtn(
-              context,
-              Icons.notifications,
-              widget.isFixed,
-              () {
-                Get.toNamed(AppLink.notification);
-              },
-            ),
-          ),
+          child: Obx(() {
+            final ctrl = Get.find<NotificationController>();
+            final n = ctrl.unreadCount.value;
+            return Badge.count(
+              backgroundColor: ThemePalette.primaryMain,
+              textColor: Colors.black,
+              count: n,
+              isLabelVisible: n > 0,
+              offset: const Offset(0, -1),
+              child: iconBtn(
+                context,
+                Icons.notifications,
+                widget.isFixed,
+                () {
+                  Get.toNamed(AppLink.notification);
+                },
+              ),
+            );
+          }),
         ),
+        const SizedBox(width: 4),
         Tooltip(
           message: 'Help and Support',
           child: iconBtn(

@@ -1,4 +1,5 @@
 import 'package:flight_app/app/app_link.dart';
+import 'package:flight_app/controllers/notification_controller.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -33,14 +34,20 @@ class HeaderExplore extends StatelessWidget {
                     Get.toNamed(AppLink.notification);
                   },
                   style: iconBtn,
-                  icon: Badge.count(
-                    backgroundColor: Colors.red,
-                    count: 10,
-                    child: Icon(Icons.notifications,
-                        size: 24, color: colorScheme(context).onSurface),
-                  )),
+                  icon: Obx(() {
+                    final ctrl = Get.find<NotificationController>();
+                    final n = ctrl.unreadCount.value;
+                    return Badge.count(
+                      backgroundColor: ThemePalette.primaryMain,
+                      textColor: Colors.black,
+                      count: n,
+                      isLabelVisible: n > 0,
+                      child: Icon(Icons.notifications,
+                          size: 24, color: colorScheme(context).onSurface),
+                    );
+                  })),
             ),
-            SizedBox(width: spacingUnit(2)),
+            const SizedBox(width: 8),
             SizedBox(
               width: 32,
               height: 32,

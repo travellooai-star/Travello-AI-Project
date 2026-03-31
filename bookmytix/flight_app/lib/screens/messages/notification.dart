@@ -1,3 +1,4 @@
+import 'package:flight_app/controllers/notification_controller.dart';
 import 'package:flight_app/models/notification.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -14,8 +15,9 @@ class Notification extends StatefulWidget {
 class _NotificationState extends State<Notification>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late NotificationController _ctrl;
 
-  // mutable copies so we can clear/dismiss
+  // Local mutable copies mirroring controller (rebuilt after actions)
   late List<NotificationModel> _today;
   late List<NotificationModel> _earlier;
 
@@ -25,13 +27,14 @@ class _NotificationState extends State<Notification>
   @override
   void initState() {
     super.initState();
+    _ctrl = Get.find<NotificationController>();
     final args = Get.arguments;
     final initialTab =
         (args is Map && args['tab'] != null) ? args['tab'] as int : 0;
     _tabController =
         TabController(length: 2, vsync: this, initialIndex: initialTab);
-    _today = List.from(notifListToday);
-    _earlier = List.from(notifListEarlier);
+    _today = List.from(_ctrl.today);
+    _earlier = List.from(_ctrl.earlier);
   }
 
   @override
@@ -40,15 +43,21 @@ class _NotificationState extends State<Notification>
     super.dispose();
   }
 
-  void _markAllRead() => setState(() {
-        _today = _today.map((n) => n.copyWith(isRead: true)).toList();
-        _earlier = _earlier.map((n) => n.copyWith(isRead: true)).toList();
-      });
+  void _markAllRead() {
+    _ctrl.markAllRead();
+    setState(() {
+      _today = List.from(_ctrl.today);
+      _earlier = List.from(_ctrl.earlier);
+    });
+  }
 
-  void _clearAll() => setState(() {
-        _today.clear();
-        _earlier.clear();
-      });
+  void _clearAll() {
+    _ctrl.clearAll();
+    setState(() {
+      _today.clear();
+      _earlier.clear();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -233,14 +242,20 @@ class _NotificationState extends State<Notification>
                 const _SectionHeader(label: 'TODAY'),
                 ..._today.asMap().entries.map((e) => _NotifTile(
                       item: e.value,
-                      onDismiss: () => setState(() => _today.removeAt(e.key)),
+                      onDismiss: () {
+                        setState(() => _today.removeAt(e.key));
+                        _ctrl.today.removeAt(e.key);
+                      },
                     )),
               ],
               if (_earlier.isNotEmpty) ...[
                 const _SectionHeader(label: 'EARLIER'),
                 ..._earlier.asMap().entries.map((e) => _NotifTile(
                       item: e.value,
-                      onDismiss: () => setState(() => _earlier.removeAt(e.key)),
+                      onDismiss: () {
+                        setState(() => _earlier.removeAt(e.key));
+                        _ctrl.earlier.removeAt(e.key);
+                      },
                     )),
               ],
               SizedBox(height: 20 + MediaQuery.of(Get.context!).padding.bottom),

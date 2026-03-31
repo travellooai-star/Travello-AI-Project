@@ -194,7 +194,8 @@ class _FlightListDoubleState extends State<FlightListDouble> {
                   padding: EdgeInsets.all(spacingUnit(4)),
                   child: Text(
                     'No flights available for ${tags[_selected]}',
-                    style: const TextStyle(fontSize: 16, color: Color(0xFFB3B3B3)),
+                    style:
+                        const TextStyle(fontSize: 16, color: Color(0xFFB3B3B3)),
                   ),
                 ),
               )
@@ -217,9 +218,10 @@ class _FlightListDoubleState extends State<FlightListDouble> {
                           child: GestureDetector(
                             onTap: () {
                               Get.toNamed(
-                                AppLink.flightDetail,
+                                AppLink.flightSearchHome,
                                 arguments: {
-                                  'trip': item,
+                                  'toCode': item.to.code,
+                                  'toCity': item.to.name,
                                 },
                               );
                             },

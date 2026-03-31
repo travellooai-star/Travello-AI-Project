@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flight_app/widgets/app_button/ds_button.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +9,7 @@ import 'package:flight_app/models/airport.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/app/app_link.dart';
+import 'package:flight_app/utils/ds_validators.dart';
 import 'dart:math' as math;
 
 class BookingPayment extends StatefulWidget {
@@ -51,8 +52,8 @@ class _BookingPaymentState extends State<BookingPayment>
   // Payment state
   String _selectedPaymentMethod = '';
   bool _isPriceBreakdownExpanded = false;
-  bool _agreedToTerms = true;
-  bool _showTermsError = false;
+  final bool _agreedToTerms = false;
+  final bool _showTermsError = false;
   bool _saveCard = false;
   bool _addTravelInsurance = false;
   bool _isProcessing = false;
@@ -63,6 +64,9 @@ class _BookingPaymentState extends State<BookingPayment>
   // OTP Timer
   Timer? _otpTimer;
   int _otpRemainingSeconds = 27;
+
+  // OTP state tracking (Easypaisa / JazzCash)
+  String _otpValue = '';
 
   // Form controllers
   final _formKey = GlobalKey<FormState>();
@@ -83,35 +87,39 @@ class _BookingPaymentState extends State<BookingPayment>
   double _paymentMethodFee = 0; // Additional fee based on payment method
   double _baggageFee = 0;
   double _transferFee = 0; // Airport transfer add-on
-  final double _discount = 0;
-  final double _insuranceFee = 1500;
+  double _discount = 0;
+  double _insuranceFee = 1500;
+  List<Map<String, dynamic>> _returnBaggageData = [];
   double get _grandTotal =>
       _baseFare +
       _taxes +
       _serviceFee +
       _paymentMethodFee +
       _baggageFee +
+      _seatTotal +
       _transferFee +
       (_addTravelInsurance ? _insuranceFee : 0) -
       _discount;
 
   bool get _isPaymentDetailsValid {
-    if (!_agreedToTerms) return false;
+    // Terms are validated on tap (not here), so button enables once
+    // payment details are filled — _processPayment handles terms check.
     if (_selectedPaymentMethod.isEmpty) return false;
 
     if (_selectedPaymentMethod == 'card') {
       final cardNumberLength =
           _cardNumberController.text.replaceAll(' ', '').length;
-      return cardNumberLength >= 13 &&
-          _expiryController.text.trim().length >= 4 &&
-          _cvvController.text.trim().length >= 3;
+      // Validate card number (16 digits), expiry (valid future date), CVV (3 digits)
+      return cardNumberLength == 16 &&
+          DSValidators.cardExpiry(_expiryController.text) == null &&
+          _cvvController.text.trim().length == 3;
     } else if (_selectedPaymentMethod == 'easypaisa') {
-      return _easypaisaPhoneController.text.trim().length >= 10;
+      return _easypaisaPhoneController.text.trim().length == 11;
     } else if (_selectedPaymentMethod == 'jazzcash') {
-      return _jazzcashPhoneController.text.trim().length >= 10;
+      return _jazzcashPhoneController.text.trim().length == 11;
     }
 
-    // For other payment methods (bank transfer, PayPal, etc.) that don't require form validation
+    // For other payment methods (bank transfer, etc.) that don't require form validation
     return true;
   }
 
@@ -176,6 +184,14 @@ class _BookingPaymentState extends State<BookingPayment>
             .toList() ??
         [];
     _seatTotal = (args['seatTotal'] as num?)?.toDouble() ?? 0;
+    _discount = (args['discount'] as num?)?.toDouble() ?? 0;
+
+    // Load return baggage data
+    final rawReturnBaggage =
+        (args['returnBaggageData'] as List<dynamic>?) ?? [];
+    _returnBaggageData = rawReturnBaggage
+        .map((b) => Map<String, dynamic>.from(b as Map))
+        .toList();
 
     // Load flight data
     _flight = args['flight'] as FlightResult;
@@ -216,6 +232,7 @@ class _BookingPaymentState extends State<BookingPayment>
 
     _serviceFee = 500.0;
     _paymentMethodFee = 0.0;
+    _insuranceFee = 1500.0 * passengerCount; // Per-person insurance fee
     // Calculate baggage fee
     _baggageFee = _baggageData.fold<double>(
       0,
@@ -260,32 +277,6 @@ class _BookingPaymentState extends State<BookingPayment>
         backgroundColor: Colors.orange.shade100,
         colorText: Colors.orange.shade900,
       );
-      return;
-    }
-
-    if (!_agreedToTerms) {
-      setState(() {
-        _showTermsError = true;
-      });
-      Get.snackbar(
-        'Terms & Conditions Required',
-        'Please accept Terms & Conditions to continue',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red.shade50,
-        colorText: Colors.red.shade800,
-        icon: Icon(Icons.error_outline, color: Colors.red.shade800),
-        margin: const EdgeInsets.all(16),
-        borderRadius: 12,
-        duration: const Duration(seconds: 4),
-      );
-      // Scroll to policies section
-      Future.delayed(const Duration(milliseconds: 100), () {
-        Scrollable.ensureVisible(
-          context,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      });
       return;
     }
 
@@ -339,6 +330,10 @@ class _BookingPaymentState extends State<BookingPayment>
       'fromAirport': _fromAirport,
       'toAirport': _toAirport,
       'baggageData': _baggageData,
+      'returnBaggageData': _returnBaggageData,
+      'returnBaggageMode': _returnBaggageData.isNotEmpty
+          ? (_returnBaggageData.first['mode'] as String? ?? 'same')
+          : 'same',
       'seatSelections': _seatSelections,
       'outboundSeatSelections': _outboundSeatSelections,
       'returnSeatSelections': _returnSeatSelections,
@@ -900,14 +895,14 @@ class _BookingPaymentState extends State<BookingPayment>
             'JazzCash',
             'Pay with JazzCash wallet',
             Icons.account_balance_wallet,
-            color: Colors.red,
+            color: ThemePalette.primaryMain,
           ),
           _buildPaymentOption(
             'easypaisa',
             'Easypaisa',
             'Pay with Easypaisa wallet',
             Icons.account_balance_wallet,
-            color: Colors.green,
+            color: const Color(0xFFB8860B),
           ),
           _buildPaymentOption(
             'bank',
@@ -1090,6 +1085,7 @@ class _BookingPaymentState extends State<BookingPayment>
                     controller: _cardNumberController,
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.black),
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(16),
@@ -1169,6 +1165,8 @@ class _BookingPaymentState extends State<BookingPayment>
                               controller: _expiryController,
                               keyboardType: TextInputType.number,
                               style: const TextStyle(color: Colors.black),
+                              autovalidateMode:
+                                  AutovalidateMode.onUserInteraction,
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                                 LengthLimitingTextInputFormatter(4),
@@ -1179,9 +1177,9 @@ class _BookingPaymentState extends State<BookingPayment>
                                   return 'Required';
                                 }
                                 if (value.length != 5) {
-                                  return 'Invalid';
+                                  return 'Use MM/YY format';
                                 }
-                                return null;
+                                return DSValidators.cardExpiry(value);
                               },
                               decoration: InputDecoration(
                                 hintText: 'MM/YY',
@@ -1239,6 +1237,8 @@ class _BookingPaymentState extends State<BookingPayment>
                               keyboardType: TextInputType.number,
                               obscureText: true,
                               style: const TextStyle(color: Colors.black),
+                              autovalidateMode:
+                                  AutovalidateMode.onUserInteraction,
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                                 LengthLimitingTextInputFormatter(3),
@@ -1852,9 +1852,17 @@ class _BookingPaymentState extends State<BookingPayment>
                     color: Colors.black,
                   ),
                   onChanged: (value) {
-                    if (value.length == 1 && index < 5) {
-                      FocusScope.of(context).nextFocus();
-                    }
+                    setState(() {
+                      if (value.length == 1) {
+                        if (_otpValue.length < 6) _otpValue += value;
+                        if (index < 5) FocusScope.of(context).nextFocus();
+                      } else {
+                        // digit cleared — rebuild from remaining chars
+                        _otpValue = _otpValue.length > index
+                            ? _otpValue.substring(0, index)
+                            : _otpValue;
+                      }
+                    });
                   },
                 ),
               ),
@@ -1862,10 +1870,10 @@ class _BookingPaymentState extends State<BookingPayment>
           ),
           const SizedBox(height: 20),
           // Verify & Pay Button
-          const DSButton(
+          DSButton(
             label: 'Verify & Pay',
-            onTap: null,
-            disabled: true,
+            onTap: _otpValue.length == 6 ? () => _processPayment() : null,
+            disabled: _otpValue.length < 6,
             height: 50,
           ),
           const SizedBox(height: 16),
@@ -1980,12 +1988,15 @@ class _BookingPaymentState extends State<BookingPayment>
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Colors.orange.shade400, Colors.orange.shade600],
+                      colors: [
+                        ThemePalette.primaryMain,
+                        const Color(0xFFB8860B)
+                      ],
                     ),
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.orange.withValues(alpha: 0.3),
+                        color: ThemePalette.primaryMain.withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -2029,28 +2040,28 @@ class _BookingPaymentState extends State<BookingPayment>
                       Icons.flight_takeoff_rounded,
                       'Flight delay coverage',
                       'Up to PKR 50,000',
-                      Colors.blue,
+                      ThemePalette.primaryMain,
                     ),
                     SizedBox(height: spacingUnit(1.5)),
                     _buildInsuranceBenefit(
                       Icons.local_hospital_rounded,
                       'Medical emergency',
                       'Up to PKR 200,000',
-                      Colors.red,
+                      const Color(0xFFB8860B),
                     ),
                     SizedBox(height: spacingUnit(1.5)),
                     _buildInsuranceBenefit(
                       Icons.luggage_rounded,
                       'Lost baggage compensation',
                       'Up to PKR 30,000',
-                      Colors.purple,
+                      ThemePalette.primaryLight,
                     ),
                     SizedBox(height: spacingUnit(1.5)),
                     _buildInsuranceBenefit(
                       Icons.support_agent_rounded,
                       '24/7 emergency assistance',
                       'Worldwide support',
-                      Colors.green,
+                      const Color(0xFFC6A75E),
                     ),
                   ],
                 ),
@@ -2147,7 +2158,7 @@ class _BookingPaymentState extends State<BookingPayment>
                               ),
                             ),
                             const Text(
-                              'per person',
+                              'per booking',
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Color(0xFFB3B3B3),
@@ -2307,10 +2318,10 @@ class _BookingPaymentState extends State<BookingPayment>
                       ),
                       Text(
                         _formatPKR(_grandTotal),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF1E88E5),
+                          color: ThemePalette.primaryMain,
                         ),
                       ),
                     ],
@@ -2343,7 +2354,7 @@ class _BookingPaymentState extends State<BookingPayment>
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: isDiscount ? Colors.green.shade700 : Colors.black87,
+              color: isDiscount ? Colors.green.shade700 : Colors.black,
             ),
           ),
         ],
@@ -2357,14 +2368,12 @@ class _BookingPaymentState extends State<BookingPayment>
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: _showTermsError ? Colors.red.shade200 : Colors.grey.shade200,
-          width: _showTermsError ? 2 : 1,
+          color: Colors.grey.shade200,
+          width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: _showTermsError
-                ? Colors.red.withValues(alpha: 0.1)
-                : Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 3),
           ),
@@ -2381,12 +2390,12 @@ class _BookingPaymentState extends State<BookingPayment>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: ThemePalette.primaryMain.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.policy_rounded,
-                    color: Color(0xFF1E88E5),
+                    color: ThemePalette.primaryMain,
                     size: 22,
                   ),
                 ),
@@ -2423,139 +2432,6 @@ class _BookingPaymentState extends State<BookingPayment>
             'Fare Rules',
             Icons.receipt_long_rounded,
             () => _showFareRulesModal(),
-          ),
-
-          Divider(height: 1, color: Colors.grey.shade200),
-
-          // Terms & Conditions Checkbox
-          Padding(
-            padding: EdgeInsets.fromLTRB(
-              spacingUnit(2.5),
-              spacingUnit(2),
-              spacingUnit(2.5),
-              spacingUnit(2.5),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _agreedToTerms = !_agreedToTerms;
-                      _showTermsError = false;
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(8),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 24,
-                          height: 24,
-                          decoration: BoxDecoration(
-                            color: _agreedToTerms
-                                ? const Color(0xFF1E88E5)
-                                : Colors.white,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: _showTermsError
-                                  ? Colors.red.shade400
-                                  : _agreedToTerms
-                                      ? const Color(0xFF1E88E5)
-                                      : Colors.grey.shade400,
-                              width: 2,
-                            ),
-                          ),
-                          child: _agreedToTerms
-                              ? const Icon(
-                                  Icons.check_rounded,
-                                  size: 16,
-                                  color: Colors.white,
-                                )
-                              : null,
-                        ),
-                        SizedBox(width: spacingUnit(1.5)),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: RichText(
-                              text: TextSpan(
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade800,
-                                  height: 1.5,
-                                ),
-                                children: [
-                                  const TextSpan(
-                                    text: 'I accept the ',
-                                  ),
-                                  WidgetSpan(
-                                    child: GestureDetector(
-                                      onTap: () =>
-                                          _showTermsAndConditionsPage(),
-                                      child: const Text(
-                                        'Terms & Conditions',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF1E88E5),
-                                          decoration: TextDecoration.underline,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const TextSpan(
-                                    text: ' and ',
-                                  ),
-                                  WidgetSpan(
-                                    child: GestureDetector(
-                                      onTap: () => _showPrivacyPolicyModal(),
-                                      child: const Text(
-                                        'Privacy Policy',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF1E88E5),
-                                          decoration: TextDecoration.underline,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (_showTermsError) ...[
-                  SizedBox(height: spacingUnit(1)),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.error_outline_rounded,
-                        size: 16,
-                        color: Colors.red.shade600,
-                      ),
-                      SizedBox(width: spacingUnit(0.7)),
-                      Text(
-                        'Please accept Terms & Conditions to continue',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.red.shade600,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
           ),
         ],
       ),

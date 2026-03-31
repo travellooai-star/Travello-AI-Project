@@ -367,10 +367,10 @@ class _PaymentStatusState extends State<PaymentStatus>
 
       // ── Baggage data ──
       final rawBaggage = (args['baggageData'] as List<dynamic>?) ?? [];
-      _bookingData['baggageData'] = rawBaggage
-          .map((b) => Map<String, dynamic>.from(b as Map))
-          .toList();
-      final rawReturnBaggage = (args['returnBaggageData'] as List<dynamic>?) ?? [];
+      _bookingData['baggageData'] =
+          rawBaggage.map((b) => Map<String, dynamic>.from(b as Map)).toList();
+      final rawReturnBaggage =
+          (args['returnBaggageData'] as List<dynamic>?) ?? [];
       _bookingData['returnBaggageData'] = rawReturnBaggage
           .map((b) => Map<String, dynamic>.from(b as Map))
           .toList();
@@ -430,6 +430,11 @@ class _PaymentStatusState extends State<PaymentStatus>
         final flightNum = fd['flightNumber']?.toString() ?? '';
         final from = fd['from']?.toString() ?? 'N/A';
         final to = fd['to']?.toString() ?? 'N/A';
+
+        // Detect round-trip return details
+        final isRoundTrip =
+            args['isRoundTrip'] == true || _bookingData['tripType'] == 'round';
+        final rfd = _bookingData['returnFlightDetails'] as Map?;
         NotificationService.instance.flightBooked(
           airline: airline,
           flightNumber: flightNum,
@@ -439,6 +444,19 @@ class _PaymentStatusState extends State<PaymentStatus>
           departure: fd['departure']?.toString() ?? 'N/A',
           pnr: pnr,
           seatClass: fd['class']?.toString() ?? 'Economy',
+          // Round-trip return fields
+          returnDate: isRoundTrip
+              ? (rfd?['date']?.toString() ?? args['returnDate']?.toString())
+              : null,
+          returnDeparture: isRoundTrip
+              ? (rfd?['departure']?.toString() ??
+                  args['returnDeparture']?.toString())
+              : null,
+          returnFlightNumber: isRoundTrip
+              ? (rfd?['flightNumber']?.toString() ??
+                  args['returnFlightNumber']?.toString() ??
+                  '')
+              : null,
         );
       }
     } catch (_) {
@@ -461,7 +479,7 @@ class _PaymentStatusState extends State<PaymentStatus>
     // Pakistani airport terminal mapping
     switch (airportCode.toUpperCase()) {
       case 'KHI': // Jinnah International Airport, Karachi
-        return isDeparture ? '0' : '0'; // Both domestic terminals
+        return isDeparture ? '2' : '2'; // Domestic Terminal 2
       case 'LHE': // Allama Iqbal International Airport, Lahore
         return '3'; // Terminal 3 for domestic
       case 'ISB': // Islamabad International Airport

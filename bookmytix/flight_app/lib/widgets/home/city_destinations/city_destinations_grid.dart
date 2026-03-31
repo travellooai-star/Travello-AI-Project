@@ -79,7 +79,10 @@ class CityDestinationsGrid extends StatelessWidget {
                 final City item = recomendedCityList[index];
                 return GestureDetector(
                     onTap: () {
-                      Get.toNamed(AppLink.searchFlight);
+                      Get.toNamed(AppLink.flightSearchHome, arguments: {
+                        'toCode': item.code,
+                        'toCity': item.name,
+                      });
                     },
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.center,

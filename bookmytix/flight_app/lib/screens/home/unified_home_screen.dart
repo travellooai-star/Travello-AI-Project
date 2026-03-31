@@ -19,6 +19,7 @@ import 'package:flight_app/ui/themes/theme_text.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/utils/auth_service.dart';
 import 'package:flight_app/app/app_link.dart';
+import 'package:flight_app/controllers/notification_controller.dart';
 import 'package:flight_app/models/destination.dart';
 import 'package:flight_app/models/hotel.dart';
 import 'package:flight_app/utils/wishlist_service.dart';
@@ -187,14 +188,25 @@ class _UnifiedHomeScreenState extends State<UnifiedHomeScreen> {
             ),
           ),
           actions: [
-            IconButton(
-              icon: Icon(
-                CupertinoIcons.bell,
-                color: Colors.white.withValues(alpha: 0.9),
-              ),
-              onPressed: () =>
-                  Get.toNamed(AppLink.notification, arguments: {'tab': 0}),
-            ),
+            Obx(() {
+              final ctrl = Get.find<NotificationController>();
+              final n = ctrl.unreadCount.value;
+              return Badge.count(
+                backgroundColor: ThemePalette.primaryMain,
+                textColor: Colors.black,
+                count: n,
+                isLabelVisible: n > 0,
+                offset: const Offset(0, -1),
+                child: IconButton(
+                  icon: Icon(
+                    CupertinoIcons.bell,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                  onPressed: () =>
+                      Get.toNamed(AppLink.notification, arguments: {'tab': 0}),
+                ),
+              );
+            }),
             IconButton(
               icon: Icon(
                 CupertinoIcons.chat_bubble_text,

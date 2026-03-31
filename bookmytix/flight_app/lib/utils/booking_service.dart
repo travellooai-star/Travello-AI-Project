@@ -126,6 +126,23 @@ class BookingService {
     }
   }
 
+  /// Update a specific field in a booking
+  static Future<bool> updateBookingField(
+      String bookingId, String field, dynamic value) async {
+    try {
+      List<Map<String, dynamic>> bookings = await getAllBookings();
+      int index = bookings.indexWhere((b) => b['bookingId'] == bookingId);
+      if (index == -1) return false;
+      bookings[index][field] = _sanitize(value);
+      bookings[index]['lastUpdated'] = DateTime.now().toIso8601String();
+      final prefs = await SharedPreferences.getInstance();
+      return await prefs.setString(_bookingsKey, jsonEncode(bookings));
+    } catch (e) {
+      print('Error updating booking field: $e');
+      return false;
+    }
+  }
+
   /// Delete a booking
   static Future<bool> deleteBooking(String bookingId) async {
     try {

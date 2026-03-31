@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 import 'package:flight_app/app/app_link.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
 import 'package:flight_app/widgets/app_button/ds_button.dart';
@@ -33,6 +33,8 @@ class _BookingCheckoutState extends State<BookingCheckout> {
   late List<Map<String, dynamic>> _passengers;
   late List<Map<String, dynamic>> _baggageData;
   late double _baggageExtraTotal;
+  List<Map<String, dynamic>> _returnBaggageData = [];
+  String _returnBaggageMode = 'same';
   late String _contactEmail;
   late String _contactPhone;
 
@@ -92,6 +94,11 @@ class _BookingCheckoutState extends State<BookingCheckout> {
     _baggageData =
         bagRaw.map((b) => Map<String, dynamic>.from(b as Map)).toList();
     _baggageExtraTotal = (args['baggageExtraTotal'] as double?) ?? 0.0;
+
+    final returnBagRaw = (args['returnBaggageData'] as List<dynamic>?) ?? [];
+    _returnBaggageData =
+        returnBagRaw.map((b) => Map<String, dynamic>.from(b as Map)).toList();
+    _returnBaggageMode = (args['returnBaggageMode'] as String?) ?? 'same';
 
     // Read seat selection data
     if (_isRoundTrip) {
@@ -217,7 +224,6 @@ class _BookingCheckoutState extends State<BookingCheckout> {
     return _flight.price * _passengers.length;
   }
 
-  double get _mealPrice => 40.0;
   double get _discountPercent {
     if (_flight.badge.contains('%')) {
       final match = RegExp(r'(\d+)%').firstMatch(_flight.badge);
@@ -226,14 +232,22 @@ class _BookingCheckoutState extends State<BookingCheckout> {
     return 0;
   }
 
+  int get _passengerCount => _passengers.length;
+  double get _taxFED => _ticketPrice * 0.16;
+  double get _taxAirportFee => 200.0 * _passengerCount;
+  double get _taxSecurityFee => 150.0 * _passengerCount;
+  double get _checkoutServiceFee => 500.0;
+
   double get _subtotal =>
-      _ticketPrice +
-      _baggageExtraTotal +
-      _mealPrice +
-      _seatTotal +
-      _transferFee;
+      _ticketPrice + _baggageExtraTotal + _seatTotal + _transferFee;
   double get _discount => _ticketPrice * (_discountPercent / 100);
-  double get _grandTotal => _subtotal - _discount;
+  double get _grandTotal =>
+      _subtotal +
+      _taxFED +
+      _taxAirportFee +
+      _taxSecurityFee +
+      _checkoutServiceFee -
+      _discount;
 
   void _proceedToCheckout() {
     if (!_agreeToTerms) {
@@ -255,7 +269,10 @@ class _BookingCheckoutState extends State<BookingCheckout> {
       'searchParams': _searchParams,
       'passengers': _passengers,
       'baggageData': _baggageData,
+      'returnBaggageData': _returnBaggageData,
+      'returnBaggageMode': _returnBaggageMode,
       'totalAmount': _grandTotal,
+      'discount': _discount,
       'isRoundTrip': _isRoundTrip,
       'outboundFlight': _outboundFlight,
       'returnFlight': _returnFlight,
@@ -1626,9 +1643,7 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                _contactEmail.isEmpty
-                                    ? 'hubravo29@gmail.com'
-                                    : _contactEmail,
+                                _contactEmail.isEmpty ? '—' : _contactEmail,
                                 style: const TextStyle(fontSize: 14),
                               ),
                             ),
@@ -1680,9 +1695,7 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                _contactPhone.isEmpty
-                                    ? '304 2757881'
-                                    : _contactPhone,
+                                _contactPhone.isEmpty ? '—' : _contactPhone,
                                 style: const TextStyle(fontSize: 14),
                               ),
                             ),
@@ -1719,7 +1732,7 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                                     'Note: We will send your booking confirmation to '),
                             TextSpan(
                               text: _contactEmail.isEmpty
-                                  ? 'hubravo29@gmail.com'
+                                  ? 'your email'
                                   : _contactEmail,
                               style:
                                   const TextStyle(fontWeight: FontWeight.w600),
@@ -1983,6 +1996,35 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                         price: _formatPrice(_transferFee),
                       ),
                     ],
+                    // ── Tax breakdown ──
+                    const SizedBox(height: 14),
+                    _buildPriceRow(
+                      icon: Icons.account_balance_outlined,
+                      title: 'FED (16%)',
+                      subtitle: 'Federal Excise Duty on base fare',
+                      price: _formatPrice(_taxFED),
+                    ),
+                    const SizedBox(height: 14),
+                    _buildPriceRow(
+                      icon: Icons.local_airport_outlined,
+                      title: 'Airport Development Fee',
+                      subtitle: 'PKR 200 × $_passengerCount pax',
+                      price: _formatPrice(_taxAirportFee),
+                    ),
+                    const SizedBox(height: 14),
+                    _buildPriceRow(
+                      icon: Icons.security_outlined,
+                      title: 'Aviation Security Fee',
+                      subtitle: 'PKR 150 × $_passengerCount pax',
+                      price: _formatPrice(_taxSecurityFee),
+                    ),
+                    const SizedBox(height: 14),
+                    _buildPriceRow(
+                      icon: Icons.miscellaneous_services_outlined,
+                      title: 'Service Fee',
+                      subtitle: 'Platform service charge',
+                      price: _formatPrice(_checkoutServiceFee),
+                    ),
                     if (_discount > 0) ...[
                       const SizedBox(height: 14),
                       _buildPriceRow(
@@ -2025,7 +2067,7 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'All taxes & fees included',
+                          'Incl. FED, airport & service fees',
                           style: TextStyle(
                               fontSize: 11, color: Colors.grey.shade400),
                         ),

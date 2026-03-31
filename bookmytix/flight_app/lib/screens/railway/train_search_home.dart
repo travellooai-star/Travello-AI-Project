@@ -87,6 +87,27 @@ class _TrainSearchHomeState extends State<TrainSearchHome>
     ));
 
     _animationController.forward();
+
+    // Pre-fill destination station if coming from Top Destinations card
+    final args = Get.arguments;
+    if (args is Map && args['toCode'] != null) {
+      final code = args['toCode'] as String;
+      final toCity = args['toCity'] as String? ?? '';
+      final stations = PakistanRailwayStations.getAllStations();
+      try {
+        // Try exact code match first
+        _toStation = stations.firstWhere((s) => s.code == code);
+      } catch (_) {
+        try {
+          // Fallback: match by city name (case-insensitive)
+          _toStation = stations.firstWhere(
+            (s) => s.city.toLowerCase() == toCity.toLowerCase(),
+          );
+        } catch (_) {
+          // No match found — user picks manually
+        }
+      }
+    }
   }
 
   @override

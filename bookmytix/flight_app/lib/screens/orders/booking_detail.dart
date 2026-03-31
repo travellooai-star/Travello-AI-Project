@@ -2,6 +2,7 @@ import 'package:flight_app/ui/themes/theme_button.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
+import 'package:flight_app/utils/booking_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/route_manager.dart';
@@ -90,6 +91,9 @@ class _BookingDetailState extends State<BookingDetail> {
 
             // ━━━ Payment Summary ━━━
             _buildPaymentSection(),
+
+            // ━━━ Manage Extras (flight only — shown when return baggage is pending) ━━━
+            if (!isHotelBooking && !isTrainBooking) _buildManageExtrasSection(),
 
             // ━━━ Important Information ━━━
             _buildInfoSection(isTrainBooking, isHotelBooking),
@@ -295,7 +299,7 @@ class _BookingDetailState extends State<BookingDetail> {
 
         // Professional airline barcode format
         barcodeData =
-            '$pnr/$flightNum/$fromCode-$toCode/${date.replaceAll(' ', '')}/$passengerName/${flightClass[0]}';
+            '$pnr/$flightNum/$fromCode-$toCode/${date.replaceAll(' ', '')}/$passengerName/${flightClass.isNotEmpty ? flightClass[0] : 'E'}';
         qrData =
             'TRAVELLO|TYPE:FLIGHT|PNR:$pnr|FLT:$flightNum|ROUTE:$fromCode-$toCode|DATE:$date|PAX:$passengerName|CLASS:$flightClass';
       }
@@ -421,8 +425,8 @@ class _BookingDetailState extends State<BookingDetail> {
                 SizedBox(width: spacingUnit(1)),
                 Text(
                   'JOURNEY DETAILS',
-                  style: ThemeText.subtitle
-                      .copyWith(fontWeight: FontWeight.w800),
+                  style:
+                      ThemeText.subtitle.copyWith(fontWeight: FontWeight.w800),
                 ),
                 const Spacer(),
                 if (isRoundTrip)
@@ -458,8 +462,8 @@ class _BookingDetailState extends State<BookingDetail> {
 
           // ── Outbound Leg ──
           Padding(
-            padding: EdgeInsets.fromLTRB(spacingUnit(2.5), spacingUnit(2),
-                spacingUnit(2.5), 0),
+            padding: EdgeInsets.fromLTRB(
+                spacingUnit(2.5), spacingUnit(2), spacingUnit(2.5), 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -493,8 +497,7 @@ class _BookingDetailState extends State<BookingDetail> {
                 children: [
                   Expanded(child: Divider(color: Colors.grey.shade200)),
                   Padding(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: spacingUnit(1.5)),
+                    padding: EdgeInsets.symmetric(horizontal: spacingUnit(1.5)),
                     child: Container(
                       padding: EdgeInsets.symmetric(
                           horizontal: spacingUnit(1.2),
@@ -524,8 +527,7 @@ class _BookingDetailState extends State<BookingDetail> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildLegLabel(
-                      'RETURN', Icons.flight_land, accentColor),
+                  _buildLegLabel('RETURN', Icons.flight_land, accentColor),
                   SizedBox(height: spacingUnit(1.2)),
                   Text(
                     isTrainBooking
@@ -1715,13 +1717,13 @@ class _BookingDetailState extends State<BookingDetail> {
       decoration: BoxDecoration(
         color: const Color(0xFF3B82F6).withOpacity(0.08),
         borderRadius: BorderRadius.circular(6),
-        border:
-            Border.all(color: const Color(0xFF3B82F6).withOpacity(0.25), width: 1),
+        border: Border.all(
+            color: const Color(0xFF3B82F6).withOpacity(0.25), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.luggage, size: 12, color: const Color(0xFF3B82F6)),
+          const Icon(Icons.luggage, size: 12, color: Color(0xFF3B82F6)),
           SizedBox(width: spacingUnit(0.4)),
           Text(
             info['label'] ?? '',
@@ -1744,8 +1746,7 @@ class _BookingDetailState extends State<BookingDetail> {
     final List<Map<String, String>> chips = [];
 
     // Outbound baggage
-    final baggageData =
-        _booking['baggageData'] as List<dynamic>? ?? [];
+    final baggageData = _booking['baggageData'] as List<dynamic>? ?? [];
     if (passengerIndex < baggageData.length) {
       final b = baggageData[passengerIndex] as Map<String, dynamic>;
       final kg = (b['totalKg'] as num?)?.toDouble() ?? 0;
@@ -2155,6 +2156,765 @@ class _BookingDetailState extends State<BookingDetail> {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  //  🧳 MANAGE EXTRAS — Add Return Baggage (Expedia / Wego standard)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  // PKR per kg — matches booking_facilites.dart constant
+  static const double _baggageRatePerKg = 200.0;
+
+  Widget _buildManageExtrasSection() {
+    final isRoundTrip = _booking['isRoundTrip'] == true;
+    if (!isRoundTrip) return const SizedBox.shrink();
+
+    final returnBaggageData =
+        _booking['returnBaggageData'] as List<dynamic>? ?? [];
+
+    // Detect pending: any entry has mode == 'later' OR top-level field == 'later'
+    final hasPendingReturnBaggage = returnBaggageData.isNotEmpty
+        ? returnBaggageData.any(
+            (b) => (b as Map<String, dynamic>)['mode']?.toString() == 'later')
+        : _booking['returnBaggageMode']?.toString() == 'later';
+
+    final returnBaggageAdded =
+        returnBaggageData.isNotEmpty && !hasPendingReturnBaggage;
+
+    if (!hasPendingReturnBaggage && !returnBaggageAdded) {
+      return const SizedBox.shrink();
+    }
+
+    final returnDateStr = _booking['returnDate']?.toString() ?? '';
+    final returnDate = DateTime.tryParse(returnDateStr);
+    final canModify = returnDate == null ||
+        returnDate.isAfter(DateTime.now().add(const Duration(hours: 24)));
+
+    // Total pending payment amount (if already added)
+    double pendingPayment = 0;
+    if (returnBaggageAdded) {
+      for (final b in returnBaggageData) {
+        pendingPayment +=
+            ((b as Map<String, dynamic>)['extraPrice'] as num? ?? 0).toDouble();
+      }
+    }
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          spacingUnit(2), 0, spacingUnit(2), spacingUnit(2)),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: hasPendingReturnBaggage
+                ? ThemePalette.primaryMain.withOpacity(0.5)
+                : Colors.grey.shade200,
+            width: hasPendingReturnBaggage ? 1.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Header ──
+            Container(
+              padding: EdgeInsets.all(spacingUnit(2)),
+              decoration: BoxDecoration(
+                color: hasPendingReturnBaggage
+                    ? ThemePalette.primaryMain.withOpacity(0.06)
+                    : Colors.grey.shade50,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
+                border: Border(
+                  bottom: BorderSide(
+                    color: hasPendingReturnBaggage
+                        ? ThemePalette.primaryMain.withOpacity(0.25)
+                        : Colors.grey.shade200,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: ThemePalette.primaryMain.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.luggage_rounded,
+                      color: ThemePalette.primaryDark,
+                      size: 20,
+                    ),
+                  ),
+                  SizedBox(width: spacingUnit(1.5)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Manage Extras',
+                          style: ThemeText.subtitle.copyWith(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                        SizedBox(height: spacingUnit(0.3)),
+                        Text(
+                          hasPendingReturnBaggage
+                              ? 'Return baggage not selected yet'
+                              : 'Return baggage confirmed',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: hasPendingReturnBaggage
+                                ? ThemePalette.primaryDark
+                                : Colors.green.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Status badge
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: hasPendingReturnBaggage
+                          ? ThemePalette.primaryMain.withOpacity(0.12)
+                          : Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: hasPendingReturnBaggage
+                            ? ThemePalette.primaryMain.withOpacity(0.4)
+                            : Colors.green.shade200,
+                      ),
+                    ),
+                    child: Text(
+                      hasPendingReturnBaggage ? 'PENDING' : 'ADDED',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: hasPendingReturnBaggage
+                            ? ThemePalette.primaryDark
+                            : Colors.green.shade700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Body ──
+            Padding(
+              padding: EdgeInsets.all(spacingUnit(2)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (hasPendingReturnBaggage) ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline_rounded,
+                            size: 16, color: ThemePalette.primaryDark),
+                        SizedBox(width: spacingUnit(0.7)),
+                        Expanded(
+                          child: Text(
+                            canModify
+                                ? 'Select your return baggage allowance. Extra weight is charged at PKR 200/kg and collected at airport check-in.'
+                                : 'Baggage selection window has closed (within 24 hours of departure).',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: canModify
+                                  ? Colors.grey.shade700
+                                  : Colors.red.shade600,
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: spacingUnit(2)),
+                    if (canModify)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _showAddBaggageSheet,
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: const Text(
+                            'Add Return Baggage',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 14),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ThemePalette.primaryMain,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                  ] else ...[
+                    // Per-passenger summary
+                    ...List.generate(returnBaggageData.length, (i) {
+                      final b = returnBaggageData[i] as Map<String, dynamic>;
+                      final totalKg = (b['totalKg'] as num?)?.toDouble() ?? 0;
+                      final freeKg = (b['freeKg'] as num?)?.toDouble() ?? 20;
+                      final extraKg = (totalKg - freeKg).clamp(0, 999);
+                      final extraPrice =
+                          (b['extraPrice'] as num?)?.toDouble() ?? 0;
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: spacingUnit(0.75)),
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_circle_rounded,
+                                size: 16, color: Colors.green.shade600),
+                            SizedBox(width: spacingUnit(0.75)),
+                            Expanded(
+                              child: Text(
+                                'Pax ${i + 1}: ${totalKg.toStringAsFixed(0)} kg total'
+                                '${extraKg > 0 ? ' (+${extraKg.toStringAsFixed(0)} kg extra)' : ' (included)'}',
+                                style: const TextStyle(
+                                    fontSize: 13, color: Colors.black87),
+                              ),
+                            ),
+                            if (extraPrice > 0)
+                              Text(
+                                'PKR ${extraPrice.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: ThemePalette.primaryDark,
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
+                    // Payment due note
+                    if (pendingPayment > 0) ...[
+                      SizedBox(height: spacingUnit(1)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.amber.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.payment_rounded,
+                                size: 16, color: Colors.amber.shade700),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'PKR ${pendingPayment.toStringAsFixed(0)} payable at airport check-in',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.amber.shade800,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    SizedBox(height: spacingUnit(1.5)),
+                    if (canModify)
+                      TextButton.icon(
+                        onPressed: _showAddBaggageSheet,
+                        icon: Icon(Icons.edit_rounded,
+                            size: 16, color: ThemePalette.primaryMain),
+                        label: Text(
+                          'Modify Return Baggage',
+                          style: TextStyle(color: ThemePalette.primaryMain),
+                        ),
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAddBaggageSheet() {
+    // Read free allowance from saved baggage data (matches the booking flow)
+    final baggageData = _booking['baggageData'] as List<dynamic>? ?? [];
+    final freeKg = baggageData.isNotEmpty
+        ? ((baggageData.first as Map<String, dynamic>)['freeKg'] as num?)
+                ?.toDouble() ??
+            20.0
+        : 20.0;
+    const double ratePerKg = _baggageRatePerKg; // PKR 200/kg
+
+    // Extra-kg tiers — price = extraKg × ratePerKg (consistent with booking flow)
+    final List<int> extraTiers = [0, 5, 10, 15, 20, 30];
+    final List<Map<String, dynamic>> options = extraTiers.map((extra) {
+      final totalKg = freeKg + extra;
+      final price = (extra * ratePerKg).toInt();
+      return {
+        'extraKg': extra,
+        'totalKg': totalKg,
+        'price': price,
+      };
+    }).toList();
+
+    final passengers = _booking['passengers'] as List<dynamic>? ?? [];
+    final passengerCount = passengers.length.clamp(1, 9);
+
+    // Pre-fill with existing selections if modifying
+    final existingData = _booking['returnBaggageData'] as List<dynamic>? ?? [];
+    final List<int> selectedExtraKgs = List.generate(passengerCount, (i) {
+      if (i < existingData.length) {
+        final b = existingData[i] as Map<String, dynamic>;
+        final savedTotal = (b['totalKg'] as num?)?.toDouble() ?? freeKg;
+        final savedExtra = (savedTotal - freeKg).clamp(0, 9999).toInt();
+        // snap to nearest tier
+        return extraTiers.contains(savedExtra) ? savedExtra : 0;
+      }
+      return 0;
+    });
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          // Compute total extra charge across all passengers
+          int totalCharge = selectedExtraKgs.fold(
+              0, (sum, extra) => sum + (extra * ratePerKg).toInt());
+
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.88,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              children: [
+                // Drag handle
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(top: 12, bottom: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+
+                // Sheet header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: ThemePalette.primaryMain.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(Icons.luggage_rounded,
+                            color: ThemePalette.primaryDark, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Return Baggage',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            Text(
+                              '${freeKg.toStringAsFixed(0)} kg included in your fare · PKR 200/kg extra',
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Free allowance chip
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.airplane_ticket_outlined,
+                            size: 15, color: Colors.green.shade700),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${freeKg.toStringAsFixed(0)} kg checked baggage already included in your ticket price',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                Divider(
+                    height: 24,
+                    color: Colors.grey.shade200,
+                    indent: 16,
+                    endIndent: 16),
+
+                // Per-passenger selection
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: passengerCount,
+                    itemBuilder: (_, pIdx) {
+                      final pList =
+                          _booking['passengers'] as List<dynamic>? ?? [];
+                      final p = pIdx < pList.length
+                          ? pList[pIdx] as Map<String, dynamic>
+                          : <String, dynamic>{};
+                      final pName =
+                          '${p['firstName'] ?? ''} ${p['lastName'] ?? ''}'
+                              .trim();
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: ThemePalette.primaryMain
+                                        .withOpacity(0.12),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '${pIdx + 1}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: ThemePalette.primaryDark,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  pName.isEmpty
+                                      ? 'Passenger ${pIdx + 1}'
+                                      : pName,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ...options.map((opt) {
+                            final extraKg = opt['extraKg'] as int;
+                            final totalKg = opt['totalKg'] as double;
+                            final price = opt['price'] as int;
+                            final isSelected =
+                                selectedExtraKgs[pIdx] == extraKg;
+
+                            return GestureDetector(
+                              onTap: () => setSheet(
+                                  () => selectedExtraKgs[pIdx] = extraKg),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 160),
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 11),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? ThemePalette.primaryMain
+                                          .withOpacity(0.07)
+                                      : Colors.grey.shade50,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? ThemePalette.primaryMain
+                                        : Colors.grey.shade200,
+                                    width: isSelected ? 1.5 : 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      isSelected
+                                          ? Icons.radio_button_checked
+                                          : Icons.radio_button_unchecked,
+                                      color: isSelected
+                                          ? ThemePalette.primaryMain
+                                          : Colors.grey.shade400,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${totalKg.toStringAsFixed(0)} kg total',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w500,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          Text(
+                                            extraKg == 0
+                                                ? 'Included in fare'
+                                                : '+$extraKg kg extra (PKR 200/kg)',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey.shade500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Text(
+                                      price == 0
+                                          ? 'FREE'
+                                          : 'PKR ${_formatPKR(price)}',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: price == 0
+                                            ? Colors.green.shade600
+                                            : ThemePalette.primaryDark,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }),
+                          if (pIdx < passengerCount - 1)
+                            Divider(height: 24, color: Colors.grey.shade200),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+
+                // ── Footer: total + payment note + button ──
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border:
+                        Border(top: BorderSide(color: Colors.grey.shade200)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 8,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Total row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Extra baggage charge',
+                              style: TextStyle(
+                                  fontSize: 13, color: Colors.black54),
+                            ),
+                            Text(
+                              totalCharge == 0
+                                  ? 'PKR 0'
+                                  : 'PKR ${_formatPKR(totalCharge)}',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: totalCharge == 0
+                                    ? Colors.green.shade600
+                                    : ThemePalette.primaryDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Payment note
+                        if (totalCharge > 0) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(Icons.info_outline,
+                                  size: 13, color: Colors.grey.shade500),
+                              const SizedBox(width: 5),
+                              Text(
+                                'This amount is collected at airport check-in',
+                                style: TextStyle(
+                                    fontSize: 11, color: Colors.grey.shade500),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        // Confirm button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              final updated = List.generate(
+                                passengerCount,
+                                (i) {
+                                  final extra = selectedExtraKgs[i];
+                                  final total = freeKg + extra;
+                                  final price = (extra * ratePerKg).toInt();
+                                  return {
+                                    'mode': extra == 0 ? 'none' : 'custom',
+                                    'freeKg': freeKg,
+                                    'extraKg': extra,
+                                    'totalKg': total,
+                                    'extraPrice': price.toDouble(),
+                                  };
+                                },
+                              );
+
+                              final bookingId =
+                                  _booking['bookingId'] as String? ?? '';
+                              if (bookingId.isNotEmpty) {
+                                await BookingService.updateBookingField(
+                                  bookingId,
+                                  'returnBaggageData',
+                                  updated,
+                                );
+                              }
+
+                              setState(() {
+                                _booking['returnBaggageData'] = updated;
+                              });
+
+                              if (mounted) Navigator.pop(ctx);
+
+                              if (mounted) {
+                                final chargeMsg = totalCharge > 0
+                                    ? 'PKR ${_formatPKR(totalCharge)} payable at check-in.'
+                                    : 'No extra charge — included in fare.';
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Row(
+                                      children: [
+                                        const Icon(Icons.check_circle,
+                                            color: Colors.white),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            'Baggage added. $chargeMsg',
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    backgroundColor: Colors.green.shade700,
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 4),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(10)),
+                                  ),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: ThemePalette.primaryMain,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'Add to Booking',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _formatPKR(int amount) {
+    // Format with comma separator: 3200 → 3,200
+    final s = amount.toString();
+    if (s.length <= 3) return s;
+    final buf = StringBuffer();
+    int count = 0;
+    for (int i = s.length - 1; i >= 0; i--) {
+      if (count > 0 && count % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+      count++;
+    }
+    return buf.toString().split('').reversed.join();
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   //  🎯 ACTIONS
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -2329,8 +3089,7 @@ class _BookingDetailState extends State<BookingDetail> {
                                   style: TextStyle(
                                       color: Colors.white, fontSize: 10)),
                               SizedBox(height: 3),
-                              Text(
-                                  'NTN: 1234567-8  |  STRN: SC-01234-56789',
+                              Text('NTN: 1234567-8  |  STRN: SC-01234-56789',
                                   style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 9,

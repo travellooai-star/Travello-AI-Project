@@ -472,20 +472,19 @@ class _DynamicDestinationCardsState extends State<DynamicDestinationCards> {
     switch (widget.travelMode) {
       case 'flight':
         Get.toNamed('/flight-search-home', arguments: {
-          'destination': destination.name,
-          'code': destination.code,
+          'toCode': destination.code,
+          'toCity': destination.name,
         });
         break;
       case 'train':
         Get.toNamed('/train-search-home', arguments: {
-          'destination': destination.name,
-          'code': destination.code,
+          'toCode': destination.code,
+          'toCity': destination.name,
         });
         break;
       case 'hotel':
         Get.toNamed('/hotel-search', arguments: {
-          'destination': destination.name,
-          'code': destination.code,
+          'cityName': destination.name,
         });
         break;
     }
