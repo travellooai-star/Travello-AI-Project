@@ -1,5 +1,6 @@
 import 'package:flight_app/controllers/notification_controller.dart';
 import 'package:flight_app/models/notification.dart';
+import 'package:flight_app/utils/support_message_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
@@ -20,6 +21,7 @@ class _NotificationState extends State<Notification>
   // Local mutable copies mirroring controller (rebuilt after actions)
   late List<NotificationModel> _today;
   late List<NotificationModel> _earlier;
+  List<SupportMessage> _messages = [];
 
   int get _unreadCount =>
       [..._today, ..._earlier].where((n) => !n.isRead).length;
@@ -35,6 +37,12 @@ class _NotificationState extends State<Notification>
         TabController(length: 2, vsync: this, initialIndex: initialTab);
     _today = List.from(_ctrl.today);
     _earlier = List.from(_ctrl.earlier);
+    _loadMessages();
+  }
+
+  Future<void> _loadMessages() async {
+    final msgs = await SupportMessageService.getAll();
+    if (mounted) setState(() => _messages = msgs);
   }
 
   @override
@@ -268,57 +276,129 @@ class _NotificationState extends State<Notification>
 
   // ── MESSAGES TAB ─────────────────────────────────────────────────────────────
   Widget _buildMessagesTab() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 80,
-            height: 80,
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  child: Container(
-                    width: 54,
-                    height: 54,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFDF5D8),
-                      borderRadius: BorderRadius.circular(14),
+    if (_messages.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 80,
+              height: 80,
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    child: Container(
+                      width: 54,
+                      height: 54,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFDF5D8),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(Icons.chat_bubble_outline_rounded,
+                          color: ThemePalette.primaryMain, size: 28),
                     ),
-                    child: Icon(Icons.chat_bubble_outline_rounded,
-                        color: ThemePalette.primaryMain, size: 28),
                   ),
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD4AF37),
-                      borderRadius: BorderRadius.circular(10),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: ThemePalette.primaryMain,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.chat_bubble_rounded,
+                          color: Colors.white, size: 20),
                     ),
-                    child: const Icon(Icons.chat_bubble_rounded,
-                        color: Colors.white, size: 20),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+            const SizedBox(height: 20),
+            const Text('No messages yet',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(
+              'Messages you send via Contact Admin\nwill appear here.',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        // Action bar
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${_messages.length} message${_messages.length == 1 ? '' : 's'}',
+                style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500),
+              ),
+              GestureDetector(
+                onTap: () => showDialog(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Clear all messages?'),
+                    content: const Text(
+                        'All support messages will be permanently removed.'),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Get.back(),
+                          child: const Text('Cancel')),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: ThemePalette.primaryMain),
+                        onPressed: () async {
+                          Get.back();
+                          await SupportMessageService.clearAll();
+                          _loadMessages();
+                        },
+                        child: const Text('Clear All',
+                            style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.delete_sweep_outlined,
+                        size: 17, color: Colors.red.shade400),
+                    const SizedBox(width: 4),
+                    Text('Clear all',
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.red.shade400,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          const Text('No messages yet',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text(
-            'Hotels and properties can message you here\nafter you book a stay.',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-            textAlign: TextAlign.center,
+        ),
+        Divider(height: 1, color: Colors.grey.shade200),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: _messages.length,
+            separatorBuilder: (_, __) =>
+                Divider(height: 1, color: Colors.grey.shade200),
+            itemBuilder: (context, i) => _MessageTile(msg: _messages[i]),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -536,6 +616,136 @@ class _NotifTile extends StatelessWidget {
             thickness: 0.6,
             indent: 69,
             color: Color(0xFFEEEEEE),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Support Message Tile ──────────────────────────────────────────────────────
+class _MessageTile extends StatelessWidget {
+  final SupportMessage msg;
+  const _MessageTile({required this.msg});
+
+  Color get _statusColor {
+    switch (msg.status) {
+      case 'replied':
+        return Colors.green.shade600;
+      case 'closed':
+        return Colors.grey.shade500;
+      default:
+        return const Color(0xFFD4AF37);
+    }
+  }
+
+  String get _statusLabel {
+    switch (msg.status) {
+      case 'replied':
+        return 'Replied';
+      case 'closed':
+        return 'Closed';
+      default:
+        return 'Pending';
+    }
+  }
+
+  IconData get _statusIcon {
+    switch (msg.status) {
+      case 'replied':
+        return Icons.check_circle_rounded;
+      case 'closed':
+        return Icons.cancel_rounded;
+      default:
+        return Icons.schedule_rounded;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      color: cs.surface,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Avatar
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFDF5D8),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.support_agent_rounded,
+                color: ThemePalette.primaryMain, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        msg.topic,
+                        style: const TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _statusColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(_statusIcon, size: 11, color: _statusColor),
+                          const SizedBox(width: 3),
+                          Text(_statusLabel,
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: _statusColor,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  msg.subject,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: cs.onSurface),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  msg.description,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: cs.onSurface.withValues(alpha: 0.55)),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Support Team · ${msg.formattedDate}',
+                  style: TextStyle(
+                      fontSize: 11, color: cs.onSurface.withValues(alpha: 0.4)),
+                ),
+              ],
+            ),
           ),
         ],
       ),

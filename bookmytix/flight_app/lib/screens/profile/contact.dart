@@ -50,8 +50,10 @@ class _ContactState extends State<Contact> with SingleTickerProviderStateMixin {
           indicatorWeight: 3,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400, fontSize: 14),
+          labelStyle:
+              const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          unselectedLabelStyle:
+              const TextStyle(fontWeight: FontWeight.w400, fontSize: 14),
           labelPadding: EdgeInsets.symmetric(horizontal: spacingUnit(3)),
           dividerHeight: 0,
           tabs: const [

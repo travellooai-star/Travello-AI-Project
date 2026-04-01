@@ -74,84 +74,74 @@ class _AppTextFieldState extends State<AppTextField> {
 
   @override
   Widget build(BuildContext context) {
-    Color borderColor() {
-      if (widget.errorText != null) {
-        return Colors.red[400]!;
-      } else {
-        if (boxFocus) {
-          return ThemePalette.primaryMain;
-        } else {
-          return Theme.of(context).colorScheme.surfaceDim;
-        }
-      }
-    }
+    final Color activeBorderColor = widget.errorText != null
+        ? Colors.red[400]!
+        : boxFocus
+            ? ThemePalette.primaryMain
+            : Theme.of(context).colorScheme.outline;
+
+    final OutlineInputBorder _border = OutlineInputBorder(
+      borderRadius: ThemeRadius.small,
+      borderSide:
+          BorderSide(color: activeBorderColor, width: boxFocus ? 1.8 : 1.0),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          height: widget.maxLines == 1 ? widget.height : null,
-          decoration: BoxDecoration(
-              borderRadius: ThemeRadius.small,
-              color: colorScheme(context).surfaceDim,
-              border: Border.all(
-                width: 1,
-                color: borderColor(),
-              )),
-          child: Padding(
-            padding: EdgeInsets.only(
-                top: 2,
-                bottom: 2,
-                left: widget.prefixIcon != null ? 0 : spacingUnit(1),
-                right: widget.suffix != null ? 0 : spacingUnit(1)),
-            child: TextFormField(
-              controller: widget.controller,
-              initialValue: widget.initialValue,
-              focusNode: focusNode,
-              readOnly: widget.readOnly,
-              maxLines: widget.maxLines,
-              obscureText: widget.maxLines == 1 ? widget.obscureText : false,
-              onTap: widget.onTap,
-              onChanged: (String value) => widget.onChanged(value),
-              validator: widget.validator,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                errorStyle: const TextStyle(fontSize: 0),
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                disabledBorder: InputBorder.none,
-                errorBorder: InputBorder.none,
-                focusedErrorBorder: InputBorder.none,
-                labelText: widget.label,
-                labelStyle: TextStyle(
-                    color: widget.errorText != null
-                        ? Colors.red
-                        : Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.6)),
-                alignLabelWithHint: widget.maxLines != 1 ? true : false,
-                hintText: widget.hint ?? widget.hint,
-                prefixIcon: widget.prefixIcon != null
-                    ? Icon(
-                        widget.prefixIcon,
-                        size: 20,
-                      )
-                    : null,
-                suffixIcon: widget.suffix ?? widget.suffix,
-              ),
+        TextFormField(
+          controller: widget.controller,
+          initialValue: widget.initialValue,
+          focusNode: focusNode,
+          readOnly: widget.readOnly,
+          maxLines: widget.maxLines,
+          obscureText: widget.maxLines == 1 ? widget.obscureText : false,
+          onTap: widget.onTap,
+          onChanged: (String value) => widget.onChanged(value),
+          validator: widget.validator,
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+          decoration: InputDecoration(
+            labelText: widget.label,
+            hintText: widget.hint,
+            labelStyle: TextStyle(
+              color: widget.errorText != null
+                  ? Colors.red[400]
+                  : boxFocus
+                      ? ThemePalette.primaryMain
+                      : Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6),
             ),
+            hintStyle: TextStyle(
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.4),
+            ),
+            alignLabelWithHint: widget.maxLines != 1,
+            errorText: widget.errorText,
+            errorStyle: ThemeText.caption.copyWith(color: Colors.red[400]),
+            border: _border,
+            enabledBorder: _border,
+            focusedBorder: _border,
+            disabledBorder: _border,
+            errorBorder: OutlineInputBorder(
+              borderRadius: ThemeRadius.small,
+              borderSide: BorderSide(color: Colors.red[400]!, width: 1.0),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: ThemeRadius.small,
+              borderSide: BorderSide(color: Colors.red[400]!, width: 1.8),
+            ),
+            prefixIcon: widget.prefixIcon != null
+                ? Icon(widget.prefixIcon, size: 20)
+                : null,
+            suffixIcon: widget.suffix,
+            filled: true,
+            fillColor: Theme.of(context).colorScheme.surface,
           ),
         ),
-        widget.errorText != null
-            ? Padding(
-                padding: const EdgeInsets.only(top: 4, left: 16),
-                child: Text(
-                  widget.errorText!,
-                  style: ThemeText.caption.copyWith(color: Colors.red[400]),
-                ))
-            : Container()
       ],
     );
   }

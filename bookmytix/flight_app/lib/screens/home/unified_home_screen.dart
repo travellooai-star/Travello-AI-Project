@@ -488,10 +488,6 @@ class _UnifiedHomeScreenState extends State<UnifiedHomeScreen> {
 
         // Featured Flight Packages
         const PackageListSlider(),
-        SizedBox(height: spacingUnit(4)),
-
-        // More Flight Routes
-        const FlightListDouble(),
         SizedBox(height: spacingUnit(3)),
       ],
     );

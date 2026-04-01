@@ -1,13 +1,9 @@
-import 'package:flight_app/ui/themes/theme_breakpoints.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_form_builder/flutter_form_builder.dart';
-import 'package:form_builder_validators/form_builder_validators.dart';
-import 'package:flight_app/models/list_item.dart';
-import 'package:flight_app/ui/themes/theme_button.dart';
+import 'package:flight_app/app/app_link.dart';
+import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
-import 'package:flight_app/ui/themes/theme_text.dart';
-import 'package:flight_app/utils/picker.dart';
-import 'package:flight_app/widgets/app_input/app_textfield.dart';
+import 'package:flight_app/utils/support_message_service.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class MessageForm extends StatefulWidget {
   const MessageForm({super.key});
@@ -17,217 +13,241 @@ class MessageForm extends StatefulWidget {
 }
 
 class _MessageFormState extends State<MessageForm> {
-  final TextEditingController _chooseRef = TextEditingController();
-  String? categoryTemp;
-  final _messageKey = GlobalKey<FormBuilderState>();
+  final _formKey = GlobalKey<FormState>();
+  final _subjectCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  String? _selectedTopic;
+  bool _isSending = false;
 
-  List<ListItem> categoryOptions = [
-    ListItem(
-      value: 'booking',
-      label: 'Booking Assistance',
-    ),
-    ListItem(
-      value: 'cancellation',
-      label: 'Cancellation & Refund',
-    ),
-    ListItem(
-      value: 'payment',
-      label: 'Payment Issues',
-    ),
-    ListItem(
-      value: 'account',
-      label: 'Account Management',
-    ),
-    ListItem(
-      value: 'technical',
-      label: 'Technical Support',
-    ),
-    ListItem(
-      value: 'feedback',
-      label: 'Feedback & Suggestions',
-    ),
-    ListItem(
-      value: 'other',
-      label: 'Other Inquiries',
-    ),
+  static const _topics = [
+    'Booking Assistance',
+    'Cancellation & Refund',
+    'Payment Issues',
+    'Account Management',
+    'Technical Support',
+    'Feedback & Suggestions',
+    'Other Inquiries',
   ];
 
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Container(
-            padding: EdgeInsets.all(spacingUnit(4)),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                  Theme.of(context).colorScheme.secondary.withOpacity(0.1),
-                ],
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(spacingUnit(2)),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check_circle,
-                    color: Colors.green,
-                    size: 60,
-                  ),
-                ),
-                SizedBox(height: spacingUnit(2)),
-                const Text(
-                  'Message Sent Successfully!',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: spacingUnit(1)),
-                Text(
-                  'Thank you for contacting Travello AI',
-                  style: ThemeText.subtitle2.copyWith(
-                    color: Colors.grey.shade600,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: spacingUnit(1)),
-                const Text(
-                  'Our support team will get back to you within 24 hours.',
-                  style: ThemeText.paragraph,
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: spacingUnit(3)),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      _messageKey.currentState?.reset();
-                      _chooseRef.clear();
-                      setState(() {
-                        categoryTemp = null;
-                      });
-                    },
-                    style: ThemeButton.btnBig.merge(ThemeButton.primary),
-                    child: const Text('DONE'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  @override
+  void dispose() {
+    _subjectCtrl.dispose();
+    _descCtrl.dispose();
+    super.dispose();
   }
 
-  void openPicker(BuildContext context) {
-    openRadioPicker(
-      context: context,
-      options: categoryOptions,
-      title: 'Choose Category',
-      initialValue: categoryTemp,
-      onSelected: (value) {
-        if (value != null) {
-          String result =
-              categoryOptions.firstWhere((e) => e.value == value).label;
-
-          _messageKey.currentState?.patchValue({
-            'topic': result,
-          });
-          _chooseRef.text = result;
-        }
-        setState(() {
-          categoryTemp = value;
-        });
-      },
+  Future<void> _send() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSending = true);
+    await SupportMessageService.send(
+      topic: _selectedTopic!,
+      subject: _subjectCtrl.text.trim(),
+      description: _descCtrl.text.trim(),
     );
+    setState(() => _isSending = false);
+    if (!mounted) return;
+
+    // Reset form
+    _formKey.currentState?.reset();
+    _subjectCtrl.clear();
+    _descCtrl.clear();
+    setState(() => _selectedTopic = null);
+
+    // Success snackbar
+    Get.snackbar(
+      '✅ Message Sent',
+      'Our team will respond within 24 hours. Check Updates → Messages.',
+      backgroundColor: Colors.green.shade600,
+      colorText: Colors.white,
+      snackPosition: SnackPosition.TOP,
+      duration: const Duration(seconds: 3),
+      borderRadius: 10,
+      margin: const EdgeInsets.all(10),
+      icon: const Icon(Icons.check_circle_outline, color: Colors.white),
+    );
+
+    // Navigate to Messages tab — pop back to root first so the stack is clean
+    Get.until((route) => route.isFirst);
+    Get.toNamed(AppLink.notification, arguments: {'tab': 1});
   }
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: ThemeSize.sm),
-        child: FormBuilder(
-          key: _messageKey,
-          child: ListView(padding: EdgeInsets.all(spacingUnit(2)), children: [
-            const VSpaceShort(),
-            const Text(
-                'We\'re here to help! Send us a message about your travel booking or any questions you have.',
-                style: ThemeText.headline),
-            const VSpace(),
-            FormBuilderField(
-              name: 'topic',
-              builder: (FormFieldState<dynamic> field) {
-                return AppTextField(
-                  controller: _chooseRef,
-                  label: 'Choose Topic',
-                  onChanged: (value) => field.didChange(value),
-                  errorText: field.hasError ? 'Please choose a topic' : null,
-                  onTap: () {
-                    openPicker(context);
-                  },
-                  suffix: const Icon(Icons.arrow_drop_down),
-                );
-              },
-              validator: FormBuilderValidators.required(),
+    final cs = Theme.of(context).colorScheme;
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(spacingUnit(2)),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Info banner ────────────────────────────────────────────
+            Container(
+              padding: EdgeInsets.all(spacingUnit(1.5)),
+              decoration: BoxDecoration(
+                color: ThemePalette.primaryMain.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: ThemePalette.primaryMain.withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.support_agent_rounded,
+                      color: ThemePalette.primaryMain, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'We\'re here to help! Send us a message about your travel booking or any questions. We respond within 24 hours.',
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: cs.onSurface.withValues(alpha: 0.75),
+                          height: 1.5),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const VSpaceShort(),
-            FormBuilderField(
-                name: 'subject',
-                builder: (FormFieldState<dynamic> field) {
-                  return AppTextField(
-                    label: 'Subject',
-                    onChanged: (value) => field.didChange(value),
-                  );
-                }),
-            const VSpaceShort(),
-            FormBuilderField(
-              name: 'description',
-              builder: (FormFieldState<dynamic> field) {
-                return AppTextField(
-                  label: 'Description',
-                  maxLines: 5,
-                  onChanged: (value) => field.didChange(value),
-                  errorText:
-                      field.hasError ? 'Please write mssage description' : null,
-                );
-              },
-              validator: FormBuilderValidators.required(),
+            SizedBox(height: spacingUnit(2)),
+
+            // ── Topic dropdown ────────────────────────────────────────
+            _FieldLabel('Topic *'),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              value: _selectedTopic,
+              decoration: _inputDecoration(
+                  cs, Icons.category_outlined, 'Select a topic'),
+              dropdownColor: cs.surface,
+              borderRadius: BorderRadius.circular(12),
+              icon: Icon(Icons.keyboard_arrow_down_rounded,
+                  color: ThemePalette.primaryMain),
+              items: _topics
+                  .map((t) => DropdownMenuItem(
+                      value: t,
+                      child: Text(t,
+                          style: TextStyle(fontSize: 14, color: cs.onSurface))))
+                  .toList(),
+              onChanged: (v) => setState(() => _selectedTopic = v),
+              validator: (v) => v == null ? 'Please select a topic' : null,
             ),
-            const VSpace(),
+            SizedBox(height: spacingUnit(1.5)),
+
+            // ── Subject ────────────────────────────────────────────────
+            _FieldLabel('Subject *'),
+            const SizedBox(height: 6),
+            TextFormField(
+              controller: _subjectCtrl,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: _inputDecoration(
+                  cs, Icons.subject_rounded, 'Brief subject of your message'),
+              style: TextStyle(fontSize: 14, color: cs.onSurface),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Subject is required'
+                  : null,
+            ),
+            SizedBox(height: spacingUnit(1.5)),
+
+            // ── Description ────────────────────────────────────────────
+            _FieldLabel('Message *'),
+            const SizedBox(height: 6),
+            TextFormField(
+              controller: _descCtrl,
+              maxLines: 5,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: _inputDecoration(cs, Icons.message_outlined,
+                  'Describe your issue or question in detail...'),
+              style: TextStyle(fontSize: 14, color: cs.onSurface),
+              validator: (v) => (v == null || v.trim().length < 10)
+                  ? 'Please write at least 10 characters'
+                  : null,
+            ),
+            SizedBox(height: spacingUnit(2.5)),
+
+            // ── Submit button ──────────────────────────────────────────
             SizedBox(
               width: double.infinity,
-              child: FilledButton(
-                onPressed: () {
-                  if (_messageKey.currentState?.saveAndValidate() ?? false) {
-                    debugPrint(_messageKey.currentState?.value.toString());
-                    _showSuccessDialog();
-                  }
-                },
-                style: ThemeButton.btnBig.merge(ThemeButton.primary),
-                child: const Text('SEND MESSAGE'),
+              height: 54,
+              child: FilledButton.icon(
+                onPressed: _isSending ? null : _send,
+                style: FilledButton.styleFrom(
+                  backgroundColor: ThemePalette.primaryMain,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: cs.onSurface.withValues(alpha: 0.12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  elevation: 2,
+                ),
+                icon: _isSending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.send_rounded),
+                label: Text(_isSending ? 'Sending...' : 'Send Message',
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5)),
               ),
-            )
-          ]),
+            ),
+            SizedBox(height: spacingUnit(1)),
+            Center(
+              child: Text(
+                'Your message will appear in Updates → Messages',
+                style: TextStyle(
+                    fontSize: 11, color: cs.onSurface.withValues(alpha: 0.45)),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  InputDecoration _inputDecoration(ColorScheme cs, IconData icon, String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle:
+          TextStyle(color: cs.onSurface.withValues(alpha: 0.35), fontSize: 13),
+      prefixIcon: Icon(icon,
+          size: 20, color: ThemePalette.primaryMain.withValues(alpha: 0.8)),
+      filled: true,
+      fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.45),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.2)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: cs.outline.withValues(alpha: 0.2)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: ThemePalette.primaryMain, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: cs.error, width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: cs.error, width: 1.5),
+      ),
+    );
+  }
+}
+
+class _FieldLabel extends StatelessWidget {
+  final String text;
+  const _FieldLabel(this.text);
+  @override
+  Widget build(BuildContext context) => Text(text,
+      style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color:
+              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)));
 }
