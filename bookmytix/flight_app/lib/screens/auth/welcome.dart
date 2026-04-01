@@ -73,9 +73,19 @@ class _WelcomeState extends State<Welcome> {
                               // Direct navigation to register page
                               Get.toNamed('/register');
                             },
-                            style: ThemeButton.btnBig.merge(ThemeButton.black),
-                            child:
-                                const Text('SIGN UP', style: ThemeText.title2)),
+                            style: ThemeButton.btnBig.merge(
+                              FilledButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: ThemePalette.primaryMain,
+                                elevation: 2,
+                                shadowColor: Colors.black26,
+                              ),
+                            ),
+                            child: const Text('SIGN UP',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    letterSpacing: 1))),
                       ),
                       Padding(
                           padding:
@@ -102,10 +112,20 @@ class _WelcomeState extends State<Welcome> {
                               // Direct navigation to login page
                               Get.toNamed('/login');
                             },
-                            style: ThemeButton.btnBig
-                                .merge(ThemeButton.outlinedWhite()),
-                            child:
-                                const Text('LOGIN', style: ThemeText.title2)),
+                            style: ThemeButton.btnBig.merge(
+                              OutlinedButton.styleFrom(
+                                foregroundColor: ThemePalette.primaryMain,
+                                backgroundColor: Colors.white,
+                                side: const BorderSide(
+                                    color: Colors.white, width: 2),
+                                elevation: 2,
+                              ),
+                            ),
+                            child: const Text('LOGIN',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    letterSpacing: 1))),
                       ),
                       const VSpace(),
                       SizedBox(

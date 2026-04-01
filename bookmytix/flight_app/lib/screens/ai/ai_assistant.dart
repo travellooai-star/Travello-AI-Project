@@ -5,9 +5,48 @@ import 'package:flight_app/ui/themes/theme_text.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
+// Send button with hover scale effect
+// ─────────────────────────────────────────────────────────────────────────────
+class _SendButton extends StatefulWidget {
+  final VoidCallback onPressed;
+  final Color backgroundColor;
+  final Color iconColor;
+  const _SendButton(
+      {required this.onPressed,
+      required this.backgroundColor,
+      required this.iconColor});
+  @override
+  State<_SendButton> createState() => _SendButtonState();
+}
+
+class _SendButtonState extends State<_SendButton> {
+  bool _hovered = false;
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedScale(
+        scale: _hovered ? 1.12 : 1.0,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        child: CircleAvatar(
+          backgroundColor: widget.backgroundColor,
+          child: IconButton(
+            icon: Icon(Icons.send, color: widget.iconColor),
+            onPressed: widget.onPressed,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Itinerary data model
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 class _DayPlan {
   final int day;
   final String title;
@@ -41,12 +80,12 @@ class _TripItinerary {
   });
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Itinerary database by destination
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 Map<String, List<_DayPlan>> _itineraryDB = {
   'Hunza Valley': [
-    const _DayPlan(day: 1, title: 'Arrival in Gilgit', icon: 'âœˆï¸', activities: [
+    const _DayPlan(day: 1, title: 'Arrival in Gilgit', icon: '✈️', activities: [
       'Land at Gilgit Airport',
       'Drive to Karimabad (2.5 hrs)',
       'Check into hotel & rest',
@@ -55,30 +94,34 @@ Map<String, List<_DayPlan>> _itineraryDB = {
     const _DayPlan(
         day: 2,
         title: 'Attabad Lake & Hopper Glacier',
-        icon: 'ðŸ”ï¸',
+        icon: '🏔️',
         activities: [
           'Morning: Attabad Lake boat ride',
           'Visit Hopper Glacier',
-          'Lunch at lakeside cafÃ©',
+          'Lunch at lakeside café',
           'Visit Karakoram Highway viewpoints'
         ]),
     const _DayPlan(
         day: 3,
         title: 'Baltit Fort & Eagle\'s Nest',
-        icon: 'ðŸ°',
+        icon: '🏰',
         activities: [
           'Explore Baltit Fort (UNESCO)',
           'Visit Altit Fort',
           'Hike to Eagle\'s Nest viewpoint',
           'Sunset photography over Hunza River'
         ]),
-    const _DayPlan(day: 4, title: 'Rakaposhi Viewpoint', icon: 'ðŸ—»', activities: [
-      'Drive to Rakaposhi Base Camp',
-      'Cherry blossom orchard walk',
-      'Visit Nilt & Diran villages',
-      'Traditional Hunza cuisine dinner'
-    ]),
-    const _DayPlan(day: 5, title: 'Departure', icon: 'ðŸ ', activities: [
+    const _DayPlan(
+        day: 4,
+        title: 'Rakaposhi Viewpoint',
+        icon: '🗻',
+        activities: [
+          'Drive to Rakaposhi Base Camp',
+          'Cherry blossom orchard walk',
+          'Visit Nilt & Diran villages',
+          'Traditional Hunza cuisine dinner'
+        ]),
+    const _DayPlan(day: 5, title: 'Departure', icon: '🏠', activities: [
       'Morning: Khunjerab Pass day trip (optional)',
       'Souvenir shopping for dry fruits & gems',
       'Drive back to Gilgit Airport',
@@ -86,7 +129,7 @@ Map<String, List<_DayPlan>> _itineraryDB = {
     ]),
   ],
   'Skardu': [
-    const _DayPlan(day: 1, title: 'Arrival in Skardu', icon: 'âœˆï¸', activities: [
+    const _DayPlan(day: 1, title: 'Arrival in Skardu', icon: '✈️', activities: [
       'Land at Skardu Airport',
       'Visit Skardu Bazaar',
       'Check-in & settle',
@@ -95,30 +138,34 @@ Map<String, List<_DayPlan>> _itineraryDB = {
     const _DayPlan(
         day: 2,
         title: 'Shangrila & Kachura Lakes',
-        icon: 'ðŸžï¸',
+        icon: '🏞️',
         activities: [
           'Upper & Lower Kachura Lakes',
           'Row boat at Shangrila Resort',
           'Visit Manthal Buddha Rock',
           'Sunset at Skardu Fort'
         ]),
-    const _DayPlan(day: 3, title: 'Deosai National Park', icon: 'ðŸŒ¿', activities: [
-      'Early morning drive to Deosai (2,800m altitude)',
-      'Brown bear safari',
-      'Wildflower meadow walk',
-      'Sheosar Lake photography'
-    ]),
+    const _DayPlan(
+        day: 3,
+        title: 'Deosai National Park',
+        icon: '🌿',
+        activities: [
+          'Early morning drive to Deosai (2,800m altitude)',
+          'Brown bear safari',
+          'Wildflower meadow walk',
+          'Sheosar Lake photography'
+        ]),
     const _DayPlan(
         day: 4,
         title: 'K2 Base Camp Viewpoint',
-        icon: 'â›°ï¸',
+        icon: '⛰️',
         activities: [
           'Drive toward Concordia area',
           'Baltoro Glacier viewpoint',
           'Jeep safari on Indus River banks',
           'Stargazing night (no light pollution)'
         ]),
-    const _DayPlan(day: 5, title: 'Departure', icon: 'ðŸ ', activities: [
+    const _DayPlan(day: 5, title: 'Departure', icon: '🏠', activities: [
       'Morning: Satpara Lake visit',
       'Local gem & mineral shopping',
       'Drive to Skardu Airport',
@@ -126,7 +173,7 @@ Map<String, List<_DayPlan>> _itineraryDB = {
     ]),
   ],
   'Lahore': [
-    const _DayPlan(day: 1, title: 'Mughal Heritage', icon: 'ðŸ•Œ', activities: [
+    const _DayPlan(day: 1, title: 'Mughal Heritage', icon: '🕌', activities: [
       'Badshahi Mosque (largest mosque in Pakistan)',
       'Lahore Fort & Sheesh Mahal',
       'Hazuri Bagh gardens',
@@ -135,7 +182,7 @@ Map<String, List<_DayPlan>> _itineraryDB = {
     const _DayPlan(
         day: 2,
         title: 'Walled City & Food Street',
-        icon: 'ðŸ½ï¸',
+        icon: '🍽️',
         activities: [
           'Morning: Walled City walking tour',
           'Aurangzeb Mosque & Wazir Khan Mosque',
@@ -145,7 +192,7 @@ Map<String, List<_DayPlan>> _itineraryDB = {
     const _DayPlan(
         day: 3,
         title: 'Colonial Lahore & Museums',
-        icon: 'ðŸ›ï¸',
+        icon: '🏛️',
         activities: [
           'Lahore Museum (largest museum in Pakistan)',
           'Aitchison College & Mall Road',
@@ -157,7 +204,7 @@ Map<String, List<_DayPlan>> _itineraryDB = {
     const _DayPlan(
         day: 1,
         title: 'Faisal Mosque & Margalla Hills',
-        icon: 'ðŸ•Œ',
+        icon: '🕌',
         activities: [
           'Faisal Mosque (4th largest in world)',
           'Daman-e-Koh viewpoint',
@@ -167,19 +214,397 @@ Map<String, List<_DayPlan>> _itineraryDB = {
     const _DayPlan(
         day: 2,
         title: 'Rawalpindi & Heritage',
-        icon: 'ðŸ›ï¸',
+        icon: '🏛️',
         activities: [
           'Pakistan Monument & Museum',
           'Lok Virsa Museum',
           'Raja Bazaar Rawalpindi',
           'Ayub National Park'
         ]),
-    const _DayPlan(day: 3, title: 'Murree Day Trip', icon: 'ðŸŒ²', activities: [
-      'Drive to Murree (1 hr)',
-      'Mall Road Murree',
-      'Pindi Point chairlift',
-      'Pine forests walk & photography'
+    const _DayPlan(day: 3, title: 'Murree Day Trip', icon: '🌲', activities: [
+      'Drive to Murree hill station (1 hr)',
+      'Mall Road stroll & local shopping',
+      'Pindi Point chairlift ride',
+      'Pine forests walk & sunset photography'
     ]),
+  ],
+  'Swat Valley': [
+    const _DayPlan(
+        day: 1,
+        title: 'Arrival in Mingora',
+        icon: '✈️',
+        activities: [
+          'Arrive at Saidu Sharif Airport or drive from Peshawar',
+          'Swat Museum — Gandhara Buddhist art & artefacts',
+          'Explore Mingora Green Chowk Bazaar',
+          'Traditional Pashtun dinner at local restaurant'
+        ]),
+    const _DayPlan(
+        day: 2,
+        title: 'Malam Jabba Ski Resort',
+        icon: '⛷️',
+        activities: [
+          'Drive to Malam Jabba (45 km from Mingora)',
+          'Chairlift ride for panoramic Hindukush views',
+          'Ancient Buddhist ruins at Butkara Stupa',
+          'Fizagat Park riverside evening picnic'
+        ]),
+    const _DayPlan(day: 3, title: 'Kalam Valley', icon: '🏔️', activities: [
+      'Scenic drive to Kalam (85 km along Swat River)',
+      'Ushu Forest — towering pine & fir trees',
+      'Mahodand Lake boat ride (16 km from Kalam)',
+      'Overnight at Kalam guesthouse'
+    ]),
+    const _DayPlan(
+        day: 4,
+        title: 'Bahrain & River Rafting',
+        icon: '🌊',
+        activities: [
+          'White-water rafting on Swat River at Bahrain',
+          'Trout fishing at Swat River banks',
+          'Mingora Night Bazaar — Swati gemstones & crafts',
+          'Saidu Baba historic shrine visit'
+        ]),
+    const _DayPlan(day: 5, title: 'Departure', icon: '🏠', activities: [
+      'Morning: Saidu Sharif royal mosque visit',
+      'Last shopping — Swati embroidery & emerald gems',
+      'Drive back to Peshawar or fly home',
+      'Depart Swat Valley'
+    ]),
+  ],
+  'Naran & Kaghan': [
+    const _DayPlan(day: 1, title: 'Drive to Naran', icon: '✈️', activities: [
+      'Drive from Islamabad via Mansehra to Naran (5 hrs)',
+      'Kunhar River gorge — dramatic roadside views',
+      'Check into Naran & explore the town',
+      'Traditional Kaghan Valley dinner'
+    ]),
+    const _DayPlan(
+        day: 2,
+        title: 'Saif-ul-Malook Lake',
+        icon: '💎',
+        activities: [
+          'Jeep ride to Saif-ul-Malook Lake (3,224 m)',
+          'Pakistan\'s most photographed turquoise lake',
+          'Photography with Malika Parbat snow peak',
+          'Trek around the lake (2 hr loop)'
+        ]),
+    const _DayPlan(
+        day: 3,
+        title: 'Lulusar & Babusar Pass',
+        icon: '🗻',
+        activities: [
+          'Drive to Lulusar Lake — mirror-like reflections',
+          'Cross Babusar Pass (4,173 m altitude)',
+          'Panoramic views of Nanga Parbat',
+          'Return to Naran for dinner'
+        ]),
+    const _DayPlan(day: 4, title: 'Departure', icon: '🏠', activities: [
+      'Morning: Batakundi meadows stroll',
+      'Ansoo (Teardrop) Lake viewpoint trail',
+      'Drive back to Islamabad',
+      'Depart Kaghan Valley'
+    ]),
+  ],
+  'Fairy Meadows': [
+    const _DayPlan(
+        day: 1,
+        title: 'Raikot Bridge Trek Start',
+        icon: '✈️',
+        activities: [
+          'Drive from Gilgit to Raikot Bridge (80 km)',
+          'Jeep ride to Tato Village (rough mountain track)',
+          'Begin 3-hour scenic trek to Fairy Meadows',
+          'First spectacular view of Nanga Parbat (8,126 m)'
+        ]),
+    const _DayPlan(
+        day: 2,
+        title: 'Nanga Parbat Base Camp Trek',
+        icon: '⛰️',
+        activities: [
+          'Stunning sunrise view of Nanga Parbat "Killer Mountain"',
+          'Trek to Beyal Base Camp (4 hrs round-trip)',
+          'Alpine wildflowers & glacial moraine walk',
+          'Campfire storytelling with local Kashmiri guides'
+        ]),
+    const _DayPlan(
+        day: 3,
+        title: 'Panorama & Departure',
+        icon: '🏠',
+        activities: [
+          'Golden hour mountain photography at dawn',
+          'Explore Fairy Meadows higher viewpoints',
+          'Trek down to Raikot Bridge',
+          'Drive back to Gilgit town'
+        ]),
+  ],
+  'Gilgit': [
+    const _DayPlan(
+        day: 1,
+        title: 'Gilgit City & Rock Carvings',
+        icon: '✈️',
+        activities: [
+          'Arrive at Gilgit Airport',
+          'Kargah Buddha Rock Carving (7th century CE)',
+          'Gilgit Bazaar — dry fruits, gems & local spices',
+          'Traditional Dumpukht lamb dinner'
+        ]),
+    const _DayPlan(day: 2, title: 'Naltar Valley', icon: '🏔️', activities: [
+      'Drive to Naltar Valley (40 km, 1.5 hrs)',
+      'Three colourful Naltar Lakes (blue, green & turquoise)',
+      'Naltar Ski Resort viewpoints (year-round)',
+      'Pine forest picnic & wildlife spotting'
+    ]),
+    const _DayPlan(day: 3, title: 'Rakaposhi & KKH', icon: '🗻', activities: [
+      'Drive on Karakoram Highway (8th Wonder of the world)',
+      'Rakaposhi Base Camp viewpoint (7,788 m peak)',
+      'Nilt Fort & ancient Chinese fort ruins',
+      'Return to Gilgit for Sajji dinner'
+    ]),
+  ],
+  'Chitral': [
+    const _DayPlan(
+        day: 1,
+        title: 'Arrival in Chitral',
+        icon: '✈️',
+        activities: [
+          'Fly Islamabad → Chitral or drive via Lowari Tunnel',
+          'Chitral Fort (Royal Palace of Mehtars)',
+          'Shahi Mosque — royal mosque of Chitral royalty',
+          'Browse Kalash crafts at local bazaar'
+        ]),
+    const _DayPlan(day: 2, title: 'Kalash Valleys', icon: '🎭', activities: [
+      'Drive to Bumburet Valley — Kalash homeland (35 km)',
+      'Meet the unique pre-Islamic Kalash people',
+      'Kalash Museum & traditional wooden houses',
+      'Witness traditional Kalash folk dances & festivals'
+    ]),
+    const _DayPlan(
+        day: 3,
+        title: 'Shandur Polo Ground',
+        icon: '🏑',
+        activities: [
+          'Drive toward Shandur Top (3,734 m)',
+          'World\'s highest polo ground',
+          'Shandur Lake panorama',
+          'Return to Chitral for traditional dinner'
+        ]),
+    const _DayPlan(day: 4, title: 'Departure', icon: '🏠', activities: [
+      'Morning: Mastuj Fort ruins exploration',
+      'Chitrali cap (Pakol) & wool shawl shopping',
+      'Fly or drive back to Islamabad',
+      'Depart Chitral'
+    ]),
+  ],
+  'Gwadar': [
+    const _DayPlan(
+        day: 1,
+        title: 'Arrival & CPEC Port',
+        icon: '✈️',
+        activities: [
+          'Arrive at Gwadar International Airport',
+          'Gwadar Deep Sea Port overview (CPEC mega-project)',
+          'Padi Zirr Beach sunset & pebble shores',
+          'Fresh catch seafood dinner at Gwadar Fish Harbour'
+        ]),
+    const _DayPlan(
+        day: 2,
+        title: 'Hammerhead & Beaches',
+        icon: '🌊',
+        activities: [
+          'Hammerhead Point — dramatic cliffs over Arabian Sea',
+          'Princess of Hope rock arch formation',
+          'Snorkelling at Pasni Beach',
+          'Gwadar New Town promenade sunset walk'
+        ]),
+    const _DayPlan(
+        day: 3,
+        title: 'Marine Drive & Departure',
+        icon: '🏠',
+        activities: [
+          'Gwadar Marine Drive — iconic seaside boulevard',
+          'Mirani Dam viewpoint',
+          'Local Balochi seafood brunch (Sajji fish)',
+          'Fly back to Karachi or Islamabad'
+        ]),
+  ],
+  'Karachi': [
+    const _DayPlan(day: 1, title: 'Historic Karachi', icon: '🏙️', activities: [
+      'Quaid-e-Azam Mausoleum — Founder\'s resting place',
+      'Frere Hall colonial heritage building & library',
+      'Clifton Beach & Sea View promenade',
+      'Burns Road food street — best nihari & haleem'
+    ]),
+    const _DayPlan(day: 2, title: 'Beaches & Bazaars', icon: '🌊', activities: [
+      'French Beach & Hawkes Bay Sea Turtle Sanctuary',
+      'Manora Island boat trip',
+      'Port Grand waterfront dining complex',
+      'Zainab Market & Tariq Road shopping'
+    ]),
+    const _DayPlan(
+        day: 3,
+        title: 'Museums & Culture',
+        icon: '🏛️',
+        activities: [
+          'National Museum of Pakistan',
+          'Pakistan Maritime Museum',
+          'Empress Market colonial architecture',
+          'Boat Basin food street — BBQ & karahi dinner'
+        ]),
+  ],
+  'Peshawar': [
+    const _DayPlan(day: 1, title: 'Old Peshawar City', icon: '🕌', activities: [
+      'Bala Hisar Fort (Shahi Qila) over the city',
+      'Qissa Khawani Bazaar — 2,000-year-old Storytellers\' Market',
+      'Mahabat Khan Mosque (Mughal architecture)',
+      'Traditional Chapli Kebab dinner at Namak Mandi'
+    ]),
+    const _DayPlan(
+        day: 2,
+        title: 'Gandhara Ruins & Khyber Pass',
+        icon: '🏛️',
+        activities: [
+          'Peshawar Museum — finest Gandhara Buddhist art collection',
+          'Takht-i-Bahi Buddhist monastery ruins (UNESCO)',
+          'Khyber Pass gateway view (permit required)',
+          'Bara Bazaar — traditional Pashtun goods & antiques'
+        ]),
+    const _DayPlan(
+        day: 3,
+        title: 'Valley & Departure',
+        icon: '🏠',
+        activities: [
+          'Pushkalavati ancient Gandhara ruins at Charsadda',
+          'University Town for modern cafes & culture',
+          'Last shopping for Peshwari chappal (sandals)',
+          'Depart Peshawar'
+        ]),
+  ],
+  'Multan': [
+    const _DayPlan(
+        day: 1,
+        title: 'City of Saints & Shrines',
+        icon: '🕌',
+        activities: [
+          'Shrine of Bahauddin Zakariya (13th-century Sufi saint)',
+          'Shrine of Shah Rukn-e-Alam (iconic blue-tiled dome)',
+          'Multan Fort Old City walls',
+          'Traditional Multani sohan halwa & famous mangoes'
+        ]),
+    const _DayPlan(day: 2, title: 'Crafts & Culture', icon: '🎨', activities: [
+      'Multan Craft Village — famous blue tile pottery workshop',
+      'Camel skin lamp & lacquer handicraft shopping',
+      'Multan Museum archaeological exhibits',
+      'Hussein Agahi historic street market dinner'
+    ]),
+    const _DayPlan(day: 3, title: 'Departure', icon: '🏠', activities: [
+      'Morning: Tomb of Shah Shams Tabriz (13th century)',
+      'Mango garden visit (peak season May–July)',
+      'Fly or drive to Islamabad/Lahore',
+      'Depart Multan — City of Saints'
+    ]),
+  ],
+  'Quetta': [
+    const _DayPlan(
+        day: 1,
+        title: 'Arrival & Quetta City',
+        icon: '✈️',
+        activities: [
+          'Arrive at Quetta Airport',
+          'Hanna Lake — serene blue reservoir',
+          'Balochistan Museum & archaeological finds',
+          'Liaquat Bazaar — best dried fruits & nuts in Pakistan'
+        ]),
+    const _DayPlan(day: 2, title: 'Ziarat Valley', icon: '🌲', activities: [
+      'Drive to Ziarat (130 km) — world\'s 2nd largest juniper forest',
+      'Quaid-e-Azam Residency (historic colonial villa)',
+      'Apple & cherry orchards of Ziarat Valley',
+      'Kach Pass scenic mountain drive'
+    ]),
+    const _DayPlan(
+        day: 3,
+        title: 'Urak Valley & Departure',
+        icon: '🏠',
+        activities: [
+          'Urak Valley fruit orchards & spring camping',
+          'Spin Karez crystal-clear freshwater pools',
+          'Local Balochi Sajji & Kaak bread for brunch',
+          'Fly back to Karachi or Islamabad'
+        ]),
+  ],
+  'Neelum Valley': [
+    const _DayPlan(
+        day: 1,
+        title: 'Arrival in Muzaffarabad',
+        icon: '✈️',
+        activities: [
+          'Drive from Islamabad to Muzaffarabad (140 km)',
+          'Muzaffarabad Red Fort ruins',
+          'Neelum River–Jhelum River confluence viewpoint',
+          'AJK traditional dinner'
+        ]),
+    const _DayPlan(
+        day: 2,
+        title: 'Sharda & Upper Neelum',
+        icon: '🏔️',
+        activities: [
+          'Drive along scenic Neelum Valley Road gorge',
+          'Sharda University ruins (ancient Sanskrit institution)',
+          'Keran village — trees overhanging turquoise river',
+          'Kel village bridge & river crossing'
+        ]),
+    const _DayPlan(day: 3, title: 'Arang Kel Meadow', icon: '🌿', activities: [
+      'Boat across Neelum River at Kel',
+      'Trek to Arang Kel village (1.5 hrs ascent)',
+      'Pristine meadow with untouched snow-capped peaks',
+      'Overnight camping or return to Kel guesthouse'
+    ]),
+    const _DayPlan(day: 4, title: 'Departure', icon: '🏠', activities: [
+      'Morning: Ratti Gali Lake day hike (seasonal)',
+      'Shounter Pass scenic drive viewpoint',
+      'Drive back to Muzaffarabad & Islamabad',
+      'Depart Neelum Valley'
+    ]),
+  ],
+  'Taxila': [
+    const _DayPlan(
+        day: 1,
+        title: 'Ancient Gandhara Ruins',
+        icon: '🏛️',
+        activities: [
+          'Taxila Museum — largest Gandhara collection in Pakistan',
+          'Sirkap archaeological site (Hellenistic city, 2nd c. BC)',
+          'Jaulian Buddhist monastery with 117 intricately carved stupas',
+          'Easy 45-min drive from Islamabad — ideal day trip'
+        ]),
+    const _DayPlan(day: 2, title: 'Khanpur & Return', icon: '💧', activities: [
+      'Khanpur Dam — water sports & boating',
+      'Khanpur Caves exploration',
+      'Margalla Pass historic Mughal gateway',
+      'Return to Islamabad for dinner'
+    ]),
+  ],
+  'Mohenjo-daro': [
+    const _DayPlan(
+        day: 1,
+        title: 'UNESCO World Heritage Site',
+        icon: '🏛️',
+        activities: [
+          'Fly to Mohenjo-daro Airport or drive from Sukkur',
+          'Great Bath — world\'s first ever public bath (2500 BC)',
+          'Granary, Assembly Hall & ancient streets exploration',
+          'Mohenjo-daro Museum — 4,500-year-old Indus Valley artefacts'
+        ]),
+    const _DayPlan(
+        day: 2,
+        title: 'Indus Civilisation & Departure',
+        icon: '🏠',
+        activities: [
+          'Lower Town ruins & private residential quarters',
+          'Buddhist Stupa mound (2nd century AD)',
+          'Sindhi Ajrak & handicraft shopping in Larkana city',
+          'Drive or fly back from Sukkur'
+        ]),
   ],
 };
 
@@ -189,7 +614,7 @@ List<_DayPlan> _getItinerary(String destination, int duration) {
         const _DayPlan(
             day: 1,
             title: 'Arrival & Check-in',
-            icon: 'âœˆï¸',
+            icon: '✈️',
             activities: [
               'Arrive at destination',
               'Check into hotel',
@@ -199,26 +624,34 @@ List<_DayPlan> _getItinerary(String destination, int duration) {
         const _DayPlan(
             day: 2,
             title: 'Main Attractions',
-            icon: 'ðŸ—ºï¸',
+            icon: '🗺️',
             activities: [
               'Visit top landmark',
               'Local museum or fort',
               'Traditional lunch',
               'Souvenir shopping'
             ]),
-        const _DayPlan(day: 3, title: 'Nature & Outdoors', icon: 'ðŸŒ¿', activities: [
-          'Morning nature walk',
-          'Scenic viewpoint visit',
-          'Picnic lunch',
-          'Sunset photography'
-        ]),
-        const _DayPlan(day: 4, title: 'Culture & Food', icon: 'ðŸ½ï¸', activities: [
-          'Local food street tour',
-          'Cultural heritage site',
-          'Traditional crafts shopping',
-          'Farewell dinner'
-        ]),
-        const _DayPlan(day: 5, title: 'Departure', icon: 'ðŸ ', activities: [
+        const _DayPlan(
+            day: 3,
+            title: 'Nature & Outdoors',
+            icon: '🌿',
+            activities: [
+              'Morning nature walk',
+              'Scenic viewpoint visit',
+              'Picnic lunch',
+              'Sunset photography'
+            ]),
+        const _DayPlan(
+            day: 4,
+            title: 'Culture & Food',
+            icon: '🍽️',
+            activities: [
+              'Local food street tour',
+              'Cultural heritage site',
+              'Traditional crafts shopping',
+              'Farewell dinner'
+            ]),
+        const _DayPlan(day: 5, title: 'Departure', icon: '🏠', activities: [
           'Morning leisure',
           'Last-minute shopping',
           'Depart to airport',
@@ -228,9 +661,9 @@ List<_DayPlan> _getItinerary(String destination, int duration) {
   return allDays.take(duration).toList();
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Screen
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
 class AIAssistantScreen extends StatefulWidget {
   const AIAssistantScreen({super.key});
 
@@ -239,16 +672,24 @@ class AIAssistantScreen extends StatefulWidget {
 }
 
 class _AIAssistantScreenState extends State<AIAssistantScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late TabController _tabController;
+  late AnimationController _dotController;
+  late AnimationController _entryController;
 
-  // â”€â”€ Chat state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Hover state ────────────────────────────────────────────────────────────
+  int _hoveredSuggestion = -1;
+  int _hoveredStyle = -1;
+  int _hoveredDuration = -1;
+  int _hoveredBudget = -1;
+
+  // ── Chat state ─────────────────────────────────────────────────────────────
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
   bool _isTyping = false;
 
-  // â”€â”€ Plan Trip state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Plan Trip state ────────────────────────────────────────────────────────
   String? _tripDestination;
   String _tripStyle = 'Adventure';
   int _tripDuration = 5;
@@ -256,7 +697,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
   bool _isGenerating = false;
   _TripItinerary? _generatedTrip;
 
-  // â”€â”€ Saved Trips state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Saved Trips state ──────────────────────────────────────────────────────
   final List<_TripItinerary> _savedTrips = [
     _TripItinerary(
       destination: 'Hunza Valley',
@@ -322,10 +763,10 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
   ];
   static const List<int> _durations = [3, 5, 7, 10];
   static const List<Map<String, dynamic>> _budgets = [
-    {'label': 'Budget', 'range': 'PKR 5Kâ€“15K', 'icon': Icons.savings},
+    {'label': 'Budget', 'range': 'PKR 5K–15K', 'icon': Icons.savings},
     {
       'label': 'Mid-range',
-      'range': 'PKR 15Kâ€“40K',
+      'range': 'PKR 15K–40K',
       'icon': Icons.account_balance_wallet
     },
     {'label': 'Luxury', 'range': 'PKR 40K+', 'icon': Icons.diamond},
@@ -335,10 +776,18 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _dotController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..forward();
     _messages.add(ChatMessage(
       id: '1',
       message:
-          "Hello! ðŸ‘‹ I'm your AI Travel Assistant for Pakistan. How can I help you plan your journey today?",
+          "Hello! 👋 I'm your AI Travel Assistant for Pakistan. How can I help you plan your journey today?",
       isUser: false,
       timestamp: DateTime.now(),
     ));
@@ -347,32 +796,58 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _dotController.dispose();
+    _entryController.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // ══════════════════════════════════════════════════════════════════════════
   // BUILD
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // ══════════════════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.auto_awesome, size: 20, color: Color(0xFFD4AF37)),
-            SizedBox(width: 8),
-            Text('AI Planner'),
-          ],
+        title: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 700),
+          curve: Curves.easeOut,
+          builder: (context, value, child) => Opacity(
+            opacity: value,
+            child: Transform.translate(
+              offset: Offset(0, 10 * (1 - value)),
+              child: child,
+            ),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.auto_awesome, size: 20, color: Colors.white),
+              SizedBox(width: 8),
+              Text('AI Planner',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                      shadows: [
+                        Shadow(
+                            color: Colors.black26,
+                            blurRadius: 8,
+                            offset: Offset(0, 2))
+                      ])),
+            ],
+          ),
         ),
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: ThemePalette.primaryMain,
-          labelColor: ThemePalette.primaryMain,
-          unselectedLabelColor: Colors.grey,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
           tabs: const [
             Tab(icon: Icon(Icons.chat_bubble_outline, size: 18), text: 'Chat'),
             Tab(icon: Icon(Icons.map_outlined, size: 18), text: 'Plan Trip'),
@@ -391,9 +866,9 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
     );
   }
 
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  // TAB 1 â€” CHAT
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // ══════════════════════════════════════════════════════════════════════════
+  // TAB 1 — CHAT
+  // ══════════════════════════════════════════════════════════════════════════
   Widget _buildChatTab() {
     return Column(
       children: [
@@ -450,7 +925,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
                   style: ThemeText.paragraph.copyWith(
                     color: message.isUser
                         ? colorScheme(context).onPrimaryContainer
-                        : null,
+                        : colorScheme(context).onSurface,
                   )),
             ),
           ),
@@ -487,11 +962,11 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildDot(),
+                _buildDot(0),
                 const SizedBox(width: 4),
-                _buildDot(delay: 200),
+                _buildDot(1),
                 const SizedBox(width: 4),
-                _buildDot(delay: 400),
+                _buildDot(2),
               ],
             ),
           ),
@@ -500,45 +975,98 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
     );
   }
 
-  Widget _buildDot({int delay = 0}) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.4, end: 1.0),
-      duration: const Duration(milliseconds: 600),
-      builder: (context, value, child) => Opacity(
-        opacity: value,
-        child: Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-              color: colorScheme(context).primary, shape: BoxShape.circle),
-        ),
-      ),
-      onEnd: () => setState(() {}),
+  Widget _buildDot(int index) {
+    return AnimatedBuilder(
+      animation: _dotController,
+      builder: (context, _) {
+        final double phase = (_dotController.value - index / 3.0 + 1.0) % 1.0;
+        final double opacity = phase < 0.5 ? phase * 2 : (1.0 - phase) * 2;
+        return Opacity(
+          opacity: 0.3 + opacity * 0.7,
+          child: Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+                color: colorScheme(context).primary, shape: BoxShape.circle),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildSuggestions() {
     final suggestions = AIAssistantData.getSuggestions();
-    return Padding(
-      padding: EdgeInsets.symmetric(
-          horizontal: spacingUnit(2), vertical: spacingUnit(1)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Try asking:', style: ThemeText.caption),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: suggestions
-                .map((s) => ActionChip(
-                      avatar: Text(s.icon),
-                      label: Text(s.title),
-                      onPressed: () => _sendMessage(s.title),
-                    ))
-                .toList(),
-          ),
-        ],
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOut,
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - value)),
+          child: child,
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+            horizontal: spacingUnit(2), vertical: spacingUnit(1)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Try asking:',
+                style: ThemeText.caption.copyWith(
+                    color:
+                        colorScheme(context).onSurface.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: suggestions.asMap().entries.map((entry) {
+                final i = entry.key;
+                final s = entry.value;
+                final isHovered = _hoveredSuggestion == i;
+                return MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  onEnter: (_) => setState(() => _hoveredSuggestion = i),
+                  onExit: (_) => setState(() => _hoveredSuggestion = -1),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: Duration(milliseconds: 400 + i * 80),
+                    curve: Curves.easeOut,
+                    builder: (context, v, child) => Opacity(
+                      opacity: v,
+                      child: Transform.translate(
+                        offset: Offset(0, 10 * (1 - v)),
+                        child: child,
+                      ),
+                    ),
+                    child: AnimatedScale(
+                      scale: isHovered ? 1.06 : 1.0,
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOut,
+                      child: ActionChip(
+                        avatar: Text(s.icon),
+                        label: Text(s.title),
+                        backgroundColor: isHovered
+                            ? ThemePalette.primaryMain.withValues(alpha: 0.12)
+                            : null,
+                        side: isHovered
+                            ? BorderSide(
+                                color: ThemePalette.primaryMain, width: 1.5)
+                            : null,
+                        elevation: isHovered ? 3 : 0,
+                        shadowColor:
+                            ThemePalette.primaryMain.withValues(alpha: 0.3),
+                        onPressed: () => _sendMessage(s.title),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -573,12 +1101,10 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
               ),
             ),
             const SizedBox(width: 8),
-            CircleAvatar(
+            _SendButton(
+              onPressed: () => _sendMessage(_messageController.text),
               backgroundColor: colorScheme(context).primary,
-              child: IconButton(
-                icon: Icon(Icons.send, color: colorScheme(context).onPrimary),
-                onPressed: () => _sendMessage(_messageController.text),
-              ),
+              iconColor: colorScheme(context).onPrimary,
             ),
           ],
         ),
@@ -621,148 +1147,318 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
     });
   }
 
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  // TAB 2 â€” PLAN TRIP
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // ══════════════════════════════════════════════════════════════════════════
+  // TAB 2 — PLAN TRIP
+  // ══════════════════════════════════════════════════════════════════════════
   Widget _buildPlanTripTab() {
     return SingleChildScrollView(
       padding: EdgeInsets.all(spacingUnit(2)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Container(
-            padding: EdgeInsets.all(spacingUnit(2)),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1A237E), Color(0xFF283593)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          // Header — animated entry
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOut,
+            builder: (context, value, child) => Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 20 * (1 - value)),
+                child: child,
               ),
-              borderRadius: BorderRadius.circular(16),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.auto_awesome,
-                    color: Color(0xFFD4AF37), size: 32),
-                SizedBox(width: spacingUnit(1.5)),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('AI Trip Planner',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold)),
-                      Text('Get a personalised day-by-day Pakistan itinerary',
-                          style:
-                              TextStyle(color: Colors.white70, fontSize: 12)),
-                    ],
-                  ),
+            child: Container(
+              padding: EdgeInsets.all(spacingUnit(2)),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1A237E), Color(0xFF283593)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-              ],
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1A237E).withValues(alpha: 0.35),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 800),
+                    curve: Curves.elasticOut,
+                    builder: (context, v, child) => Transform.scale(
+                      scale: v,
+                      child: child,
+                    ),
+                    child: const Icon(Icons.auto_awesome,
+                        color: Color(0xFFD4AF37), size: 32),
+                  ),
+                  SizedBox(width: spacingUnit(1.5)),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('AI Trip Planner',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.3)),
+                        SizedBox(height: 3),
+                        Text('Get a personalised day-by-day Pakistan itinerary',
+                            style:
+                                TextStyle(color: Colors.white70, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          SizedBox(height: spacingUnit(3)),
-
-          // Step 1 â€“ Destination
-          _buildStepLabel('1', 'Choose Destination'),
-          SizedBox(height: spacingUnit(1)),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: spacingUnit(2)),
-            decoration: BoxDecoration(
-              border: Border.all(color: colorScheme(context).outline),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                isExpanded: true,
-                value: _tripDestination,
-                hint: const Text('Select a destination in Pakistan'),
-                items: _destinations
-                    .map((d) => DropdownMenuItem(value: d, child: Text(d)))
-                    .toList(),
-                onChanged: (val) => setState(() {
-                  _tripDestination = val;
-                  _generatedTrip = null;
-                }),
+          // Gold accent line
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 700),
+            curve: Curves.easeOut,
+            builder: (context, value, child) => Opacity(
+              opacity: value,
+              child: Center(
+                child: Container(
+                  width: 40 * value,
+                  height: 2,
+                  margin: EdgeInsets.only(top: spacingUnit(1.5)),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        ThemePalette.primaryMain.withValues(alpha: 0.0),
+                        ThemePalette.primaryMain.withValues(alpha: 0.7),
+                        ThemePalette.primaryMain.withValues(alpha: 0.0),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
               ),
             ),
           ),
           SizedBox(height: spacingUnit(2.5)),
 
-          // Step 2 â€“ Trip Style
+          // Step 1 – Destination
+          _buildStepLabel('1', 'Choose Destination'),
+          SizedBox(height: spacingUnit(1)),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () => _showDestinationSheet(context),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: EdgeInsets.symmetric(
+                    horizontal: spacingUnit(2), vertical: spacingUnit(1.5)),
+                decoration: BoxDecoration(
+                  color: _tripDestination != null
+                      ? ThemePalette.primaryMain.withValues(alpha: 0.06)
+                      : colorScheme(context).surfaceContainerHighest,
+                  border: Border.all(
+                    color: _tripDestination != null
+                        ? ThemePalette.primaryMain
+                        : colorScheme(context).outline,
+                    width: _tripDestination != null ? 1.5 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.location_on,
+                      color: _tripDestination != null
+                          ? ThemePalette.primaryMain
+                          : colorScheme(context)
+                              .onSurface
+                              .withValues(alpha: 0.45),
+                      size: 22,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _tripDestination == null
+                          ? Text(
+                              'Select a destination in Pakistan',
+                              style: TextStyle(
+                                color: colorScheme(context)
+                                    .onSurface
+                                    .withValues(alpha: 0.45),
+                                fontSize: 15,
+                              ),
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _tripDestination!,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15),
+                                ),
+                                Text(
+                                  _getProvince(_tripDestination!),
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme(context)
+                                          .onSurface
+                                          .withValues(alpha: 0.55)),
+                                ),
+                              ],
+                            ),
+                    ),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: _tripDestination != null
+                          ? ThemePalette.primaryMain
+                          : colorScheme(context)
+                              .onSurface
+                              .withValues(alpha: 0.45),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SizedBox(height: spacingUnit(2.5)),
+
+          // Step 2 – Trip Style
           _buildStepLabel('2', 'Travel Style'),
           SizedBox(height: spacingUnit(1)),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _styles.map((style) {
+            children: _styles.asMap().entries.map((entry) {
+              final i = entry.key;
+              final style = entry.value;
               final isSelected = _tripStyle == style['label'];
-              return FilterChip(
-                selected: isSelected,
-                avatar: Icon(style['icon'] as IconData,
-                    size: 16,
-                    color: isSelected
-                        ? Colors.black
-                        : colorScheme(context).onSurface),
-                label: Text(style['label'] as String),
-                selectedColor: ThemePalette.primaryMain,
-                checkmarkColor: Colors.black,
-                onSelected: (_) => setState(() {
-                  _tripStyle = style['label'] as String;
-                  _generatedTrip = null;
-                }),
+              final isHovered = _hoveredStyle == i;
+              return MouseRegion(
+                cursor: SystemMouseCursors.click,
+                onEnter: (_) => setState(() => _hoveredStyle = i),
+                onExit: (_) => setState(() => _hoveredStyle = -1),
+                child: AnimatedScale(
+                  scale: isHovered && !isSelected ? 1.05 : 1.0,
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  child: FilterChip(
+                    selected: isSelected,
+                    avatar: AnimatedScale(
+                      scale: isHovered || isSelected ? 1.15 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: Icon(style['icon'] as IconData,
+                          size: 16,
+                          color: isSelected
+                              ? Colors.white
+                              : colorScheme(context).onSurface),
+                    ),
+                    label: Text(style['label'] as String,
+                        style: TextStyle(
+                            color: isSelected ? Colors.white : null,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal)),
+                    selectedColor: ThemePalette.primaryMain,
+                    checkmarkColor: Colors.white,
+                    backgroundColor: isHovered && !isSelected
+                        ? ThemePalette.primaryMain.withValues(alpha: 0.08)
+                        : null,
+                    elevation: isHovered ? 3 : 0,
+                    shadowColor:
+                        ThemePalette.primaryMain.withValues(alpha: 0.25),
+                    side: isHovered && !isSelected
+                        ? BorderSide(
+                            color:
+                                ThemePalette.primaryMain.withValues(alpha: 0.5))
+                        : null,
+                    onSelected: (_) => setState(() {
+                      _tripStyle = style['label'] as String;
+                      _generatedTrip = null;
+                    }),
+                  ),
+                ),
               );
             }).toList(),
           ),
           SizedBox(height: spacingUnit(2.5)),
 
-          // Step 3 â€“ Duration
+          // Step 3 – Duration
           _buildStepLabel('3', 'Trip Duration'),
           SizedBox(height: spacingUnit(1)),
           Row(
-            children: _durations.map((d) {
+            children: _durations.asMap().entries.map((entry) {
+              final i = entry.key;
+              final d = entry.value;
               final isSelected = _tripDuration == d;
+              final isHovered = _hoveredDuration == i;
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () => setState(() {
-                      _tripDuration = d;
-                      _generatedTrip = null;
-                    }),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? ThemePalette.primaryMain
-                            : colorScheme(context).surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: isSelected
-                                ? ThemePalette.primaryMain
-                                : colorScheme(context).outline),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('$d',
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    onEnter: (_) => setState(() => _hoveredDuration = i),
+                    onExit: (_) => setState(() => _hoveredDuration = -1),
+                    child: GestureDetector(
+                      onTap: () => setState(() {
+                        _tripDuration = d;
+                        _generatedTrip = null;
+                      }),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? ThemePalette.primaryMain
+                              : isHovered
+                                  ? ThemePalette.primaryMain
+                                      .withValues(alpha: 0.1)
+                                  : colorScheme(context)
+                                      .surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: isSelected || isHovered
+                                  ? ThemePalette.primaryMain
+                                  : colorScheme(context).outline,
+                              width: isHovered && !isSelected ? 1.5 : 1),
+                          boxShadow: isHovered || isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: ThemePalette.primaryMain
+                                        .withValues(alpha: 0.25),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  )
+                                ]
+                              : null,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 180),
                               style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  color: isSelected ? Colors.black : null)),
-                          Text('days',
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  color: isSelected
-                                      ? Colors.black87
-                                      : colorScheme(context)
-                                          .onSurface
-                                          .withValues(alpha: 0.6))),
-                        ],
+                                  fontSize: isHovered && !isSelected ? 20 : 18,
+                                  color: isSelected ? Colors.white : null),
+                              child: Text('$d'),
+                            ),
+                            Text('days',
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    color: isSelected
+                                        ? Colors.white70
+                                        : colorScheme(context)
+                                            .onSurface
+                                            .withValues(alpha: 0.6))),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -772,56 +1468,85 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
           ),
           SizedBox(height: spacingUnit(2.5)),
 
-          // Step 4 â€“ Budget
+          // Step 4 – Budget
           _buildStepLabel('4', 'Budget Range'),
           SizedBox(height: spacingUnit(1)),
           Row(
-            children: _budgets.map((b) {
+            children: _budgets.asMap().entries.map((entry) {
+              final i = entry.key;
+              final b = entry.value;
               final isSelected = _tripBudget == b['label'];
+              final isHovered = _hoveredBudget == i;
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () => setState(() {
-                      _tripBudget = b['label'] as String;
-                      _generatedTrip = null;
-                    }),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? ThemePalette.primaryMain
-                            : colorScheme(context).surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: isSelected
-                                ? ThemePalette.primaryMain
-                                : colorScheme(context).outline),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(b['icon'] as IconData,
-                              size: 20,
-                              color: isSelected
-                                  ? Colors.black
-                                  : colorScheme(context).primary),
-                          const SizedBox(height: 4),
-                          Text(b['label'] as String,
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                  color: isSelected ? Colors.black : null)),
-                          Text(b['range'] as String,
-                              style: TextStyle(
-                                  fontSize: 9,
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    onEnter: (_) => setState(() => _hoveredBudget = i),
+                    onExit: (_) => setState(() => _hoveredBudget = -1),
+                    child: GestureDetector(
+                      onTap: () => setState(() {
+                        _tripBudget = b['label'] as String;
+                        _generatedTrip = null;
+                      }),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? ThemePalette.primaryMain
+                              : isHovered
+                                  ? ThemePalette.primaryMain
+                                      .withValues(alpha: 0.08)
+                                  : colorScheme(context)
+                                      .surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: isSelected || isHovered
+                                  ? ThemePalette.primaryMain
+                                  : colorScheme(context).outline,
+                              width: isHovered && !isSelected ? 1.5 : 1),
+                          boxShadow: isHovered || isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: ThemePalette.primaryMain
+                                        .withValues(alpha: 0.22),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  )
+                                ]
+                              : null,
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AnimatedScale(
+                              scale: isHovered || isSelected ? 1.15 : 1.0,
+                              duration: const Duration(milliseconds: 200),
+                              child: Icon(b['icon'] as IconData,
+                                  size: 20,
                                   color: isSelected
-                                      ? Colors.black87
-                                      : colorScheme(context)
-                                          .onSurface
-                                          .withValues(alpha: 0.5))),
-                        ],
+                                      ? Colors.white
+                                      : isHovered
+                                          ? ThemePalette.primaryMain
+                                          : colorScheme(context).primary),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(b['label'] as String,
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: isSelected ? Colors.white : null)),
+                            Text(b['range'] as String,
+                                style: TextStyle(
+                                    fontSize: 9,
+                                    color: isSelected
+                                        ? Colors.white70
+                                        : colorScheme(context)
+                                            .onSurface
+                                            .withValues(alpha: 0.5))),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -832,32 +1557,54 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
           SizedBox(height: spacingUnit(3)),
 
           // Generate Button
-          SizedBox(
-            width: double.infinity,
-            height: 54,
-            child: ElevatedButton.icon(
-              onPressed: _tripDestination == null ? null : _generateTrip,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ThemePalette.primaryMain,
-                foregroundColor: Colors.black,
-                disabledBackgroundColor: colorScheme(context).outline,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                elevation: 4,
+          MouseRegion(
+            cursor: _tripDestination == null
+                ? MouseCursor.defer
+                : SystemMouseCursors.click,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 700),
+              curve: Curves.easeOut,
+              builder: (context, value, child) => Opacity(
+                opacity: value,
+                child: Transform.translate(
+                  offset: Offset(0, 12 * (1 - value)),
+                  child: child,
+                ),
               ),
-              icon: _isGenerating
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.black))
-                  : const Icon(Icons.auto_awesome),
-              label: Text(
-                  _isGenerating
-                      ? 'Generating your plan...'
-                      : 'Generate My Trip Plan',
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold)),
+              child: SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton.icon(
+                  onPressed: _tripDestination == null ? null : _generateTrip,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ThemePalette.primaryMain,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor:
+                        colorScheme(context).onSurface.withValues(alpha: 0.12),
+                    disabledForegroundColor:
+                        colorScheme(context).onSurface.withValues(alpha: 0.38),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    elevation: 4,
+                    shadowColor:
+                        ThemePalette.primaryMain.withValues(alpha: 0.45),
+                  ),
+                  icon: _isGenerating
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.auto_awesome),
+                  label: Text(
+                      _isGenerating
+                          ? 'Generating your plan...'
+                          : 'Generate My Trip Plan',
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
             ),
           ),
           SizedBox(height: spacingUnit(3)),
@@ -870,24 +1617,213 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
   }
 
   Widget _buildStepLabel(String step, String label) {
-    return Row(
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-              color: ThemePalette.primaryMain, shape: BoxShape.circle),
-          child: Center(
-              child: Text(step,
-                  style: const TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12))),
+    final delay = (int.tryParse(step) ?? 1) * 100;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 500 + delay),
+      curve: Curves.easeOut,
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.translate(
+          offset: Offset(-10 * (1 - value), 0),
+          child: child,
         ),
-        const SizedBox(width: 8),
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-      ],
+      ),
+      child: Row(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+                color: ThemePalette.primaryMain,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: ThemePalette.primaryMain.withValues(alpha: 0.35),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  )
+                ]),
+            child: Center(
+                child: Text(step,
+                    style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12))),
+          ),
+          const SizedBox(width: 10),
+          Text(label,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  letterSpacing: 0.2)),
+        ],
+      ),
+    );
+  }
+
+  void _showDestinationSheet(BuildContext context) {
+    final TextEditingController searchCtrl = TextEditingController();
+    List<String> filtered = List.from(_destinations);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setSheetState) {
+          return Container(
+            height: MediaQuery.of(context).size.height * 0.75,
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                // Handle
+                Container(
+                  margin: const EdgeInsets.only(top: 10, bottom: 4),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                // Title
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                  child: Row(
+                    children: [
+                      Icon(Icons.travel_explore,
+                          color: ThemePalette.primaryMain, size: 22),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Select Destination',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Search bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: TextField(
+                    controller: searchCtrl,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Search destinations...',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: searchCtrl.text.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                searchCtrl.clear();
+                                setSheetState(() {
+                                  filtered = List.from(_destinations);
+                                });
+                              },
+                            ),
+                      filled: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onChanged: (q) {
+                      setSheetState(() {
+                        filtered = _destinations
+                            .where((d) =>
+                                d.toLowerCase().contains(q.toLowerCase()) ||
+                                _getProvince(d)
+                                    .toLowerCase()
+                                    .contains(q.toLowerCase()))
+                            .toList();
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Divider(height: 1),
+                // List
+                Expanded(
+                  child: filtered.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.location_off,
+                                  size: 48,
+                                  color: Colors.grey.withValues(alpha: 0.5)),
+                              const SizedBox(height: 8),
+                              const Text('No destinations found',
+                                  style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1, indent: 56),
+                          itemBuilder: (_, i) {
+                            final dest = filtered[i];
+                            final province = _getProvince(dest);
+                            final isSelected = dest == _tripDestination;
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isSelected
+                                    ? ThemePalette.primaryMain
+                                    : ThemePalette.primaryMain
+                                        .withValues(alpha: 0.12),
+                                radius: 18,
+                                child: Icon(
+                                  Icons.location_on,
+                                  size: 18,
+                                  color: isSelected
+                                      ? Colors.black
+                                      : ThemePalette.primaryMain,
+                                ),
+                              ),
+                              title: Text(
+                                dest,
+                                style: TextStyle(
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
+                                  color: isSelected
+                                      ? ThemePalette.primaryMain
+                                      : null,
+                                ),
+                              ),
+                              subtitle: Text(province,
+                                  style: const TextStyle(fontSize: 12)),
+                              trailing: isSelected
+                                  ? Icon(Icons.check_circle,
+                                      color: ThemePalette.primaryMain, size: 20)
+                                  : null,
+                              onTap: () {
+                                setState(() {
+                                  _tripDestination = dest;
+                                  _generatedTrip = null;
+                                });
+                                Navigator.pop(ctx);
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          );
+        });
+      },
     );
   }
 
@@ -932,7 +1868,22 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
                 SizedBox(
                   height: 160,
                   width: double.infinity,
-                  child: Image.network(trip.imageUrl, fit: BoxFit.cover),
+                  child: Image.network(
+                    trip.imageUrl,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (_, child, progress) => progress == null
+                        ? child
+                        : Container(
+                            color: const Color(0xFF1A237E),
+                            child: const Center(
+                                child: CircularProgressIndicator(
+                                    color: Color(0xFFD4AF37)))),
+                    errorBuilder: (_, __, ___) => Container(
+                        color: const Color(0xFF1A237E),
+                        child: const Center(
+                            child: Icon(Icons.landscape,
+                                color: Color(0xFFD4AF37), size: 48))),
+                  ),
                 ),
                 Positioned.fill(
                     child: Container(
@@ -1050,6 +2001,71 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
                 style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ),
+        SizedBox(height: spacingUnit(1.5)),
+
+        // Quick-action booking row
+        Container(
+          padding: EdgeInsets.all(spacingUnit(2)),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A237E).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+                color: const Color(0xFF1A237E).withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Ready to book?',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Color(0xFF1A237E))),
+              SizedBox(height: spacingUnit(1)),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        // Navigate to flights tab (tab index 0 on home)
+                        Navigator.of(context).pop();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ThemePalette.primaryMain,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      icon: const Icon(Icons.flight_takeoff, size: 16),
+                      label: const Text('Book Flights',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1A237E),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      icon: const Icon(Icons.hotel, size: 16),
+                      label: const Text('Find Hotels',
+                          style: TextStyle(
+                              fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
         SizedBox(height: spacingUnit(3)),
       ],
     );
@@ -1102,9 +2118,9 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
     );
   }
 
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  // TAB 3 â€” SAVED TRIPS
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // ══════════════════════════════════════════════════════════════════════════
+  // TAB 3 — SAVED TRIPS
+  // ══════════════════════════════════════════════════════════════════════════
   Widget _buildSavedTripsTab() {
     if (_savedTrips.isEmpty) {
       return Center(
@@ -1135,13 +2151,73 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
       );
     }
 
-    return ListView.builder(
-      padding: EdgeInsets.all(spacingUnit(2)),
-      itemCount: _savedTrips.length,
-      itemBuilder: (context, index) {
-        final trip = _savedTrips[index];
-        return _buildSavedTripCard(trip, index);
-      },
+    return Column(
+      children: [
+        // Header row with count + Clear All
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+              spacingUnit(2), spacingUnit(1.5), spacingUnit(1.5), 0),
+          child: Row(
+            children: [
+              Text(
+                '${_savedTrips.length} saved ${_savedTrips.length == 1 ? 'trip' : 'trips'}',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color:
+                        colorScheme(context).onSurface.withValues(alpha: 0.55)),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Clear all saved trips?'),
+                      content: const Text(
+                          'This will remove all your saved trip plans. This cannot be undone.'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            setState(() => _savedTrips.clear());
+                            Navigator.pop(ctx);
+                          },
+                          style:
+                              TextButton.styleFrom(foregroundColor: Colors.red),
+                          child: const Text('Clear All'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.delete_sweep_outlined, size: 16),
+                label: const Text('Clear all', style: TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.red.withValues(alpha: 0.8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Trip list
+        Expanded(
+          child: ListView.builder(
+            padding: EdgeInsets.all(spacingUnit(2)),
+            itemCount: _savedTrips.length,
+            itemBuilder: (context, index) {
+              final trip = _savedTrips[index];
+              return _buildSavedTripCard(trip, index);
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -1180,7 +2256,22 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
                 child: Stack(
                   children: [
                     Positioned.fill(
-                        child: Image.network(trip.imageUrl, fit: BoxFit.cover)),
+                        child: Image.network(
+                      trip.imageUrl,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (_, child, progress) => progress == null
+                          ? child
+                          : Container(
+                              color: const Color(0xFF1A237E),
+                              child: const Center(
+                                  child: CircularProgressIndicator(
+                                      color: Color(0xFFD4AF37)))),
+                      errorBuilder: (_, __, ___) => Container(
+                          color: const Color(0xFF1A237E),
+                          child: const Center(
+                              child: Icon(Icons.landscape,
+                                  color: Color(0xFFD4AF37), size: 40))),
+                    )),
                     Positioned.fill(
                         child: Container(
                       decoration: BoxDecoration(
@@ -1301,7 +2392,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
                         color: Colors.grey[300],
                         borderRadius: BorderRadius.circular(2)))),
             SizedBox(height: spacingUnit(1.5)),
-            Text('${trip.destination} â€” ${trip.duration} Day Plan',
+            Text('${trip.destination} — ${trip.duration} Day Plan',
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             SizedBox(height: spacingUnit(2)),
@@ -1312,9 +2403,9 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
     );
   }
 
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─────────────────────────────────────────────────────────────────────────
   // Helpers
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─────────────────────────────────────────────────────────────────────────
   String _getProvince(String destination) {
     const map = {
       'Hunza Valley': 'Gilgit-Baltistan',
@@ -1352,16 +2443,28 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
           'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?w=800&q=80',
       'Gilgit':
           'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=800&q=80',
+      'Chitral':
+          'https://images.unsplash.com/photo-1542401886-65d6c61db217?w=800&q=80',
       'Lahore':
           'https://images.unsplash.com/photo-1584204687456-cbed5e3c1e82?w=800&q=80',
       'Islamabad':
           'https://images.unsplash.com/photo-1578895101408-1a36b834405b?w=800&q=80',
       'Peshawar':
           'https://images.unsplash.com/photo-1539136788836-5699e78bfc75?w=800&q=80',
+      'Multan':
+          'https://images.unsplash.com/photo-1580418827493-f2b22c0a76cb?w=800&q=80',
+      'Karachi':
+          'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=800&q=80',
       'Gwadar':
           'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80',
       'Quetta':
           'https://images.unsplash.com/photo-1490730141103-6cac27aaab94?w=800&q=80',
+      'Neelum Valley':
+          'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=800&q=80',
+      'Taxila':
+          'https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?w=800&q=80',
+      'Mohenjo-daro':
+          'https://images.unsplash.com/photo-1524492412937-b28074a5d7da?w=800&q=80',
     };
     return map[destination] ??
         'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80';

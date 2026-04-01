@@ -599,14 +599,27 @@ class _LoginFormState extends State<LoginForm> {
                           }
                         }
                       },
-                style: ThemeButton.btnBig.merge(ThemeButton.primary),
+                style: ThemeButton.btnBig.merge(FilledButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: ThemePalette.primaryMain,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                  shadowColor: Colors.black26,
+                )),
                 child: _isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Text('CONTINUE', style: ThemeText.subtitle)),
+                            strokeWidth: 2.5, color: ThemePalette.primaryMain))
+                    : Text('CONTINUE',
+                        style: ThemeText.subtitle.copyWith(
+                          color: ThemePalette.primaryMain,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                        ))),
           ),
           const VSpace(),
 

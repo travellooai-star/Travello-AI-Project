@@ -300,4 +300,67 @@ class AuthService {
     await prefs.remove(_currentUserKey);
     await prefs.setBool(_isLoggedInKey, false);
   }
+
+  // Update current user profile (name, phone, email)
+  static Future<bool> updateUserProfile({
+    required String name,
+    required String phone,
+    required String email,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentUser = await getCurrentUser();
+      if (currentUser == null) return false;
+
+      // Update in users list
+      List<Map<String, dynamic>> users = await getRegisteredUsers();
+      final idx = users.indexWhere((u) =>
+          u['emailOrPhone'] == currentUser['emailOrPhone'] ||
+          u['email'] == currentUser['email']);
+      if (idx != -1) {
+        users[idx]['name'] = name;
+        users[idx]['phone'] = phone;
+        users[idx]['email'] = email;
+        await prefs.setString(_usersKey, jsonEncode(users));
+      }
+
+      // Update current user cache
+      currentUser['name'] = name;
+      currentUser['phone'] = phone;
+      currentUser['email'] = email;
+      await prefs.setString(_currentUserKey, jsonEncode(currentUser));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Change password – verifies old password first
+  static Future<String> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentUser = await getCurrentUser();
+      if (currentUser == null) return 'not_logged_in';
+
+      if (currentUser['password'] != currentPassword) return 'wrong_password';
+
+      List<Map<String, dynamic>> users = await getRegisteredUsers();
+      final idx = users.indexWhere((u) =>
+          u['emailOrPhone'] == currentUser['emailOrPhone'] ||
+          u['email'] == currentUser['email']);
+      if (idx != -1) {
+        users[idx]['password'] = newPassword;
+        await prefs.setString(_usersKey, jsonEncode(users));
+      }
+
+      currentUser['password'] = newPassword;
+      await prefs.setString(_currentUserKey, jsonEncode(currentUser));
+      return 'success';
+    } catch (e) {
+      return 'error';
+    }
+  }
 }

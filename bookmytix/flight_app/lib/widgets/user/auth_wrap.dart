@@ -2,7 +2,6 @@ import 'package:flight_app/constants/img_api.dart';
 import 'package:flutter/material.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
-import 'package:flight_app/ui/themes/theme_breakpoints.dart';
 
 class AuthWrap extends StatelessWidget {
   const AuthWrap({super.key, required this.content});
@@ -12,6 +11,25 @@ class AuthWrap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenW = MediaQuery.of(context).size.width;
+    final screenH = MediaQuery.of(context).size.height;
+    final isTablet = screenW >= 600;
+    final isLargeTablet = screenW >= 900;
+
+    // Responsive horizontal padding: snug on phone, generous on tablet/iPad
+    final hPad = isLargeTablet
+        ? screenW * 0.2
+        : isTablet
+            ? screenW * 0.1
+            : spacingUnit(2);
+    final vPad = screenH < 700 ? spacingUnit(1.5) : spacingUnit(3);
+
+    // Card max-width: phone fills, tablet capped nicely
+    final cardMaxWidth = isLargeTablet
+        ? 520.0
+        : isTablet
+            ? 520.0
+            : double.infinity;
 
     return Container(
       decoration: BoxDecoration(
@@ -42,33 +60,37 @@ class AuthWrap extends StatelessWidget {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: spacingUnit(2),
-                  vertical: spacingUnit(3),
-                ),
-                child: Container(
-                  constraints: BoxConstraints(maxWidth: ThemeSize.sm),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    color: Theme.of(context).colorScheme.surface,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 30,
-                        offset: const Offset(0, 10),
-                        spreadRadius: 0,
-                      ),
-                      BoxShadow(
-                        color: ThemePalette.primaryMain.withValues(alpha: 0.1),
-                        blurRadius: 60,
-                        offset: const Offset(0, 20),
-                        spreadRadius: 0,
-                      ),
-                    ],
+              padding: EdgeInsets.symmetric(
+                horizontal: hPad,
+                vertical: vPad,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: cardMaxWidth),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(isTablet ? 28 : 24),
+                      color: Theme.of(context).colorScheme.surface,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 30,
+                          offset: const Offset(0, 10),
+                          spreadRadius: 0,
+                        ),
+                        BoxShadow(
+                          color:
+                              ThemePalette.primaryMain.withValues(alpha: 0.1),
+                          blurRadius: 60,
+                          offset: const Offset(0, 20),
+                          spreadRadius: 0,
+                        ),
+                      ],
+                    ),
+                    padding: EdgeInsets.all(
+                        isTablet ? spacingUnit(4) : spacingUnit(3)),
+                    child: content,
                   ),
-                  padding: EdgeInsets.all(spacingUnit(3)),
-                  child: content,
                 ),
               ),
             ),

@@ -114,14 +114,23 @@ class _AppTextFieldState extends State<AppTextField> {
               onTap: widget.onTap,
               onChanged: (String value) => widget.onChanged(value),
               validator: widget.validator,
-              style: const TextStyle(color: Colors.black),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 errorStyle: const TextStyle(fontSize: 0),
                 enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
                 labelText: widget.label,
                 labelStyle: TextStyle(
-                    color: widget.errorText != null ? Colors.red : null),
+                    color: widget.errorText != null
+                        ? Colors.red
+                        : Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6)),
                 alignLabelWithHint: widget.maxLines != 1 ? true : false,
                 hintText: widget.hint ?? widget.hint,
                 prefixIcon: widget.prefixIcon != null
