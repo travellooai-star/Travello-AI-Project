@@ -619,8 +619,8 @@ class _RegisterFormState extends State<RegisterForm> {
                         }
                       },
                 style: ThemeButton.btnBig.merge(FilledButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: ThemePalette.primaryMain,
+                  backgroundColor: ThemePalette.primaryMain,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -628,14 +628,14 @@ class _RegisterFormState extends State<RegisterForm> {
                   shadowColor: Colors.black26,
                 )),
                 child: _isLoading
-                    ? SizedBox(
+                    ? const SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2.5, color: ThemePalette.primaryMain))
+                            strokeWidth: 2.5, color: Colors.white))
                     : Text('SIGN UP',
                         style: ThemeText.subtitle.copyWith(
-                          color: ThemePalette.primaryMain,
+                          color: Colors.white,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.5,
                         ))),

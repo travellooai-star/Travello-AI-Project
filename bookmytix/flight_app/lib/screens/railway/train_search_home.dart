@@ -915,12 +915,12 @@ class _TrainSearchHomeState extends State<TrainSearchHome>
                             icon: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: const BoxDecoration(
-                                color: Color(0xFF1A1A1A),
+                                color: Color(0xFFD4AF37),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
                                 CupertinoIcons.arrow_up_arrow_down,
-                                color: Color(0xFFD4AF37),
+                                color: Colors.white,
                                 size: 20,
                               ),
                             ),

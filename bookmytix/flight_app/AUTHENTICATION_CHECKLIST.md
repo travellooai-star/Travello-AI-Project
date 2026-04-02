@@ -44,7 +44,7 @@
 ## 📝 **SIGNUP PAGE**
 
 ### ✅ **1. Required Fields**
-| Requirement | Status | Details |
+| Requirement | Status | Details |un
 |------------|--------|---------|
 | Full Name | ✅ **DONE** | Min 3 characters validation |
 | Email | ✅ **IMPROVED** | **Separate dedicated field** |

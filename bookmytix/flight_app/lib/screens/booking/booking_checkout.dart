@@ -497,22 +497,21 @@ class _BookingCheckoutState extends State<BookingCheckout> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              color: ThemePalette.primaryMain,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.blue.shade200),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.flight_takeoff_rounded,
-                    size: 17, color: Colors.blue.shade700),
-                const SizedBox(width: 7),
+                    size: 17, color: Colors.white),
+                SizedBox(width: 7),
                 Text(
                   'Outbound Flight',
                   style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: Colors.blue.shade700),
+                      color: Colors.white),
                 ),
               ],
             ),
@@ -867,6 +866,30 @@ class _BookingCheckoutState extends State<BookingCheckout> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // ── Inbound label ──
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: ThemePalette.primaryMain,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.flight_land_rounded, size: 17, color: Colors.white),
+              SizedBox(width: 7),
+              Text(
+                'Inbound Flight',
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
         // ── Return Section ──
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2149,7 +2172,7 @@ class _BookingCheckoutState extends State<BookingCheckout> {
           style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: priceColor ?? Colors.white),
+              color: priceColor ?? Colors.black87),
         ),
       ],
     );
@@ -2198,12 +2221,12 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: ThemePalette.primaryMain.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.policy_rounded,
-                        color: Color(0xFF1E88E5),
+                        color: ThemePalette.primaryMain,
                         size: 22,
                       ),
                     ),
@@ -2274,14 +2297,14 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                               height: 24,
                               decoration: BoxDecoration(
                                 color: _agreeToTerms
-                                    ? const Color(0xFF1E88E5)
+                                    ? ThemePalette.primaryMain
                                     : Colors.white,
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
                                   color: _showTermsError
                                       ? Colors.red.shade400
                                       : _agreeToTerms
-                                          ? const Color(0xFF1E88E5)
+                                          ? ThemePalette.primaryMain
                                           : Colors.grey.shade400,
                                   width: 2,
                                 ),
@@ -2313,12 +2336,12 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                                         child: GestureDetector(
                                           onTap: () =>
                                               _showTermsAndConditionsPage(),
-                                          child: const Text(
+                                          child: Text(
                                             'Terms & Conditions',
                                             style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.w600,
-                                              color: Color(0xFF1E88E5),
+                                              color: ThemePalette.primaryMain,
                                               decoration:
                                                   TextDecoration.underline,
                                             ),
@@ -2332,12 +2355,12 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                                         child: GestureDetector(
                                           onTap: () =>
                                               _showPrivacyPolicyModal(),
-                                          child: const Text(
+                                          child: Text(
                                             'Privacy Policy',
                                             style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.w600,
-                                              color: Color(0xFF1E88E5),
+                                              color: ThemePalette.primaryMain,
                                               decoration:
                                                   TextDecoration.underline,
                                             ),

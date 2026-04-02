@@ -80,7 +80,7 @@ class _AppTextFieldState extends State<AppTextField> {
             ? ThemePalette.primaryMain
             : Theme.of(context).colorScheme.outline;
 
-    final OutlineInputBorder _border = OutlineInputBorder(
+    final OutlineInputBorder border = OutlineInputBorder(
       borderRadius: ThemeRadius.small,
       borderSide:
           BorderSide(color: activeBorderColor, width: boxFocus ? 1.8 : 1.0),
@@ -122,10 +122,10 @@ class _AppTextFieldState extends State<AppTextField> {
             alignLabelWithHint: widget.maxLines != 1,
             errorText: widget.errorText,
             errorStyle: ThemeText.caption.copyWith(color: Colors.red[400]),
-            border: _border,
-            enabledBorder: _border,
-            focusedBorder: _border,
-            disabledBorder: _border,
+            border: border,
+            enabledBorder: border,
+            focusedBorder: border,
+            disabledBorder: border,
             errorBorder: OutlineInputBorder(
               borderRadius: ThemeRadius.small,
               borderSide: BorderSide(color: Colors.red[400]!, width: 1.0),

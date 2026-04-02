@@ -2435,7 +2435,7 @@ class _PaymentStatusState extends State<PaymentStatus>
 
   // ── Railway Ticket Section (Pakistan Railways) ── fintech redesign ──────
   Widget _buildRailwayTicketSection(BuildContext context) {
-    const railwayGreen = Color(0xFF2E7D32);
+    const railwayGreen = Color(0xFFD4AF37);
     const emerald = Color(0xFF10B981);
 
     // ── Data extraction ──────────────────────────────────────────────────
@@ -2472,7 +2472,7 @@ class _PaymentStatusState extends State<PaymentStatus>
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-                color: railwayGreen.withValues(alpha: 0.10),
+                color: Color(0xFFD4AF37).withValues(alpha: 0.10),
                 blurRadius: 24,
                 offset: const Offset(0, 8)),
           ],
@@ -2483,7 +2483,7 @@ class _PaymentStatusState extends State<PaymentStatus>
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                  colors: [Color(0xFF1B5E20), Color(0xFF388E3C)],
+                  colors: [Color(0xFFD4AF37), Color(0xFFB8935C)],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight),
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -3088,8 +3088,8 @@ class _PaymentStatusState extends State<PaymentStatus>
 
   // ── Flight E-Ticket Section ──
   Widget _buildFlightTicketSection(BuildContext context) {
-    const navy = Color(0xFF0F2D5C);
-    const blue = Color(0xFF2563EB);
+    const navy = Color(0xFF1A1A2E);
+    const blue = Color(0xFFD4AF37);
     const emerald = Color(0xFF10B981);
     final pnr = _bookingData['pnr'] as String? ?? 'TRV000000';
     final name = _bookingData['passengerName'] as String? ?? 'Passenger';
@@ -3134,7 +3134,7 @@ class _PaymentStatusState extends State<PaymentStatus>
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                  colors: [navy, Color(0xFF1E40AF)],
+                  colors: [Color(0xFFD4AF37), Color(0xFFB8935C)],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight),
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -3185,9 +3185,8 @@ class _PaymentStatusState extends State<PaymentStatus>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0F6FF),
-              border:
-                  Border(bottom: BorderSide(color: Colors.blueGrey.shade100)),
+              color: const Color(0xFFFBF5DC),
+              border: Border(bottom: BorderSide(color: Color(0xFFE8D5A3))),
             ),
             child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3276,9 +3275,9 @@ class _PaymentStatusState extends State<PaymentStatus>
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF0F6FF),
+                    color: const Color(0xFFFBF5DC),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blueGrey.shade100),
+                    border: Border.all(color: Color(0xFFE8D5A3)),
                   ),
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3372,13 +3371,13 @@ class _PaymentStatusState extends State<PaymentStatus>
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                      colors: [navy, Color(0xFF2563EB)],
+                      colors: [Color(0xFFD4AF37), Color(0xFFB8935C)],
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight),
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                        color: navy.withValues(alpha: 0.28),
+                        color: const Color(0xFFD4AF37).withValues(alpha: 0.28),
                         blurRadius: 16,
                         offset: const Offset(0, 5))
                   ],
@@ -3610,8 +3609,8 @@ class _PaymentStatusState extends State<PaymentStatus>
   Widget _buildTravelInformation(BuildContext context) {
     final bookingType = _bookingData['bookingType'] as String? ?? 'flight';
     final isRailway = bookingType == 'train';
-    const navy = Color(0xFF0A1931);
-    const railwayGreen = Color(0xFF2E7D32);
+    const navy = Color(0xFFD4AF37);
+    const railwayGreen = Color(0xFFD4AF37);
     const divider = Color(0xFFF0F2F5);
 
     // Dynamic checklist based on booking type

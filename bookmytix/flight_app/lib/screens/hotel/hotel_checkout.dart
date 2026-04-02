@@ -799,10 +799,10 @@ class _HotelCheckoutState extends State<HotelCheckout> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: ThemePalette.primaryMain.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10)),
-                  child: const Icon(Icons.policy_rounded,
-                      color: Color(0xFF1E88E5), size: 22),
+                  child: Icon(Icons.policy_rounded,
+                      color: ThemePalette.primaryMain, size: 22),
                 ),
                 SizedBox(width: spacingUnit(1.5)),
                 const Text('Review Policies',
@@ -851,14 +851,14 @@ class _HotelCheckoutState extends State<HotelCheckout> {
                                 height: 24,
                                 decoration: BoxDecoration(
                                   color: _agreeToTerms
-                                      ? const Color(0xFF1E88E5)
+                                      ? ThemePalette.primaryMain
                                       : Colors.white,
                                   borderRadius: BorderRadius.circular(6),
                                   border: Border.all(
                                     color: _showTermsError
                                         ? Colors.red.shade400
                                         : _agreeToTerms
-                                            ? const Color(0xFF1E88E5)
+                                            ? ThemePalette.primaryMain
                                             : Colors.grey.shade400,
                                     width: 2,
                                   ),
@@ -883,12 +883,12 @@ class _HotelCheckoutState extends State<HotelCheckout> {
                                         WidgetSpan(
                                           child: GestureDetector(
                                             onTap: _showTermsPage,
-                                            child: const Text(
-                                                'Terms & Conditions',
+                                            child: Text('Terms & Conditions',
                                                 style: TextStyle(
                                                     fontSize: 14,
                                                     fontWeight: FontWeight.w600,
-                                                    color: Color(0xFF1E88E5),
+                                                    color: ThemePalette
+                                                        .primaryMain,
                                                     decoration: TextDecoration
                                                         .underline)),
                                           ),
@@ -897,11 +897,12 @@ class _HotelCheckoutState extends State<HotelCheckout> {
                                         WidgetSpan(
                                           child: GestureDetector(
                                             onTap: _showPrivacyPolicy,
-                                            child: const Text('Privacy Policy',
+                                            child: Text('Privacy Policy',
                                                 style: TextStyle(
                                                     fontSize: 14,
                                                     fontWeight: FontWeight.w600,
-                                                    color: Color(0xFF1E88E5),
+                                                    color: ThemePalette
+                                                        .primaryMain,
                                                     decoration: TextDecoration
                                                         .underline)),
                                           ),

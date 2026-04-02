@@ -472,4 +472,3 @@ class _FlightCardHoverState extends State<_FlightCardHover>
     );
   }
 }
-

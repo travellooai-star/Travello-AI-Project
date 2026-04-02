@@ -1668,7 +1668,7 @@ class _TrainPassengerFormState extends State<TrainPassengerForm> {
                     style: TextStyle(
                       fontSize: 13,
                       color: selectedDate != null
-                          ? Colors.white
+                          ? Colors.black87
                           : (hasError
                               ? Colors.red.shade300
                               : Colors.grey.shade400),

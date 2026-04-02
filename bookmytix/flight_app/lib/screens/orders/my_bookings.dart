@@ -43,7 +43,25 @@ class _MyBookingsState extends State<MyBookings>
     setState(() => _isLoading = true);
     final bookings = await BookingService.getAllBookings();
     setState(() {
-      _allBookings = bookings;
+      // Filter out corrupt/incomplete bookings (saved before proper serialization)
+      _allBookings = bookings.where((b) {
+        final type = b['bookingType'] as String? ?? 'flight';
+        if (type == 'flight') {
+          final fd = b['flightDetails'] as Map<String, dynamic>?;
+          if (fd == null) return false;
+          final from = fd['from']?.toString() ?? 'N/A';
+          final to = fd['to']?.toString() ?? 'N/A';
+          return from != 'N/A' && to != 'N/A';
+        } else if (type == 'train') {
+          final td = b['trainDetails'] as Map<String, dynamic>?;
+          if (td == null) return false;
+          return (td['from']?.toString() ?? 'N/A') != 'N/A';
+        } else if (type == 'hotel') {
+          final hd = b['hotelDetails'] as Map<String, dynamic>?;
+          return hd != null;
+        }
+        return true;
+      }).toList();
       _applyFilters();
       _isLoading = false;
     });

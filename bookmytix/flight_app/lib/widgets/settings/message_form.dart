@@ -112,10 +112,10 @@ class _MessageFormState extends State<MessageForm> {
             SizedBox(height: spacingUnit(2)),
 
             // ── Topic dropdown ────────────────────────────────────────
-            _FieldLabel('Topic *'),
+            const _FieldLabel('Topic *'),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
-              value: _selectedTopic,
+              initialValue: _selectedTopic,
               decoration: _inputDecoration(
                   cs, Icons.category_outlined, 'Select a topic'),
               dropdownColor: cs.surface,
@@ -134,7 +134,7 @@ class _MessageFormState extends State<MessageForm> {
             SizedBox(height: spacingUnit(1.5)),
 
             // ── Subject ────────────────────────────────────────────────
-            _FieldLabel('Subject *'),
+            const _FieldLabel('Subject *'),
             const SizedBox(height: 6),
             TextFormField(
               controller: _subjectCtrl,
@@ -149,7 +149,7 @@ class _MessageFormState extends State<MessageForm> {
             SizedBox(height: spacingUnit(1.5)),
 
             // ── Description ────────────────────────────────────────────
-            _FieldLabel('Message *'),
+            const _FieldLabel('Message *'),
             const SizedBox(height: 6),
             TextFormField(
               controller: _descCtrl,

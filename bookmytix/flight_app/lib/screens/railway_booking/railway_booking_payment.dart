@@ -8,6 +8,7 @@ import 'package:flight_app/screens/railway/train_results_screen.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/app/app_link.dart';
+import 'package:flight_app/utils/ds_validators.dart';
 import 'dart:math' as math;
 
 class RailwayBookingPayment extends StatefulWidget {
@@ -537,7 +538,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
   // ORDER SUMMARY
   // ────────────────────────────────────────────────────────────
   Widget _buildOrderSummary() {
-    const summaryColor = Color(0xFF2E7D32); // green.shade800
+    const summaryColor = Color(0xFFD4AF37);
     const summaryIcon = Icons.train_rounded;
     const summaryTitle = 'Train Summary';
 
@@ -561,7 +562,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [summaryColor, Color(0xFF388E3C)],
+                colors: [summaryColor, Color(0xFFB8935C)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -651,19 +652,27 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
   }) {
     final formattedDate =
         date != null ? DateFormat('dd MMM yyyy').format(date) : '—';
-    const trainGreen = Color(0xFF2E7D32);
+    const trainGold = Color(0xFFD4AF37);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Date Header
-        Text(
-          '$label - $formattedDate',
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFFB3B3B3),
-            letterSpacing: 0.2,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFBF5DC),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE8D5A3)),
+          ),
+          child: Text(
+            '$label - $formattedDate',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFD4AF37),
+              letterSpacing: 0.2,
+            ),
           ),
         ),
         const SizedBox(height: 14),
@@ -709,7 +718,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                         width: 6,
                         height: 6,
                         decoration: const BoxDecoration(
-                          color: trainGreen,
+                          color: trainGold,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -718,7 +727,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                           height: 2,
                           decoration: const BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [trainGreen, Color(0xFF66BB6A)],
+                              colors: [trainGold, Color(0xFFB8935C)],
                             ),
                           ),
                         ),
@@ -726,14 +735,14 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                       const Icon(
                         Icons.train_rounded,
                         size: 20,
-                        color: trainGreen,
+                        color: trainGold,
                       ),
                       Expanded(
                         child: Container(
                           height: 2,
                           decoration: const BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [Color(0xFF66BB6A), trainGreen],
+                              colors: [Color(0xFFB8935C), trainGold],
                             ),
                           ),
                         ),
@@ -742,7 +751,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                         width: 6,
                         height: 6,
                         decoration: const BoxDecoration(
-                          color: trainGreen,
+                          color: trainGold,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -812,7 +821,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                 child: const Icon(
                   Icons.train_rounded,
                   size: 16,
-                  color: trainGreen,
+                  color: trainGold,
                 ),
               ),
               const SizedBox(width: 10),
@@ -927,12 +936,12 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: const Color(0xFFFBF5DC),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
                     Icons.payment_rounded,
-                    color: Color(0xFF1E88E5),
+                    color: Color(0xFFD4AF37),
                     size: 22,
                   ),
                 ),
@@ -968,6 +977,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
             'Credit / Debit Card',
             'Visa, MasterCard — Rs. 74 gateway fee',
             Icons.credit_card_rounded,
+            color: const Color(0xFFD4AF37),
           ),
           Divider(height: 1, color: Colors.grey.shade100, indent: 68),
           _buildPaymentOption(
@@ -975,7 +985,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
             'JazzCash',
             'Mobile wallet — Rs. 24 gateway fee',
             Icons.account_balance_wallet_rounded,
-            color: Colors.red,
+            color: const Color(0xFFD4AF37),
           ),
           Divider(height: 1, color: Colors.grey.shade100, indent: 68),
           _buildPaymentOption(
@@ -1010,7 +1020,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
         padding: EdgeInsets.all(spacingUnit(2)),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF1E88E5).withValues(alpha: 0.05)
+              ? const Color(0xFFD4AF37).withValues(alpha: 0.05)
               : Colors.transparent,
           border: Border(
             bottom: BorderSide(color: Colors.grey.shade100),
@@ -1023,12 +1033,12 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
               height: 48,
               decoration: BoxDecoration(
                 color:
-                    (color ?? const Color(0xFF1E88E5)).withValues(alpha: 0.1),
+                    (color ?? const Color(0xFFD4AF37)).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 icon,
-                color: color ?? const Color(0xFF1E88E5),
+                color: color ?? const Color(0xFFD4AF37),
                 size: 24,
               ),
             ),
@@ -1065,7 +1075,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                   _updatePaymentMethodFees(value);
                 });
               },
-              activeColor: const Color(0xFF1E88E5),
+              activeColor: const Color(0xFFD4AF37),
             ),
           ],
         ),
@@ -1159,6 +1169,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                     controller: _cardNumberController,
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.black),
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(16),
@@ -1237,6 +1248,8 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                               controller: _expiryController,
                               keyboardType: TextInputType.number,
                               style: const TextStyle(color: Colors.black),
+                              autovalidateMode:
+                                  AutovalidateMode.onUserInteraction,
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                                 LengthLimitingTextInputFormatter(4),
@@ -1246,8 +1259,10 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                                 if (value == null || value.trim().isEmpty) {
                                   return 'Required';
                                 }
-                                if (value.length != 5) return 'Invalid';
-                                return null;
+                                if (value.length != 5) {
+                                  return 'Use MM/YY format';
+                                }
+                                return DSValidators.cardExpiry(value);
                               },
                               decoration: InputDecoration(
                                 hintText: 'MM/YY',
@@ -1303,6 +1318,8 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                               keyboardType: TextInputType.number,
                               obscureText: true,
                               style: const TextStyle(color: Colors.black),
+                              autovalidateMode:
+                                  AutovalidateMode.onUserInteraction,
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                                 LengthLimitingTextInputFormatter(3),
@@ -1405,21 +1422,21 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: const Color(0xFFFBF5DC),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.shade100),
+                      border: Border.all(color: const Color(0xFFE8D5A3)),
                     ),
                     child: Row(
                       children: [
                         Icon(Icons.info_outline,
-                            size: 18, color: Colors.blue.shade700),
+                            size: 18, color: ThemePalette.primaryMain),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             'Your payment is secured with 256-bit SSL encryption',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.blue.shade700,
+                              color: ThemePalette.primaryMain,
                               height: 1.4,
                             ),
                           ),
@@ -1839,7 +1856,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                 TextSpan(
                   text: formattedPhone,
                   style: const TextStyle(
-                    color: Color(0xFF1E88E5),
+                    color: Color(0xFFD4AF37),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1847,7 +1864,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                 const TextSpan(
                   text: 'Change Number',
                   style: TextStyle(
-                    color: Color(0xFF1E88E5),
+                    color: Color(0xFFD4AF37),
                     fontWeight: FontWeight.w600,
                     decoration: TextDecoration.underline,
                   ),
@@ -1932,7 +1949,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                         ? 'Select Method in ${_otpRemainingSeconds}s'
                         : 'Resend OTP',
                     style: const TextStyle(
-                      color: Color(0xFF1E88E5),
+                      color: Color(0xFFD4AF37),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1975,7 +1992,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
               child: Row(
                 children: [
                   const Icon(Icons.receipt_outlined,
-                      color: Color(0xFF1E88E5), size: 22),
+                      color: Color(0xFFD4AF37), size: 22),
                   SizedBox(width: spacingUnit(1.5)),
                   const Expanded(
                     child: Text(
@@ -1992,7 +2009,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E88E5),
+                      color: Color(0xFFD4AF37),
                     ),
                   ),
                   SizedBox(width: spacingUnit(1)),
@@ -2038,7 +2055,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF1E88E5),
+                          color: Color(0xFFD4AF37),
                         ),
                       ),
                     ],
@@ -2068,7 +2085,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: isDiscount ? const Color(0xFFD4AF37) : Colors.white,
+              color: isDiscount ? const Color(0xFFD4AF37) : Colors.black87,
             ),
           ),
         ],
@@ -2266,12 +2283,12 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: const Color(0xFFFBF5DC),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.policy_rounded,
-                    color: Color(0xFF1E88E5),
+                    color: ThemePalette.primaryMain,
                     size: 22,
                   ),
                 ),
@@ -2358,7 +2375,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                 Row(
                   children: [
                     Icon(Icons.payment_rounded,
-                        size: 18, color: Colors.blue.shade700),
+                        size: 18, color: ThemePalette.primaryMain),
                     SizedBox(width: spacingUnit(1)),
                     Text(
                       'Payment',
@@ -2436,14 +2453,14 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                           height: 24,
                           decoration: BoxDecoration(
                             color: _agreedToTerms
-                                ? const Color(0xFF1E88E5)
+                                ? ThemePalette.primaryMain
                                 : Colors.white,
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
                               color: _showTermsError
                                   ? Colors.red.shade400
                                   : _agreedToTerms
-                                      ? const Color(0xFF1E88E5)
+                                      ? ThemePalette.primaryMain
                                       : Colors.grey.shade400,
                               width: 2,
                             ),
@@ -2470,12 +2487,12 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                                     child: GestureDetector(
                                       onTap: () =>
                                           _showTermsAndConditionsPage(),
-                                      child: const Text(
+                                      child: Text(
                                         'Terms & Conditions',
                                         style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
-                                          color: Color(0xFF1E88E5),
+                                          color: ThemePalette.primaryMain,
                                           decoration: TextDecoration.underline,
                                         ),
                                       ),
@@ -2485,12 +2502,12 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                                   WidgetSpan(
                                     child: GestureDetector(
                                       onTap: () => _showPrivacyPolicyModal(),
-                                      child: const Text(
+                                      child: Text(
                                         'Privacy Policy',
                                         style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
-                                          color: Color(0xFF1E88E5),
+                                          color: ThemePalette.primaryMain,
                                           decoration: TextDecoration.underline,
                                         ),
                                       ),
@@ -3073,21 +3090,21 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
               Container(
                 padding: EdgeInsets.all(spacingUnit(2.5)),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: const Color(0xFFFBF5DC),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade100),
+                  border: Border.all(color: const Color(0xFFE8D5A3)),
                 ),
                 child: Row(
                   children: [
                     Icon(Icons.info_outline_rounded,
-                        color: Colors.blue.shade700, size: 20),
+                        color: ThemePalette.primaryMain, size: 20),
                     SizedBox(width: spacingUnit(1.5)),
                     Expanded(
                       child: Text(
                         'Last updated: March 2026',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.blue.shade900,
+                          color: ThemePalette.primaryMain,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -3192,7 +3209,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
               _buildSecurityBadge(
                   Icons.verified_user, 'SSL Secured', const Color(0xFFD4AF37)),
               _buildSecurityBadge(
-                  Icons.support_agent, '24/7 Support', Colors.blue),
+                  Icons.support_agent, '24/7 Support', const Color(0xFFD4AF37)),
               _buildSecurityBadge(
                   Icons.account_balance_wallet, 'Money Back', Colors.orange),
             ],
@@ -3287,7 +3304,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E88E5),
+                        color: Color(0xFFD4AF37),
                       ),
                     ),
                   ],

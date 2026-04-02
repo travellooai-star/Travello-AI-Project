@@ -10,7 +10,6 @@ import 'package:flight_app/widgets/home/dynamic_destination_cards.dart';
 import 'package:flight_app/widgets/home/package_list_slider.dart';
 import 'package:flight_app/widgets/home/train_package_slider.dart';
 import 'package:flight_app/widgets/title/title_action.dart';
-import 'package:flight_app/widgets/home/flight_list_double.dart';
 import 'package:flight_app/widgets/home/news_list.dart';
 import 'package:flight_app/widgets/home/premium_carousel.dart';
 import 'package:flight_app/widgets/bottom_nav/bottom_nav_menu.dart';

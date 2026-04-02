@@ -566,7 +566,7 @@ class _FlightSearchHomeState extends State<FlightSearchHome>
                                   type,
                                   style: TextStyle(
                                     color: isSelected
-                                        ? colorScheme(context).onPrimary
+                                        ? Colors.white
                                         : colorScheme(context).onSurface,
                                     fontWeight: isSelected
                                         ? FontWeight.bold
@@ -1113,7 +1113,7 @@ class _FlightSearchHomeState extends State<FlightSearchHome>
             onPressed: _searchFlights,
             style: ElevatedButton.styleFrom(
               backgroundColor: colorScheme(context).primary,
-              foregroundColor: colorScheme(context).onPrimary,
+              foregroundColor: Colors.white,
               minimumSize: const Size(double.infinity, 56),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),

@@ -590,13 +590,21 @@ class _BookingPaymentState extends State<BookingPayment>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Date Header
-        Text(
-          '$label - $formattedDate',
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFFB3B3B3),
-            letterSpacing: 0.2,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFBF5DC),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE8D5A3)),
+          ),
+          child: Text(
+            '$label - $formattedDate',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFD4AF37),
+              letterSpacing: 0.2,
+            ),
           ),
         ),
         const SizedBox(height: 14),
@@ -641,19 +649,19 @@ class _BookingPaymentState extends State<BookingPayment>
                       Container(
                         width: 6,
                         height: 6,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade400,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFD4AF37),
                           shape: BoxShape.circle,
                         ),
                       ),
                       Expanded(
                         child: Container(
                           height: 2,
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                Colors.grey.shade300,
-                                Colors.grey.shade400,
+                                Color(0xFFD4AF37),
+                                Color(0xFFB8935C),
                               ],
                             ),
                           ),
@@ -670,11 +678,11 @@ class _BookingPaymentState extends State<BookingPayment>
                       Expanded(
                         child: Container(
                           height: 2,
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                Colors.grey.shade400,
-                                Colors.grey.shade300,
+                                Color(0xFFB8935C),
+                                Color(0xFFD4AF37),
                               ],
                             ),
                           ),
@@ -683,8 +691,8 @@ class _BookingPaymentState extends State<BookingPayment>
                       Container(
                         width: 6,
                         height: 6,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade400,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFD4AF37),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -870,7 +878,7 @@ class _BookingPaymentState extends State<BookingPayment>
             child: Row(
               children: [
                 const Icon(Icons.payment_outlined,
-                    color: Color(0xFF1E88E5), size: 22),
+                    color: Color(0xFFD4AF37), size: 22),
                 SizedBox(width: spacingUnit(1.5)),
                 const Text(
                   'Choose Payment Method',
@@ -889,6 +897,7 @@ class _BookingPaymentState extends State<BookingPayment>
             'Credit / Debit Card',
             '(Master and VISA Cards)',
             Icons.credit_card,
+            color: const Color(0xFFD4AF37),
           ),
           _buildPaymentOption(
             'jazzcash',
@@ -902,13 +911,14 @@ class _BookingPaymentState extends State<BookingPayment>
             'Easypaisa',
             'Pay with Easypaisa wallet',
             Icons.account_balance_wallet,
-            color: const Color(0xFFB8860B),
+            color: const Color(0xFFD4AF37),
           ),
           _buildPaymentOption(
             'bank',
             'Bank Transfer',
             'Direct bank transfer',
             Icons.account_balance,
+            color: const Color(0xFFD4AF37),
           ),
         ],
       ),
@@ -935,7 +945,7 @@ class _BookingPaymentState extends State<BookingPayment>
         padding: EdgeInsets.all(spacingUnit(2)),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF1E88E5).withValues(alpha: 0.05)
+              ? const Color(0xFFD4AF37).withValues(alpha: 0.05)
               : Colors.transparent,
           border: Border(
             bottom: BorderSide(color: Colors.grey.shade100),

@@ -96,7 +96,7 @@ class TrainPackageCard extends StatelessWidget {
               const SizedBox(height: 100),
               PaperCard(
                   content: Padding(
-                padding: EdgeInsets.all(spacingUnit(1)),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                 child: Column(children: [
                   /// DESTINATIONS
                   SizedBox(
@@ -166,7 +166,8 @@ class TrainPackageCard extends StatelessWidget {
 
                   /// PRICE & TAGS
                   Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Wrap(
+                    Flexible(
+                        child: Wrap(
                       spacing: 4,
                       children: tags.asMap().entries.map((entry) {
                         int index = entry.key;
@@ -185,7 +186,7 @@ class TrainPackageCard extends StatelessWidget {
                                   color: colorScheme(context).onSurface)),
                         );
                       }).toList(),
-                    ),
+                    )),
                     const SizedBox(width: 4),
                     Container(
                       padding: const EdgeInsets.all(2),
@@ -206,9 +207,9 @@ class TrainPackageCard extends StatelessWidget {
                   ]),
 
                   /// TRAIN INFO
-                  Padding(
-                      padding: EdgeInsets.symmetric(vertical: spacingUnit(1)),
-                      child: const DashedBorder()),
+                  const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 3),
+                      child: DashedBorder()),
                   Row(children: [
                     Icon(CupertinoIcons.train_style_one,
                         size: 14, color: colorScheme(context).onSurfaceVariant),

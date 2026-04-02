@@ -1095,7 +1095,7 @@ class _RailwayBookingFacilitiesState extends State<RailwayBookingFacilities> {
                           sublabel:
                               '${_returnSeatSelections.where((s) => s['seatName'].toString().isNotEmpty).length} of $_requiredSeats selected',
                           value: 'Included',
-                          valueColor: Colors.orange.shade700,
+                          valueColor: const Color(0xFFD4AF37),
                         ),
                       ],
                     ] else ...[
