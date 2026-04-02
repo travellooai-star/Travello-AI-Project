@@ -101,18 +101,38 @@ class _BookingPaymentState extends State<BookingPayment>
       (_addTravelInsurance ? _insuranceFee : 0) -
       _discount;
 
+  // Detected card network for dynamic logo highlighting
+  String? _cardNetwork;
+
+  void _onCardNumberChanged(String v) {
+    final digits = v.replaceAll(' ', '');
+    String? network;
+    if (digits.isEmpty) {
+      network = null;
+    } else if (digits.startsWith('4')) {
+      network = 'visa';
+    } else if (digits.startsWith('5') || digits.startsWith('2')) {
+      network = 'mastercard';
+    } else if (digits.startsWith('3')) {
+      network = 'amex';
+    } else {
+      network = 'other';
+    }
+    if (network != _cardNetwork) setState(() => _cardNetwork = network);
+    setState(() {});
+  }
+
   bool get _isPaymentDetailsValid {
     // Terms are validated on tap (not here), so button enables once
     // payment details are filled — _processPayment handles terms check.
     if (_selectedPaymentMethod.isEmpty) return false;
 
     if (_selectedPaymentMethod == 'card') {
-      final cardNumberLength =
-          _cardNumberController.text.replaceAll(' ', '').length;
-      // Validate card number (16 digits), expiry (valid future date), CVV (3 digits)
-      return cardNumberLength == 16 &&
+      final cardDigits = _cardNumberController.text.replaceAll(' ', '');
+      return DSValidators.cardNumber(cardDigits) == null &&
           DSValidators.cardExpiry(_expiryController.text) == null &&
-          _cvvController.text.trim().length == 3;
+          DSValidators.cvv(_cvvController.text.trim()) == null &&
+          DSValidators.cardholderName(_cardNameController.text.trim()) == null;
     } else if (_selectedPaymentMethod == 'easypaisa') {
       return _easypaisaPhoneController.text.trim().length == 11;
     } else if (_selectedPaymentMethod == 'jazzcash') {
@@ -133,6 +153,7 @@ class _BookingPaymentState extends State<BookingPayment>
     _cardNumberController.addListener(() => setState(() {}));
     _expiryController.addListener(() => setState(() {}));
     _cvvController.addListener(() => setState(() {}));
+    _cardNameController.addListener(() => setState(() {}));
     _easypaisaPhoneController.addListener(() => setState(() {}));
     _jazzcashPhoneController.addListener(() => setState(() {}));
   }
@@ -372,6 +393,10 @@ class _BookingPaymentState extends State<BookingPayment>
                   ],
                   if (_selectedPaymentMethod == 'jazzcash') ...[
                     _buildJazzcashForm(),
+                    const SizedBox(height: 16),
+                  ],
+                  if (_selectedPaymentMethod == 'bank') ...[
+                    _buildBankTransferDetails(),
                     const SizedBox(height: 16),
                   ],
                   _buildTravelInsurance(),
@@ -1080,6 +1105,39 @@ class _BookingPaymentState extends State<BookingPayment>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Dynamic card network logos
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      AnimatedOpacity(
+                        opacity:
+                            (_cardNetwork == null || _cardNetwork == 'visa')
+                                ? 1.0
+                                : 0.25,
+                        duration: const Duration(milliseconds: 200),
+                        child: _buildVisaLogo(),
+                      ),
+                      const SizedBox(width: 6),
+                      AnimatedOpacity(
+                        opacity: (_cardNetwork == null ||
+                                _cardNetwork == 'mastercard')
+                            ? 1.0
+                            : 0.25,
+                        duration: const Duration(milliseconds: 200),
+                        child: _buildMastercardLogo(),
+                      ),
+                      const SizedBox(width: 6),
+                      AnimatedOpacity(
+                        opacity:
+                            (_cardNetwork == null || _cardNetwork == 'amex')
+                                ? 1.0
+                                : 0.25,
+                        duration: const Duration(milliseconds: 200),
+                        child: _buildCardLogo('AMEX', const Color(0xFF006FCF)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
                   // Card Number
                   const Text(
                     'Credit Card Number',
@@ -1096,39 +1154,20 @@ class _BookingPaymentState extends State<BookingPayment>
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.black),
                     autovalidateMode: AutovalidateMode.onUserInteraction,
+                    autofillHints: const [AutofillHints.creditCardNumber],
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(16),
                       _CardNumberInputFormatter(),
                     ],
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Card number is required';
-                      }
-                      final cleaned = value.replaceAll(' ', '');
-                      if (cleaned.length != 16) {
-                        return 'Card number must be 16 digits';
-                      }
-                      return null;
-                    },
+                    onChanged: _onCardNumberChanged,
+                    validator: (value) =>
+                        DSValidators.cardNumber(value?.replaceAll(' ', '')),
                     decoration: InputDecoration(
                       hintText: '1234 1234 1234 1234',
                       hintStyle: TextStyle(
                         color: Colors.grey.shade400,
                         fontSize: 15,
-                      ),
-                      suffixIcon: Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildVisaLogo(),
-                            const SizedBox(width: 6),
-                            _buildMastercardLogo(),
-                            const SizedBox(width: 6),
-                            _buildCardLogo('AMEX', const Color(0xFF006FCF)),
-                          ],
-                        ),
                       ),
                       filled: true,
                       fillColor: Colors.grey.shade50,
@@ -1148,6 +1187,11 @@ class _BookingPaymentState extends State<BookingPayment>
                       errorBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: const BorderSide(color: Colors.red),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 16),
@@ -1182,15 +1226,11 @@ class _BookingPaymentState extends State<BookingPayment>
                                 LengthLimitingTextInputFormatter(4),
                                 _ExpiryDateInputFormatter(),
                               ],
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Required';
-                                }
-                                if (value.length != 5) {
-                                  return 'Use MM/YY format';
-                                }
-                                return DSValidators.cardExpiry(value);
-                              },
+                              autofillHints: const [
+                                AutofillHints.creditCardExpirationDate
+                              ],
+                              onChanged: (_) => setState(() {}),
+                              validator: DSValidators.cardExpiry,
                               decoration: InputDecoration(
                                 hintText: 'MM/YY',
                                 hintStyle: TextStyle(
@@ -1219,6 +1259,11 @@ class _BookingPaymentState extends State<BookingPayment>
                                   borderRadius: BorderRadius.circular(10),
                                   borderSide:
                                       const BorderSide(color: Colors.red),
+                                ),
+                                focusedErrorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                      color: Colors.red, width: 2),
                                 ),
                                 contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 16),
@@ -1251,25 +1296,18 @@ class _BookingPaymentState extends State<BookingPayment>
                                   AutovalidateMode.onUserInteraction,
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(3),
+                                LengthLimitingTextInputFormatter(4),
                               ],
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Required';
-                                }
-                                if (value.length != 3) {
-                                  return 'Invalid';
-                                }
-                                return null;
-                              },
+                              onChanged: (_) => setState(() {}),
+                              validator: DSValidators.cvv,
                               decoration: InputDecoration(
-                                hintText: 'CVC',
+                                hintText: '•••',
                                 hintStyle: TextStyle(
                                   color: Colors.grey.shade400,
                                   fontSize: 15,
                                 ),
                                 suffixIcon: Tooltip(
-                                  message: '3 digits on back of card',
+                                  message: '3–4 digits on back of card',
                                   child: Icon(Icons.help_outline,
                                       size: 18, color: Colors.grey.shade500),
                                 ),
@@ -1304,6 +1342,59 @@ class _BookingPaymentState extends State<BookingPayment>
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 20),
+                  // Cardholder Name
+                  const Text(
+                    'CARDHOLDER NAME',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFB3B3B3),
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _cardNameController,
+                    keyboardType: TextInputType.name,
+                    textCapitalization: TextCapitalization.characters,
+                    style: const TextStyle(color: Colors.black),
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    autofillHints: const [AutofillHints.creditCardName],
+                    onChanged: (_) => setState(() {}),
+                    validator: DSValidators.cardholderName,
+                    decoration: InputDecoration(
+                      hintText: 'Name as printed on card',
+                      hintStyle:
+                          TextStyle(color: Colors.grey.shade400, fontSize: 15),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                            color: colorScheme(context).primary, width: 2),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Colors.red),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 16),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   // Save Card Checkbox
@@ -1905,6 +1996,74 @@ class _BookingPaymentState extends State<BookingPayment>
                   ),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBankTransferDetails() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Bank Transfer Details',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildInfoRow('Bank Name', 'Meezan Bank'),
+          const SizedBox(height: 12),
+          _buildInfoRow('Account Title', 'Travello AI'),
+          const SizedBox(height: 12),
+          _buildInfoRow('Account Number', '0123456789012'),
+          const SizedBox(height: 12),
+          _buildInfoRow('IBAN', 'PK12MEZN0000120123456789'),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF3E0),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFFFB74D)),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.info_outline,
+                  color: Color(0xFFE65100),
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Transfer the amount and share receipt via email',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.orange.shade900,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

@@ -1,3 +1,4 @@
+import 'package:flight_app/app/app_link.dart';
 import 'package:flight_app/ui/themes/theme_button.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
@@ -2110,8 +2111,8 @@ class _BookingDetailState extends State<BookingDetail> {
 
     if (isHotelBooking) {
       primaryBtnColor = const Color(0xFFD4AF37); // Gold
-      downloadBtnText = 'DOWNLOAD INVOICE';
-      buttonAction = _showInvoiceModal;
+      downloadBtnText = 'VIEW & DOWNLOAD INVOICE';
+      buttonAction = _downloadHotelConfirmation;
     } else if (isTrainBooking) {
       primaryBtnColor = const Color(0xFF059669); // Green
       downloadBtnText = 'DOWNLOAD E-TICKET';
@@ -3467,66 +3468,8 @@ class _BookingDetailState extends State<BookingDetail> {
   }
 
   Future<void> _downloadFlightTicket() async {
-    setState(() => _downloadingPdf = true);
-    try {
-      final font = await PdfGoogleFonts.robotoRegular();
-      final fontBold = await PdfGoogleFonts.robotoBold();
-
-      final doc = pw.Document(
-        theme: pw.ThemeData.withFont(
-          base: font,
-          bold: fontBold,
-        ),
-      );
-
-      final actualPax = _booking['allPassengers'] is List &&
-              (_booking['allPassengers'] as List).isNotEmpty
-          ? (_booking['allPassengers'] as List)
-              .map((e) => Map<String, dynamic>.from(e as Map))
-              .toList()
-          : [
-              {
-                'name': _booking['passengerName'] ?? 'Passenger',
-                'passportOrId': ''
-              }
-            ];
-
-      // Generate outbound tickets
-      for (final pax in actualPax) {
-        _addFlightTicketPage(doc,
-            isReturn: false,
-            passengerName: pax['name'] as String? ?? 'Passenger',
-            passportOrId: pax['passportOrId'] as String? ?? '');
-      }
-
-      // Generate return tickets if round trip
-      if (_booking['isRoundTrip'] == true) {
-        for (final pax in actualPax) {
-          _addFlightTicketPage(doc,
-              isReturn: true,
-              passengerName: pax['name'] as String? ?? 'Passenger',
-              passportOrId: pax['passportOrId'] as String? ?? '');
-        }
-      }
-
-      await Printing.layoutPdf(
-          name: 'E-Ticket-${_booking['pnr']}.pdf',
-          onLayout: (_) async => doc.save());
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('PDF generation failed: $e'),
-            backgroundColor: const Color(0xFFEF4444),
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _downloadingPdf = false);
-    }
+    // Navigate to the full airline-grade e-ticket screen (same as payment success)
+    Get.toNamed(AppLink.eTicket, arguments: _booking);
   }
 
   Future<void> _downloadRailwayTicket() async {
@@ -3773,369 +3716,710 @@ class _BookingDetailState extends State<BookingDetail> {
   Future<void> _downloadHotelConfirmation() async {
     setState(() => _downloadingPdf = true);
     try {
-      final font = await PdfGoogleFonts.robotoRegular();
-      final fontBold = await PdfGoogleFonts.robotoBold();
+      final fontRegular =
+          pw.Font.ttf(await rootBundle.load('assets/fonts/Ubuntu-Regular.ttf'));
+      final fontBold =
+          pw.Font.ttf(await rootBundle.load('assets/fonts/Ubuntu-Bold.ttf'));
+      final fontMedium =
+          pw.Font.ttf(await rootBundle.load('assets/fonts/Ubuntu-Medium.ttf'));
 
       final hotelDetails = _booking['hotelDetails'] as Map<String, dynamic>?;
-      final hotelName = hotelDetails?['hotelName'] ?? 'Hotel';
-      final city = hotelDetails?['city'] ?? '';
-      final address = hotelDetails?['address'] ?? '';
-      final checkIn = hotelDetails?['checkIn'] ?? 'N/A';
-      final checkOut = hotelDetails?['checkOut'] ?? 'N/A';
-      final roomType = hotelDetails?['roomType'] ?? 'Standard Room';
-      final nights = hotelDetails?['nights'] ?? 1;
-      final rating = (hotelDetails?['rating'] ?? 0) as num;
-      final pnr = _booking['pnr'] ?? 'N/A';
+      final hotelName = hotelDetails?['hotelName'] as String? ?? 'Hotel';
+      final city = hotelDetails?['city'] as String? ?? '';
+      final address = hotelDetails?['address'] as String? ?? '';
+      final checkIn = hotelDetails?['checkIn'] as String? ?? 'N/A';
+      final checkOut = hotelDetails?['checkOut'] as String? ?? 'N/A';
+      final roomType = hotelDetails?['roomType'] as String? ?? 'Standard Room';
+      final nights = (hotelDetails?['nights'] as num?)?.toInt() ?? 1;
+      final rating = (hotelDetails?['rating'] as num?)?.toDouble() ?? 0.0;
+      final pnr = _booking['pnr'] as String? ?? 'N/A';
+      final guests = (_booking['passengerCount'] as num?)?.toInt() ?? 1;
       final passengers = _booking['allPassengers'] as List<dynamic>? ?? [];
-      final total = _booking['total'] as double? ?? 0.0;
+      final basePrice = (_booking['amount'] as num?)?.toDouble() ?? 0.0;
+      final total = (_booking['total'] as num?)?.toDouble() ?? 0.0;
+      final serviceCharge = basePrice * 0.05;
+      final tourismTax = basePrice * 0.03;
+      final gstVal = basePrice * 0.16;
+      final issuedAt = DateFormat('dd MMM yyyy, HH:mm').format(DateTime.now());
 
-      const gold = PdfColor(0.831, 0.686, 0.216); // #D4AF37
-      const goldLight = PdfColor(1.0, 0.984, 0.922); // #FFFBEB
-      const textDark = PdfColor(0.1, 0.1, 0.1);
-      const textGrey = PdfColor(0.5, 0.5, 0.5);
+      final fmtPkr = NumberFormat('#,##,###', 'en_PK');
+      String pkr(double v) => 'PKR ${fmtPkr.format(v.round())}';
 
-      final doc = pw.Document(
-        creator: 'Travello AI',
-        title: 'Hotel Booking Confirmation - $pnr',
-      );
+      // First guest details
+      final firstPax = passengers.isNotEmpty
+          ? passengers[0] as Map<String, dynamic>
+          : <String, dynamic>{};
+      final guestName = (firstPax['name'] as String?)?.toUpperCase() ?? 'GUEST';
+      final guestCnic = firstPax['cnic'] as String? ?? '';
+      final guestPhone = firstPax['phone'] as String? ?? '';
+      final guestGender = firstPax['gender'] as String? ?? 'Male';
 
-      doc.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat.a4,
-          build: (ctx) => pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              // Header
-              pw.Container(
-                width: double.infinity,
-                padding: const pw.EdgeInsets.all(20),
-                decoration: const pw.BoxDecoration(color: gold),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      'HOTEL BOOKING CONFIRMATION',
+      // ── PDF Color Palette (matches image 2) ──────────────────
+      const pdfGold = PdfColor(0.831, 0.686, 0.216); // #D4AF37
+      const pdfGreen = PdfColor(0.063, 0.725, 0.506);
+      const pdfSurface = PdfColor(0.98, 0.98, 0.98);
+      const pdfBorderLight = PdfColor(0.878, 0.878, 0.878);
+      const pdfTxtPri = PdfColor(0.1, 0.1, 0.1);
+      const pdfTxtSec = PdfColor(0.35, 0.35, 0.35);
+
+      // ── Section header ────────────────────────────────────────
+      pw.Widget secHeader(String title) => pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: const pw.BoxDecoration(
+                color: pdfGold,
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(4))),
+            child: pw.Row(children: [
+              pw.Container(width: 3, height: 12, color: PdfColors.white),
+              pw.SizedBox(width: 8),
+              pw.Text(title,
+                  style: pw.TextStyle(
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.white,
+                      font: fontBold,
+                      letterSpacing: 0.6)),
+            ]),
+          );
+
+      pw.Widget kvRow(String k, String v, {bool bold = false}) => pw.Padding(
+            padding: const pw.EdgeInsets.symmetric(vertical: 3),
+            child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(k,
                       style: pw.TextStyle(
-                        font: fontBold,
-                        fontSize: 18,
+                          fontSize: 9, color: pdfTxtSec, font: fontRegular)),
+                  pw.Text(v,
+                      style: pw.TextStyle(
+                          fontSize: 9,
+                          fontWeight:
+                              bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+                          color: pdfTxtPri,
+                          font: bold ? fontBold : fontMedium)),
+                ]),
+          );
+
+      pw.Widget thinDiv() => pw.Divider(color: pdfBorderLight, thickness: 0.5);
+
+      final doc =
+          pw.Document(title: 'Hotel Tax Invoice — $pnr', author: 'Travello AI');
+
+      doc.addPage(pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.symmetric(horizontal: 38, vertical: 30),
+        build: (pw.Context ctx) => [
+          // ── HEADER ─────────────────────────────────────────────
+          pw.Container(
+            padding: const pw.EdgeInsets.all(18),
+            decoration: const pw.BoxDecoration(
+                color: pdfGold,
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(10))),
+            child: pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.center,
+                children: [
+                  pw.Container(
+                    width: 52,
+                    height: 52,
+                    decoration: const pw.BoxDecoration(
                         color: PdfColors.white,
-                      ),
-                    ),
-                    pw.SizedBox(height: 8),
-                    pw.Text(
-                      'Travello AI - Your Travel Companion',
-                      style: pw.TextStyle(
-                        font: font,
-                        fontSize: 10,
-                        color: PdfColors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              pw.SizedBox(height: 20),
-
-              // Booking Reference
-              pw.Container(
-                padding: const pw.EdgeInsets.symmetric(horizontal: 20),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        borderRadius:
+                            pw.BorderRadius.all(pw.Radius.circular(8))),
+                    child: pw.Center(
+                        child: pw.Text('H',
+                            style: pw.TextStyle(
+                                fontSize: 28,
+                                fontWeight: pw.FontWeight.bold,
+                                color: pdfGold,
+                                font: fontBold))),
+                  ),
+                  pw.SizedBox(width: 14),
+                  pw.Expanded(
+                    child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('Travello AI',
+                              style: pw.TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.white,
+                                  font: fontBold)),
+                          pw.Text('Hotel Tax Invoice & Stay Receipt',
+                              style: pw.TextStyle(
+                                  fontSize: 11,
+                                  color: PdfColors.white,
+                                  font: fontMedium)),
+                          pw.SizedBox(height: 4),
+                          pw.Text('NTN: 1234567-8  |  STRN: SC-01234-56789',
+                              style: pw.TextStyle(
+                                  fontSize: 8,
+                                  color: PdfColors.white,
+                                  font: fontRegular)),
+                        ]),
+                  ),
+                  pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
-                        pw.Text(
-                          'Booking Reference',
-                          style: pw.TextStyle(
-                              font: font, fontSize: 10, color: textGrey),
-                        ),
-                        pw.SizedBox(height: 4),
-                        pw.Text(
-                          pnr,
-                          style: pw.TextStyle(
-                              font: fontBold, fontSize: 16, color: textDark),
-                        ),
-                      ],
-                    ),
-                    pw.Container(
-                      padding: const pw.EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: pw.BoxDecoration(
-                        color: const PdfColor(0.063, 0.725, 0.506), // Green
-                        borderRadius: pw.BorderRadius.circular(4),
-                      ),
-                      child: pw.Text(
-                        'CONFIRMED',
-                        style: pw.TextStyle(
-                          font: fontBold,
-                          fontSize: 10,
-                          color: PdfColors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              pw.SizedBox(height: 20),
-
-              // Hotel Details Section
-              pw.Container(
-                margin: const pw.EdgeInsets.symmetric(horizontal: 20),
-                padding: const pw.EdgeInsets.all(16),
-                decoration: pw.BoxDecoration(
-                  color: goldLight,
-                  borderRadius: pw.BorderRadius.circular(8),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      hotelName,
-                      style: pw.TextStyle(
-                          font: fontBold, fontSize: 16, color: textDark),
-                    ),
-                    if (rating > 0) ...[
-                      pw.SizedBox(height: 4),
-                      pw.Text(
-                        '${'★' * rating.toInt()} ${rating.toInt()}-Star',
-                        style:
-                            pw.TextStyle(font: font, fontSize: 10, color: gold),
-                      ),
-                    ],
-                    if (address.isNotEmpty || city.isNotEmpty) ...[
-                      pw.SizedBox(height: 8),
-                      pw.Text(
-                        address.isNotEmpty ? address : city,
-                        style: pw.TextStyle(
-                            font: font, fontSize: 10, color: textGrey),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              pw.SizedBox(height: 20),
-
-              // Stay Details
-              pw.Container(
-                margin: const pw.EdgeInsets.symmetric(horizontal: 20),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      'STAY DETAILS',
-                      style: pw.TextStyle(
-                          font: fontBold, fontSize: 12, color: textDark),
-                    ),
-                    pw.SizedBox(height: 12),
-                    pw.Row(
-                      children: [
-                        pw.Expanded(
-                          child: pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.start,
-                            children: [
-                              pw.Text('Check-in',
-                                  style: pw.TextStyle(
-                                      font: font,
-                                      fontSize: 9,
-                                      color: textGrey)),
-                              pw.SizedBox(height: 4),
-                              pw.Text(checkIn,
-                                  style: pw.TextStyle(
-                                      font: fontBold,
-                                      fontSize: 12,
-                                      color: textDark)),
-                              pw.Text('2:00 PM',
-                                  style: pw.TextStyle(
-                                      font: font,
-                                      fontSize: 8,
-                                      color: textGrey)),
-                            ],
-                          ),
-                        ),
                         pw.Container(
                           padding: const pw.EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
+                              horizontal: 12, vertical: 6),
                           decoration: pw.BoxDecoration(
-                            color: gold,
-                            borderRadius: pw.BorderRadius.circular(4),
-                          ),
-                          child: pw.Text(
-                            '$nights Night${nights > 1 ? 's' : ''}',
+                              border: pw.Border.all(
+                                  color: PdfColors.white, width: 2),
+                              borderRadius: const pw.BorderRadius.all(
+                                  pw.Radius.circular(4))),
+                          child: pw.Text(pnr,
+                              style: pw.TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.white,
+                                  font: fontBold,
+                                  letterSpacing: 2)),
+                        ),
+                        pw.SizedBox(height: 5),
+                        pw.Text(issuedAt,
                             style: pw.TextStyle(
-                                font: fontBold,
-                                fontSize: 10,
-                                color: PdfColors.white),
-                          ),
+                                fontSize: 8,
+                                color: PdfColors.white,
+                                font: fontRegular)),
+                        pw.SizedBox(height: 5),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: const pw.BoxDecoration(
+                              color: pdfGreen,
+                              borderRadius:
+                                  pw.BorderRadius.all(pw.Radius.circular(4))),
+                          child: pw.Text('CONFIRMED',
+                              style: pw.TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: PdfColors.white,
+                                  font: fontBold,
+                                  letterSpacing: 0.5)),
                         ),
-                        pw.Expanded(
-                          child: pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.end,
-                            children: [
-                              pw.Text('Check-out',
-                                  style: pw.TextStyle(
-                                      font: font,
-                                      fontSize: 9,
-                                      color: textGrey)),
-                              pw.SizedBox(height: 4),
-                              pw.Text(checkOut,
-                                  style: pw.TextStyle(
-                                      font: fontBold,
-                                      fontSize: 12,
-                                      color: textDark)),
-                              pw.Text('12:00 PM',
-                                  style: pw.TextStyle(
-                                      font: font,
-                                      fontSize: 8,
-                                      color: textGrey)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    pw.SizedBox(height: 12),
-                    pw.Container(
-                      padding: const pw.EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: pw.BoxDecoration(
-                        border: pw.Border.all(color: gold),
-                        borderRadius: pw.BorderRadius.circular(4),
-                      ),
-                      child: pw.Text(
-                        'Room Type: $roomType',
-                        style: pw.TextStyle(
-                            font: font, fontSize: 10, color: textDark),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                      ]),
+                ]),
+          ),
+          pw.SizedBox(height: 12),
 
-              pw.SizedBox(height: 20),
-
-              // Guest Details
-              if (passengers.isNotEmpty) ...[
-                pw.Container(
-                  margin: const pw.EdgeInsets.symmetric(horizontal: 20),
-                  child: pw.Column(
+          // ── ISSUED BY / BILL TO ─────────────────────────────────
+          pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            pw.Expanded(
+              child: pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                    color: pdfSurface,
+                    border: pw.Border.all(color: pdfBorderLight),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(6))),
+                child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(
-                        'GUEST DETAILS',
+                      pw.Text('ISSUED BY',
+                          style: pw.TextStyle(
+                              fontSize: 8,
+                              fontWeight: pw.FontWeight.bold,
+                              color: pdfGold,
+                              font: fontBold,
+                              letterSpacing: 0.8)),
+                      pw.SizedBox(height: 5),
+                      pw.Text('Travello AI (Pvt.) Ltd.',
+                          style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: pdfTxtPri,
+                              font: fontBold)),
+                      pw.SizedBox(height: 2),
+                      pw.Text('15-B, Clifton Block 5, Karachi, Pakistan',
+                          style: pw.TextStyle(
+                              fontSize: 9,
+                              color: pdfTxtSec,
+                              font: fontRegular)),
+                      pw.Text('support@travelloai.com',
+                          style: pw.TextStyle(
+                              fontSize: 9,
+                              color: pdfTxtSec,
+                              font: fontRegular)),
+                      pw.Text('+92 300 1234567',
+                          style: pw.TextStyle(
+                              fontSize: 9,
+                              color: pdfTxtSec,
+                              font: fontRegular)),
+                      pw.Text('www.travelloai.com',
+                          style: pw.TextStyle(
+                              fontSize: 9,
+                              color: pdfTxtSec,
+                              font: fontRegular)),
+                    ]),
+              ),
+            ),
+            pw.SizedBox(width: 10),
+            pw.Expanded(
+              child: pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                    color: pdfSurface,
+                    border: pw.Border.all(color: pdfBorderLight),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(6))),
+                child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('BILL TO (GUEST)',
+                          style: pw.TextStyle(
+                              fontSize: 8,
+                              fontWeight: pw.FontWeight.bold,
+                              color: pdfGold,
+                              font: fontBold,
+                              letterSpacing: 0.8)),
+                      pw.SizedBox(height: 5),
+                      pw.Text(guestName,
+                          style: pw.TextStyle(
+                              fontSize: 10,
+                              fontWeight: pw.FontWeight.bold,
+                              color: pdfTxtPri,
+                              font: fontBold)),
+                      pw.SizedBox(height: 2),
+                      if (guestCnic.isNotEmpty)
+                        pw.Text('CNIC: $guestCnic',
+                            style: pw.TextStyle(
+                                fontSize: 9,
+                                color: pdfTxtSec,
+                                font: fontRegular)),
+                      if (guestPhone.isNotEmpty)
+                        pw.Text('Phone: $guestPhone',
+                            style: pw.TextStyle(
+                                fontSize: 9,
+                                color: pdfTxtSec,
+                                font: fontRegular)),
+                      pw.Text('Gender: $guestGender',
+                          style: pw.TextStyle(
+                              fontSize: 9,
+                              color: pdfTxtSec,
+                              font: fontRegular)),
+                      pw.Text('Total Guests: $guests',
+                          style: pw.TextStyle(
+                              fontSize: 9,
+                              color: pdfTxtSec,
+                              font: fontRegular)),
+                    ]),
+              ),
+            ),
+          ]),
+          pw.SizedBox(height: 12),
+
+          // ── HOTEL INFORMATION ───────────────────────────────────
+          secHeader('HOTEL INFORMATION'),
+          pw.SizedBox(height: 8),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+                color: pdfSurface,
+                border: pw.Border.all(color: pdfBorderLight),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6))),
+            child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(hotelName,
+                      style: pw.TextStyle(
+                          fontSize: 13,
+                          fontWeight: pw.FontWeight.bold,
+                          color: pdfTxtPri,
+                          font: fontBold)),
+                  pw.SizedBox(height: 4),
+                  if (rating > 0)
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: const pw.BoxDecoration(
+                          color: pdfGold,
+                          borderRadius:
+                              pw.BorderRadius.all(pw.Radius.circular(4))),
+                      child: pw.Text('${rating.toInt()}-Star',
+                          style: pw.TextStyle(
+                              fontSize: 9,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                              font: fontBold)),
+                    ),
+                  pw.SizedBox(height: 6),
+                  if (address.isNotEmpty)
+                    pw.Text(address,
                         style: pw.TextStyle(
-                            font: fontBold, fontSize: 12, color: textDark),
-                      ),
-                      pw.SizedBox(height: 12),
-                      ...passengers.map((p) {
-                        final pax = p as Map<String, dynamic>;
-                        return pw.Container(
-                          margin: const pw.EdgeInsets.only(bottom: 8),
-                          padding: const pw.EdgeInsets.all(12),
-                          decoration: pw.BoxDecoration(
-                            border: pw.Border.all(
-                                color: const PdfColor(0.9, 0.9, 0.9)),
-                            borderRadius: pw.BorderRadius.circular(4),
-                          ),
-                          child: pw.Column(
+                            fontSize: 9, color: pdfTxtSec, font: fontRegular)),
+                  if (city.isNotEmpty)
+                    pw.Text('$city, Pakistan',
+                        style: pw.TextStyle(
+                            fontSize: 9, color: pdfTxtSec, font: fontRegular)),
+                  pw.SizedBox(height: 8),
+                  pw.Row(children: [
+                    pw.Expanded(
+                        child: pw.Column(
                             crossAxisAlignment: pw.CrossAxisAlignment.start,
                             children: [
-                              pw.Text(
-                                pax['name'] ?? 'Guest',
-                                style: pw.TextStyle(
-                                    font: fontBold,
-                                    fontSize: 11,
-                                    color: textDark),
-                              ),
-                              pw.SizedBox(height: 4),
-                              pw.Text(
-                                'CNIC: ${pax['cnic'] ?? '—'} | Phone: ${pax['phone'] ?? '—'}',
-                                style: pw.TextStyle(
-                                    font: font, fontSize: 9, color: textGrey),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-                pw.SizedBox(height: 20),
-              ],
+                          pw.Text('Check-In',
+                              style: pw.TextStyle(
+                                  fontSize: 8,
+                                  color: pdfTxtSec,
+                                  font: fontRegular)),
+                          pw.Text(checkIn,
+                              style: pw.TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: pdfTxtPri,
+                                  font: fontBold)),
+                          pw.Text('2:00 PM',
+                              style: pw.TextStyle(
+                                  fontSize: 8,
+                                  color: pdfTxtSec,
+                                  font: fontRegular)),
+                        ])),
+                    pw.Expanded(
+                        child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                          pw.Text('Check-Out',
+                              style: pw.TextStyle(
+                                  fontSize: 8,
+                                  color: pdfTxtSec,
+                                  font: fontRegular)),
+                          pw.Text(checkOut,
+                              style: pw.TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: pdfTxtPri,
+                                  font: fontBold)),
+                          pw.Text('12:00 PM',
+                              style: pw.TextStyle(
+                                  fontSize: 8,
+                                  color: pdfTxtSec,
+                                  font: fontRegular)),
+                        ])),
+                    pw.Expanded(
+                        child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                          pw.Text('Nights',
+                              style: pw.TextStyle(
+                                  fontSize: 8,
+                                  color: pdfTxtSec,
+                                  font: fontRegular)),
+                          pw.Text('$nights',
+                              style: pw.TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: pdfTxtPri,
+                                  font: fontBold)),
+                        ])),
+                  ]),
+                ]),
+          ),
+          pw.SizedBox(height: 12),
 
-              // Payment Summary
-              pw.Container(
-                margin: const pw.EdgeInsets.symmetric(horizontal: 20),
-                padding: const pw.EdgeInsets.all(16),
-                decoration: pw.BoxDecoration(
-                  color: const PdfColor(0.98, 0.98, 0.98),
-                  borderRadius: pw.BorderRadius.circular(8),
-                ),
-                child: pw.Column(
-                  children: [
-                    pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          // ── STAY SUMMARY STRIP ──────────────────────────────────
+          pw.Container(
+            padding:
+                const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+            decoration: const pw.BoxDecoration(
+                color: pdfGold,
+                borderRadius: pw.BorderRadius.all(pw.Radius.circular(6))),
+            child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+                children: [
+                  pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
                       children: [
-                        pw.Text('TOTAL AMOUNT',
+                        pw.Text('NIGHTS',
                             style: pw.TextStyle(
-                                font: fontBold, fontSize: 12, color: textDark)),
-                        pw.Text(
-                          'PKR ${total.toStringAsFixed(0)}',
-                          style: pw.TextStyle(
-                              font: fontBold, fontSize: 16, color: gold),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+                                fontSize: 7,
+                                color: PdfColors.white,
+                                font: fontRegular,
+                                letterSpacing: 0.5)),
+                        pw.SizedBox(height: 3),
+                        pw.Text('$nights',
+                            style: pw.TextStyle(
+                                fontSize: 13,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.white,
+                                font: fontBold)),
+                      ]),
+                  pw.Container(width: 1, height: 30, color: PdfColors.white),
+                  pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text('ROOM TYPE',
+                            style: pw.TextStyle(
+                                fontSize: 7,
+                                color: PdfColors.white,
+                                font: fontRegular,
+                                letterSpacing: 0.5)),
+                        pw.SizedBox(height: 3),
+                        pw.Text(roomType,
+                            style: pw.TextStyle(
+                                fontSize: 10,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.white,
+                                font: fontBold)),
+                      ]),
+                  pw.Container(width: 1, height: 30, color: PdfColors.white),
+                  pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                      children: [
+                        pw.Text('GUESTS',
+                            style: pw.TextStyle(
+                                fontSize: 7,
+                                color: PdfColors.white,
+                                font: fontRegular,
+                                letterSpacing: 0.5)),
+                        pw.SizedBox(height: 3),
+                        pw.Text('$guests',
+                            style: pw.TextStyle(
+                                fontSize: 13,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.white,
+                                font: fontBold)),
+                      ]),
+                ]),
+          ),
+          pw.SizedBox(height: 12),
 
-              pw.SizedBox(height: 20),
-
-              // Important Information
-              pw.Container(
-                margin: const pw.EdgeInsets.symmetric(horizontal: 20),
-                padding: const pw.EdgeInsets.all(16),
-                decoration: pw.BoxDecoration(
-                  color: const PdfColor(1.0, 0.98, 0.94), // Amber light
-                  borderRadius: pw.BorderRadius.circular(8),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text(
-                      'IMPORTANT INFORMATION',
-                      style: pw.TextStyle(
-                          font: fontBold, fontSize: 10, color: textDark),
-                    ),
-                    pw.SizedBox(height: 8),
-                    pw.Text(
-                        '• Check-in time: 2:00 PM | Check-out time: 12:00 PM',
-                        style: pw.TextStyle(
-                            font: font, fontSize: 8, color: textDark)),
-                    pw.Text(
-                        '• Carry valid CNIC/Passport matching booking details',
-                        style: pw.TextStyle(
-                            font: font, fontSize: 8, color: textDark)),
-                    pw.Text('• Show booking confirmation at reception',
-                        style: pw.TextStyle(
-                            font: font, fontSize: 8, color: textDark)),
-                    pw.Text(
-                        '• Cancellation allowed up to 24 hours before check-in',
-                        style: pw.TextStyle(
-                            font: font, fontSize: 8, color: textDark)),
-                  ],
-                ),
+          // ── SERVICES & CHARGES ──────────────────────────────────
+          secHeader('SERVICES & CHARGES  (FBR Tax Invoice)'),
+          pw.SizedBox(height: 8),
+          pw.Table(
+            border: pw.TableBorder.all(color: pdfBorderLight, width: 0.5),
+            columnWidths: {
+              0: const pw.FixedColumnWidth(24),
+              1: const pw.FlexColumnWidth(3),
+              2: const pw.FlexColumnWidth(1.5),
+              3: const pw.FlexColumnWidth(1.2),
+              4: const pw.FlexColumnWidth(1.4),
+            },
+            children: [
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: pdfSurface),
+                children: ['#', 'DESCRIPTION', 'UNIT PRICE', 'QTY', 'AMOUNT']
+                    .map((h) => pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(h,
+                              style: pw.TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: pdfTxtPri,
+                                  font: fontBold,
+                                  letterSpacing: 0.4)),
+                        ))
+                    .toList(),
               ),
+              pw.TableRow(children: [
+                pw.Padding(
+                    padding: const pw.EdgeInsets.all(6),
+                    child: pw.Text('1',
+                        style: pw.TextStyle(
+                            fontSize: 9, color: pdfTxtPri, font: fontRegular))),
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text('$roomType — Hotel Accommodation',
+                            style: pw.TextStyle(
+                                fontSize: 9,
+                                fontWeight: pw.FontWeight.bold,
+                                color: pdfTxtPri,
+                                font: fontBold)),
+                        pw.SizedBox(height: 2),
+                        pw.Text('Check-In: $checkIn',
+                            style: pw.TextStyle(
+                                fontSize: 7.5,
+                                color: pdfTxtSec,
+                                font: fontRegular)),
+                        pw.Text('Check-Out: $checkOut',
+                            style: pw.TextStyle(
+                                fontSize: 7.5,
+                                color: pdfTxtSec,
+                                font: fontRegular)),
+                      ]),
+                ),
+                pw.Padding(
+                    padding: const pw.EdgeInsets.all(6),
+                    child: pw.Text(
+                        nights > 0 ? pkr(basePrice / nights) : pkr(basePrice),
+                        style: pw.TextStyle(
+                            fontSize: 9, color: pdfTxtPri, font: fontRegular))),
+                pw.Padding(
+                    padding: const pw.EdgeInsets.all(6),
+                    child: pw.Text('${nights}N x 1 Rm',
+                        style: pw.TextStyle(
+                            fontSize: 9, color: pdfTxtPri, font: fontRegular))),
+                pw.Padding(
+                    padding: const pw.EdgeInsets.all(6),
+                    child: pw.Text(pkr(basePrice),
+                        style: pw.TextStyle(
+                            fontSize: 9,
+                            fontWeight: pw.FontWeight.bold,
+                            color: pdfTxtPri,
+                            font: fontBold))),
+              ]),
             ],
           ),
-        ),
-      );
+          pw.SizedBox(height: 12),
+
+          // ── FARE BREAKDOWN ──────────────────────────────────────
+          secHeader('FARE BREAKDOWN'),
+          pw.SizedBox(height: 8),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+                color: pdfSurface,
+                border: pw.Border.all(color: pdfBorderLight),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6))),
+            child: pw.Column(children: [
+              kvRow('Base Accommodation', pkr(basePrice)),
+              thinDiv(),
+              kvRow('Service Charge (5%)', pkr(serviceCharge)),
+              kvRow('Tourism / FED Tax (3%)', pkr(tourismTax)),
+              kvRow('GST @ 16% (FBR)', pkr(gstVal)),
+              pw.SizedBox(height: 6),
+              pw.Divider(color: pdfGold, thickness: 1.5),
+              pw.SizedBox(height: 6),
+              pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('TOTAL PAYABLE',
+                        style: pw.TextStyle(
+                            fontSize: 12,
+                            fontWeight: pw.FontWeight.bold,
+                            color: pdfTxtPri,
+                            font: fontBold)),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 5),
+                      decoration: const pw.BoxDecoration(
+                          color: pdfGold,
+                          borderRadius:
+                              pw.BorderRadius.all(pw.Radius.circular(4))),
+                      child: pw.Text(pkr(total),
+                          style: pw.TextStyle(
+                              fontSize: 12,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                              font: fontBold)),
+                    ),
+                  ]),
+            ]),
+          ),
+          pw.SizedBox(height: 12),
+
+          // ── GUEST LIST ──────────────────────────────────────────
+          if (passengers.isNotEmpty) ...[
+            secHeader('GUEST DETAILS'),
+            pw.SizedBox(height: 8),
+            ...passengers.asMap().entries.map((e) {
+              final i = e.key;
+              final p = e.value as Map<String, dynamic>;
+              return pw.Container(
+                margin: const pw.EdgeInsets.only(bottom: 6),
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                    color: pdfSurface,
+                    border: pw.Border.all(color: pdfBorderLight),
+                    borderRadius:
+                        const pw.BorderRadius.all(pw.Radius.circular(4))),
+                child: pw.Row(children: [
+                  pw.Container(
+                    width: 22,
+                    height: 22,
+                    decoration: const pw.BoxDecoration(
+                        color: pdfGold, shape: pw.BoxShape.circle),
+                    child: pw.Center(
+                        child: pw.Text('${i + 1}',
+                            style: pw.TextStyle(
+                                fontSize: 10,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.white,
+                                font: fontBold))),
+                  ),
+                  pw.SizedBox(width: 10),
+                  pw.Expanded(
+                      child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                        pw.Text((p['name'] as String? ?? 'N/A').toUpperCase(),
+                            style: pw.TextStyle(
+                                fontSize: 10,
+                                fontWeight: pw.FontWeight.bold,
+                                color: pdfTxtPri,
+                                font: fontBold)),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                            'CNIC: ${p['cnic'] as String? ?? '—'}  |  Phone: ${p['phone'] as String? ?? '—'}',
+                            style: pw.TextStyle(
+                                fontSize: 8,
+                                color: pdfTxtSec,
+                                font: fontRegular)),
+                      ])),
+                ]),
+              );
+            }),
+            pw.SizedBox(height: 12),
+          ],
+
+          // ── IMPORTANT INFO ──────────────────────────────────────
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+                color: const PdfColor(1.0, 0.98, 0.9),
+                border: pw.Border.all(color: const PdfColor(0.95, 0.85, 0.5)),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6))),
+            child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('IMPORTANT INFORMATION',
+                      style: pw.TextStyle(
+                          fontSize: 9,
+                          fontWeight: pw.FontWeight.bold,
+                          color: pdfGold,
+                          font: fontBold,
+                          letterSpacing: 0.5)),
+                  pw.SizedBox(height: 6),
+                  for (final tip in [
+                    'Check-in time: 2:00 PM | Check-out time: 12:00 PM',
+                    'Carry valid CNIC/Passport matching booking details',
+                    'Show booking confirmation at reception',
+                    'Cancellation allowed up to 24 hours before check-in',
+                    'Please check with hotel for restrictions. This invoice is FBR-compliant.',
+                  ])
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.only(bottom: 3),
+                      child: pw.Row(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Container(
+                              width: 4,
+                              height: 4,
+                              margin:
+                                  const pw.EdgeInsets.only(top: 3, right: 6),
+                              decoration: const pw.BoxDecoration(
+                                  color: pdfGold, shape: pw.BoxShape.circle),
+                            ),
+                            pw.Expanded(
+                                child: pw.Text(tip,
+                                    style: pw.TextStyle(
+                                        fontSize: 8,
+                                        color: pdfTxtSec,
+                                        font: fontRegular))),
+                          ]),
+                    ),
+                ]),
+          ),
+        ],
+      ));
 
       await Printing.layoutPdf(
         onLayout: (_) async => doc.save(),
-        name: 'Hotel_Confirmation_$pnr.pdf',
+        name: 'Hotel_Invoice_$pnr.pdf',
       );
     } catch (e) {
       if (mounted) {

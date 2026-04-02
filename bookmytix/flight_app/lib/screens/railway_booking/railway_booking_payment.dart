@@ -94,11 +94,14 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
     if (_selectedPaymentMethod.isEmpty) return false;
 
     if (_selectedPaymentMethod == 'card') {
-      final cardNumberLength =
-          _cardNumberController.text.replaceAll(' ', '').length;
-      return cardNumberLength >= 13 &&
-          _expiryController.text.trim().length >= 4 &&
-          _cvvController.text.trim().length >= 3;
+      final cardNumberDigits = _cardNumberController.text.replaceAll(' ', '');
+      final cardOk = DSValidators.cardNumber(cardNumberDigits) == null;
+      final expiryOk =
+          DSValidators.cardExpiry(_expiryController.text.trim()) == null;
+      final cvvOk = DSValidators.cvv(_cvvController.text.trim()) == null;
+      final nameOk =
+          DSValidators.cardholderName(_cardNameController.text.trim()) == null;
+      return cardOk && expiryOk && cvvOk && nameOk;
     } else if (_selectedPaymentMethod == 'easypaisa') {
       return _easypaisaPhoneController.text.trim().length >= 10;
     } else if (_selectedPaymentMethod == 'jazzcash') {
@@ -114,6 +117,7 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
     _cardNumberController.addListener(() => setState(() {}));
     _expiryController.addListener(() => setState(() {}));
     _cvvController.addListener(() => setState(() {}));
+    _cardNameController.addListener(() => setState(() {}));
     _easypaisaPhoneController.addListener(() => setState(() {}));
     _jazzcashPhoneController.addListener(() => setState(() {}));
   }
@@ -1086,6 +1090,28 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
   // ────────────────────────────────────────────────────────────
   // CARD FORM
   // ────────────────────────────────────────────────────────────
+  // ── Detected card network for dynamic logo highlighting ──────────────────
+  String? _cardNetwork;
+
+  void _onCardNumberChanged(String v) {
+    final digits = v.replaceAll(' ', '');
+    String? network;
+    if (digits.isEmpty) {
+      network = null;
+    } else if (digits.startsWith('4')) {
+      network = 'visa';
+    } else if (digits.startsWith('5') || digits.startsWith('2')) {
+      network = 'mastercard';
+    } else if (digits.startsWith('3')) {
+      network = 'amex';
+    } else {
+      network = 'other';
+    }
+    if (network != _cardNetwork) setState(() => _cardNetwork = network);
+    // also trigger _isPaymentDetailsValid refresh
+    setState(() {});
+  }
+
   Widget _buildCardForm() {
     return Container(
       decoration: BoxDecoration(
@@ -1155,6 +1181,39 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Dynamic card network logos ─────────────────────────────
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      AnimatedOpacity(
+                        opacity:
+                            (_cardNetwork == null || _cardNetwork == 'visa')
+                                ? 1.0
+                                : 0.25,
+                        duration: const Duration(milliseconds: 200),
+                        child: _buildVisaLogo(),
+                      ),
+                      const SizedBox(width: 6),
+                      AnimatedOpacity(
+                        opacity: (_cardNetwork == null ||
+                                _cardNetwork == 'mastercard')
+                            ? 1.0
+                            : 0.25,
+                        duration: const Duration(milliseconds: 200),
+                        child: _buildMastercardLogo(),
+                      ),
+                      const SizedBox(width: 6),
+                      AnimatedOpacity(
+                        opacity:
+                            (_cardNetwork == null || _cardNetwork == 'amex')
+                                ? 1.0
+                                : 0.25,
+                        duration: const Duration(milliseconds: 200),
+                        child: _buildCardLogo('AMEX', const Color(0xFF006FCF)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
                   const Text(
                     'Credit Card Number',
                     style: TextStyle(
@@ -1170,39 +1229,20 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.black),
                     autovalidateMode: AutovalidateMode.onUserInteraction,
+                    autofillHints: const [AutofillHints.creditCardNumber],
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(16),
                       _CardNumberInputFormatter(),
                     ],
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Card number is required';
-                      }
-                      final cleaned = value.replaceAll(' ', '');
-                      if (cleaned.length != 16) {
-                        return 'Card number must be 16 digits';
-                      }
-                      return null;
-                    },
+                    onChanged: _onCardNumberChanged,
+                    validator: (value) =>
+                        DSValidators.cardNumber(value?.replaceAll(' ', '')),
                     decoration: InputDecoration(
                       hintText: '1234 1234 1234 1234',
                       hintStyle: TextStyle(
                         color: Colors.grey.shade400,
                         fontSize: 15,
-                      ),
-                      suffixIcon: Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildVisaLogo(),
-                            const SizedBox(width: 6),
-                            _buildMastercardLogo(),
-                            const SizedBox(width: 6),
-                            _buildCardLogo('AMEX', const Color(0xFF006FCF)),
-                          ],
-                        ),
                       ),
                       filled: true,
                       fillColor: Colors.grey.shade50,
@@ -1222,6 +1262,11 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                       errorBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: const BorderSide(color: Colors.red),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 16),
@@ -1250,20 +1295,16 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                               style: const TextStyle(color: Colors.black),
                               autovalidateMode:
                                   AutovalidateMode.onUserInteraction,
+                              autofillHints: const [
+                                AutofillHints.creditCardExpirationDate
+                              ],
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
                                 LengthLimitingTextInputFormatter(4),
                                 _ExpiryDateInputFormatter(),
                               ],
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Required';
-                                }
-                                if (value.length != 5) {
-                                  return 'Use MM/YY format';
-                                }
-                                return DSValidators.cardExpiry(value);
-                              },
+                              onChanged: (_) => setState(() {}),
+                              validator: DSValidators.cardExpiry,
                               decoration: InputDecoration(
                                 hintText: 'MM/YY',
                                 hintStyle: TextStyle(
@@ -1290,6 +1331,11 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                                   borderRadius: BorderRadius.circular(10),
                                   borderSide:
                                       const BorderSide(color: Colors.red),
+                                ),
+                                focusedErrorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                      color: Colors.red, width: 2),
                                 ),
                                 contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 16),
@@ -1320,23 +1366,19 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                               style: const TextStyle(color: Colors.black),
                               autovalidateMode:
                                   AutovalidateMode.onUserInteraction,
+                              // AMEX uses 4 digits; all others use 3
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(3),
+                                LengthLimitingTextInputFormatter(4),
                               ],
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Required';
-                                }
-                                if (value.length != 3) return 'Invalid';
-                                return null;
-                              },
+                              onChanged: (_) => setState(() {}),
+                              validator: DSValidators.cvv,
                               decoration: InputDecoration(
-                                hintText: 'CVC',
+                                hintText: '•••',
                                 hintStyle: TextStyle(
                                     color: Colors.grey.shade400, fontSize: 15),
                                 suffixIcon: Tooltip(
-                                  message: '3 digits on back of card',
+                                  message: '3–4 digits on back of card',
                                   child: Icon(Icons.help_outline,
                                       size: 18, color: Colors.grey.shade500),
                                 ),
@@ -1371,6 +1413,59 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 20),
+                  // ── Cardholder name ──────────────────────────────────────
+                  const Text(
+                    'CARDHOLDER NAME',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFB3B3B3),
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _cardNameController,
+                    keyboardType: TextInputType.name,
+                    textCapitalization: TextCapitalization.characters,
+                    style: const TextStyle(color: Colors.black),
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    autofillHints: const [AutofillHints.creditCardName],
+                    onChanged: (_) => setState(() {}),
+                    validator: DSValidators.cardholderName,
+                    decoration: InputDecoration(
+                      hintText: 'Name as printed on card',
+                      hintStyle:
+                          TextStyle(color: Colors.grey.shade400, fontSize: 15),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                            color: colorScheme(context).primary, width: 2),
+                      ),
+                      errorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Colors.red),
+                      ),
+                      focusedErrorBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide:
+                            const BorderSide(color: Colors.red, width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 16),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   InkWell(

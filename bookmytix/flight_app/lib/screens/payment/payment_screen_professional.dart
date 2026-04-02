@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
 import 'package:flight_app/screens/orders/hotel_booking_confirmation.dart';
+import 'package:flight_app/utils/ds_validators.dart';
 
 class PaymentScreenProfessional extends StatefulWidget {
   const PaymentScreenProfessional({super.key});
@@ -42,7 +44,8 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
 
   bool _saveCard = false;
   bool _isProcessing = false;
-  bool _isAmex = false;
+  // Detected network prefix for dynamic logo highlighting
+  String? _cardNetwork;
   bool _showOutboundDetails = false;
   bool _showReturnDetails = false;
   bool _showTrainDetails = false;
@@ -621,8 +624,8 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
                         _dividerLine(),
                         _buildMethodRow(
                             'JazzCash', 'JazzCash', 'Pay with JazzCash wallet',
-                            bgColor: const Color(0xFFFFEBEE),
-                            iconColor: const Color(0xFFE53935),
+                            bgColor: const Color(0xFFFBF5DC),
+                            iconColor: const Color(0xFFD4AF37),
                             icon: Icons.account_balance_wallet_rounded),
                         _dividerLine(),
                         _buildMethodRow('Easypaisa', 'Easypaisa',
@@ -905,6 +908,67 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
             ]),
             SizedBox(height: spacingUnit(2)),
 
+            // Dynamic card network logos
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                AnimatedOpacity(
+                  opacity: (_cardNetwork == null || _cardNetwork == 'visa')
+                      ? 1.0
+                      : 0.25,
+                  duration: const Duration(milliseconds: 200),
+                  child: Image.asset('assets/images/visa.png',
+                      height: 20,
+                      errorBuilder: (_, __, ___) => const Text('VISA',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1A1F71)))),
+                ),
+                const SizedBox(width: 4),
+                AnimatedOpacity(
+                  opacity:
+                      (_cardNetwork == null || _cardNetwork == 'mastercard')
+                          ? 1.0
+                          : 0.25,
+                  duration: const Duration(milliseconds: 200),
+                  child: Image.asset('assets/images/master_card.png',
+                      height: 20,
+                      errorBuilder: (_, __, ___) => Container(
+                            width: 24,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(3),
+                              gradient: const LinearGradient(colors: [
+                                Color(0xFFEB001B),
+                                Color(0xFFF79E1B)
+                              ]),
+                            ),
+                          )),
+                ),
+                const SizedBox(width: 4),
+                AnimatedOpacity(
+                  opacity: (_cardNetwork == null || _cardNetwork == 'amex')
+                      ? 1.0
+                      : 0.25,
+                  duration: const Duration(milliseconds: 200),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFF2557D6),
+                        borderRadius: BorderRadius.circular(3)),
+                    child: const Text('AMEX',
+                        style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: spacingUnit(1.5)),
+
             // Card number
             const Text('Credit Card Number',
                 style: TextStyle(fontSize: 12, color: Colors.black54)),
@@ -926,70 +990,36 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
                     borderRadius: BorderRadius.circular(10),
                     borderSide:
                         const BorderSide(color: Color(0xFF1E88E5), width: 1.5)),
-                suffixIcon: Padding(
-                  padding: const EdgeInsets.only(right: 10),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Image.asset('assets/images/visa.png',
-                        height: 20,
-                        errorBuilder: (_, __, ___) => const Text('VISA',
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1A1F71)))),
-                    const SizedBox(width: 4),
-                    Image.asset('assets/images/master_card.png',
-                        height: 20,
-                        errorBuilder: (_, __, ___) => Container(
-                              width: 24,
-                              height: 16,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(3),
-                                gradient: const LinearGradient(colors: [
-                                  Color(0xFFEB001B),
-                                  Color(0xFFF79E1B)
-                                ]),
-                              ),
-                            )),
-                    const SizedBox(width: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 2),
-                      decoration: BoxDecoration(
-                          color: const Color(0xFF2557D6),
-                          borderRadius: BorderRadius.circular(3)),
-                      child: const Text('AMEX',
-                          style: TextStyle(
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white)),
-                    ),
-                  ]),
-                ),
+                errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red)),
               ),
               keyboardType: TextInputType.number,
-              maxLength: 19,
-              buildCounter: (_,
-                      {required currentLength,
-                      required isFocused,
-                      maxLength}) =>
-                  null,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter card number';
-                }
-                final clean = value.replaceAll(' ', '');
-                if (clean.length != 16) {
-                  return 'Card number must be 16 digits';
-                }
-                if (!RegExp(r'^[0-9]+$').hasMatch(clean)) {
-                  return 'Card number should only contain numbers';
-                }
-                return null;
-              },
+              autofillHints: const [AutofillHints.creditCardNumber],
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(16),
+              ],
+              validator: (value) =>
+                  DSValidators.cardNumber(value?.replaceAll(' ', '')),
               onChanged: (value) {
                 String clean = value.replaceAll(' ', '');
-                final amex = clean.startsWith('34') || clean.startsWith('37');
-                if (amex != _isAmex) setState(() => _isAmex = amex);
+                // Detect network
+                String? network;
+                if (clean.isEmpty) {
+                  network = null;
+                } else if (clean.startsWith('4')) {
+                  network = 'visa';
+                } else if (clean.startsWith('5') || clean.startsWith('2')) {
+                  network = 'mastercard';
+                } else if (clean.startsWith('3')) {
+                  network = 'amex';
+                } else {
+                  network = 'other';
+                }
+                if (network != _cardNetwork)
+                  setState(() => _cardNetwork = network);
+                // Auto-format with spaces
                 if (clean.length <= 16) {
                   String formatted = '';
                   for (int i = 0; i < clean.length; i++) {
@@ -1036,34 +1066,19 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
                               borderRadius: BorderRadius.circular(10),
                               borderSide: const BorderSide(
                                   color: Color(0xFF1E88E5), width: 1.5)),
+                          errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.red)),
                         ),
                         keyboardType: TextInputType.number,
-                        maxLength: 5,
-                        buildCounter: (_,
-                                {required currentLength,
-                                required isFocused,
-                                maxLength}) =>
-                            null,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter expiry date';
-                          }
-                          if (!RegExp(r'^\d{2}/\d{2}$').hasMatch(value)) {
-                            return 'Format must be MM/YY';
-                          }
-                          final parts = value.split('/');
-                          final month = int.parse(parts[0]);
-                          final year = int.parse(parts[1]) + 2000;
-                          if (month < 1 || month > 12) {
-                            return 'Invalid month (01–12)';
-                          }
-                          final now = DateTime.now();
-                          final expiry = DateTime(year, month);
-                          if (expiry.isBefore(DateTime(now.year, now.month))) {
-                            return 'Card is expired';
-                          }
-                          return null;
-                        },
+                        autofillHints: const [
+                          AutofillHints.creditCardExpirationDate
+                        ],
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(4),
+                        ],
+                        validator: DSValidators.cardExpiry,
                         onChanged: (value) {
                           String clean = value.replaceAll('/', '');
                           if (clean.length >= 2 && !value.contains('/')) {
@@ -1090,14 +1105,17 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
                             style:
                                 TextStyle(fontSize: 12, color: Colors.black54)),
                         const SizedBox(width: 4),
-                        Icon(Icons.help_outline,
-                            size: 14, color: Colors.grey.shade400),
+                        Tooltip(
+                          message: '3–4 digits on back of card',
+                          child: Icon(Icons.help_outline,
+                              size: 14, color: Colors.grey.shade400),
+                        ),
                       ]),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _cvvController,
                         decoration: InputDecoration(
-                          hintText: 'CVC',
+                          hintText: '•••',
                           hintStyle: TextStyle(color: Colors.grey.shade400),
                           contentPadding: const EdgeInsets.symmetric(
                               horizontal: 14, vertical: 14),
@@ -1113,34 +1131,53 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
                               borderRadius: BorderRadius.circular(10),
                               borderSide: const BorderSide(
                                   color: Color(0xFF1E88E5), width: 1.5)),
+                          errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(color: Colors.red)),
                         ),
                         keyboardType: TextInputType.number,
                         obscureText: true,
-                        maxLength: _isAmex ? 4 : 3,
-                        buildCounter: (_,
-                                {required currentLength,
-                                required isFocused,
-                                maxLength}) =>
-                            null,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter CVC';
-                          }
-                          final expected = _isAmex ? 4 : 3;
-                          if (value.length != expected) {
-                            return _isAmex
-                                ? 'Amex CVC is 4 digits'
-                                : 'CVC must be 3 digits';
-                          }
-                          if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
-                            return 'Numbers only';
-                          }
-                          return null;
-                        },
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(4),
+                        ],
+                        validator: DSValidators.cvv,
                       ),
                     ]),
               ),
             ]),
+            SizedBox(height: spacingUnit(2)),
+
+            // Cardholder Name
+            const Text('CARDHOLDER NAME',
+                style: TextStyle(fontSize: 12, color: Colors.black54)),
+            const SizedBox(height: 6),
+            TextFormField(
+              controller: _cardHolderController,
+              keyboardType: TextInputType.name,
+              textCapitalization: TextCapitalization.characters,
+              autofillHints: const [AutofillHints.creditCardName],
+              decoration: InputDecoration(
+                hintText: 'Name as printed on card',
+                hintStyle: TextStyle(color: Colors.grey.shade400),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300)),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300)),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide:
+                        const BorderSide(color: Color(0xFF1E88E5), width: 1.5)),
+                errorBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.red)),
+              ),
+              validator: DSValidators.cardholderName,
+            ),
             SizedBox(height: spacingUnit(2)),
 
             // Save card checkbox

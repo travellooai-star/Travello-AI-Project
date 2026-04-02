@@ -1436,7 +1436,7 @@ class _PaymentStatusState extends State<PaymentStatus>
                     .replaceAll(' ', '') ??
                 '--';
         final phone = pax['phone'] as String? ?? '--';
-        final age = pax['age'] as String? ?? '--';
+        final age = _calcAgeFromPax(pax);
         final gender = pax['gender'] as String? ?? 'Male';
         final rawType = pax['concessionType'] as String? ?? 'ADULT';
         final paxType = rawType == 'CHILD_3_10'
@@ -1529,7 +1529,7 @@ class _PaymentStatusState extends State<PaymentStatus>
                       .replaceAll(' ', '') ??
                   '--';
           final phone = pax['phone'] as String? ?? '--';
-          final age = pax['age'] as String? ?? '--';
+          final age = _calcAgeFromPax(pax);
           final gender = pax['gender'] as String? ?? 'Male';
           final rawType = pax['concessionType'] as String? ?? 'ADULT';
           final paxType = rawType == 'CHILD_3_10'
@@ -1625,6 +1625,27 @@ class _PaymentStatusState extends State<PaymentStatus>
     } finally {
       if (mounted) setState(() => _downloadingPdf = false);
     }
+  }
+
+  /// Calculates age from [pax]['dob'] ISO8601 string.
+  /// Falls back to [pax]['age'] string if dob is absent.
+  String _calcAgeFromPax(Map<String, dynamic> pax) {
+    final dobStr = pax['dob'] as String?;
+    if (dobStr != null && dobStr.isNotEmpty) {
+      final dob = DateTime.tryParse(dobStr);
+      if (dob != null) {
+        final today = DateTime.now();
+        int age = today.year - dob.year;
+        if (today.month < dob.month ||
+            (today.month == dob.month && today.day < dob.day)) {
+          age--;
+        }
+        return age.toString();
+      }
+    }
+    return (pax['age'] as String?)?.isNotEmpty == true
+        ? pax['age'] as String
+        : '--';
   }
 
   // Adds one Pakistan Railways-style ticket page per passenger
@@ -2972,13 +2993,13 @@ class _PaymentStatusState extends State<PaymentStatus>
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                      colors: [Color(0xFF1B5E20), Color(0xFF388E3C)],
+                      colors: [Color(0xFFD4AF37), Color(0xFFB8935C)],
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight),
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                        color: railwayGreen.withValues(alpha: 0.30),
+                        color: Color(0xFFD4AF37).withValues(alpha: 0.30),
                         blurRadius: 16,
                         offset: const Offset(0, 5))
                   ],
