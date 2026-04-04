@@ -1603,7 +1603,12 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
   // Rooms Tab
   Widget _buildRoomsTab() {
     return SingleChildScrollView(
-      padding: EdgeInsets.all(spacingUnit(2)),
+      padding: EdgeInsets.only(
+        left: spacingUnit(2),
+        right: spacingUnit(2),
+        top: spacingUnit(2),
+        bottom: spacingUnit(12), // Extra padding for bottom nav
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1613,7 +1618,6 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
           ),
           SizedBox(height: spacingUnit(2)),
           ...availableRooms.map((room) => _buildRoomCard(room)),
-          SizedBox(height: spacingUnit(10)),
         ],
       ),
     );
@@ -1777,36 +1781,41 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
 
                 // Price and Button
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'PKR ${room.pricePerNight.toStringAsFixed(0)}',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme(context).primary,
-                          ),
-                        ),
-                        Text(
-                          rooms > 1
-                              ? 'PKR ${NumberFormat('#,##0').format(room.pricePerNight.round())}/night × $numberOfNights nights × $rooms rooms = PKR ${NumberFormat('#,##0').format(roomTotalPrice.round())}'
-                              : 'PKR ${NumberFormat('#,##0').format(room.pricePerNight.round())}/night × $numberOfNights ${numberOfNights == 1 ? 'night' : 'nights'} = PKR ${NumberFormat('#,##0').format(roomTotalPrice.round())} total',
-                          style: ThemeText.caption.copyWith(fontSize: 12),
-                        ),
-                        if (room.breakfastIncluded)
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            '✓ Breakfast included',
+                            'PKR ${room.pricePerNight.toStringAsFixed(0)}',
                             style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.green.shade700,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme(context).primary,
                             ),
                           ),
-                      ],
+                          Text(
+                            rooms > 1
+                                ? 'PKR ${NumberFormat('#,##0').format(room.pricePerNight.round())}/night × $numberOfNights nights × $rooms rooms = PKR ${NumberFormat('#,##0').format(roomTotalPrice.round())}'
+                                : 'PKR ${NumberFormat('#,##0').format(room.pricePerNight.round())}/night × $numberOfNights ${numberOfNights == 1 ? 'night' : 'nights'} = PKR ${NumberFormat('#,##0').format(roomTotalPrice.round())} total',
+                            style: ThemeText.caption.copyWith(fontSize: 12),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                          ),
+                          if (room.breakfastIncluded)
+                            Text(
+                              '✓ Breakfast included',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: () {
                         setState(() {

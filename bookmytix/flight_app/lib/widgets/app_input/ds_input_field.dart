@@ -223,8 +223,9 @@ class _DSInputFieldState extends State<DSInputField>
                   : null,
               prefixText: widget.prefixText,
               prefixStyle: ThemeText.paragraph.copyWith(
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF475569),
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                color: ThemePalette.primaryMain,
               ),
               suffixIcon: widget.suffix,
               // suppress default Flutter error display — we render our own

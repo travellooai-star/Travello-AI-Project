@@ -362,18 +362,22 @@ class FlightDetailProfessional extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Total Price', style: ThemeText.caption),
-                      Text(
-                        'PKR ${flight.price.toStringAsFixed(0)}',
-                        style: ThemeText.title2.copyWith(
-                          color: colorScheme(context).primary,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Total Price', style: ThemeText.caption),
+                        Text(
+                          'PKR ${flight.price.toStringAsFixed(0)}',
+                          style: ThemeText.title2.copyWith(
+                            color: colorScheme(context).primary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () {
                       Get.toNamed(

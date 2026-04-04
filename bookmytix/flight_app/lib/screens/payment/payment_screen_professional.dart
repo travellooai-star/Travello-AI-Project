@@ -1017,8 +1017,9 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
                 } else {
                   network = 'other';
                 }
-                if (network != _cardNetwork)
+                if (network != _cardNetwork) {
                   setState(() => _cardNetwork = network);
+                }
                 // Auto-format with spaces
                 if (clean.length <= 16) {
                   String formatted = '';
@@ -1311,13 +1312,21 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
                         const BorderSide(color: Color(0xFF1E88E5), width: 1.5)),
               ),
               keyboardType: TextInputType.phone,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+                _NoLeadingZeroFormatter(),
+              ],
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter phone number';
                 }
                 String clean = value.replaceAll('-', '').replaceAll(' ', '');
-                if (!clean.startsWith('03') || clean.length != 11) {
-                  return 'Enter valid Pakistani number (03XXXXXXXXX)';
+                if (clean.startsWith('0')) {
+                  return 'Do not include leading 0 with +92';
+                }
+                if (!clean.startsWith('3') || clean.length != 10) {
+                  return 'Enter valid 10-digit mobile number';
                 }
                 return null;
               },
@@ -2728,5 +2737,19 @@ class _PaymentScreenProfessionalState extends State<PaymentScreenProfessional> {
       margin: const EdgeInsets.only(bottom: 18),
       color: isActive ? activeColor : const Color(0xFFE0E0E0),
     );
+  }
+}
+
+// ── Prevent leading zero in phone number (international format) ────────────
+
+class _NoLeadingZeroFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    // If user tries to type 0 as first character, reject it
+    if (newValue.text.startsWith('0')) {
+      return oldValue;
+    }
+    return newValue;
   }
 }

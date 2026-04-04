@@ -373,24 +373,29 @@ class _TransportScreenState extends State<TransportScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'PKR ${estimatedPrice.toStringAsFixed(0)}',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme(context).primary,
-                              ),
-                            ),
-                            if (transport.pricePerKm > 0)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               Text(
-                                'PKR ${transport.pricePerKm}/km',
-                                style: ThemeText.caption.copyWith(fontSize: 10),
+                                'PKR ${estimatedPrice.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme(context).primary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                          ],
+                              if (transport.pricePerKm > 0)
+                                Text(
+                                  'PKR ${transport.pricePerKm}/km',
+                                  style:
+                                      ThemeText.caption.copyWith(fontSize: 10),
+                                ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         ElevatedButton(
                           onPressed: () {
                             _showBookingDialog(transport, estimatedPrice);

@@ -2493,7 +2493,7 @@ class _PaymentStatusState extends State<PaymentStatus>
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-                color: Color(0xFFD4AF37).withValues(alpha: 0.10),
+                color: const Color(0xFFD4AF37).withValues(alpha: 0.10),
                 blurRadius: 24,
                 offset: const Offset(0, 8)),
           ],
@@ -2999,7 +2999,7 @@ class _PaymentStatusState extends State<PaymentStatus>
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                        color: Color(0xFFD4AF37).withValues(alpha: 0.30),
+                        color: const Color(0xFFD4AF37).withValues(alpha: 0.30),
                         blurRadius: 16,
                         offset: const Offset(0, 5))
                   ],
@@ -3205,8 +3205,8 @@ class _PaymentStatusState extends State<PaymentStatus>
           // ── Route strip ─────────────────────────────────────────
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFBF5DC),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFBF5DC),
               border: Border(bottom: BorderSide(color: Color(0xFFE8D5A3))),
             ),
             child: Row(
@@ -3298,7 +3298,7 @@ class _PaymentStatusState extends State<PaymentStatus>
                   decoration: BoxDecoration(
                     color: const Color(0xFFFBF5DC),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Color(0xFFE8D5A3)),
+                    border: Border.all(color: const Color(0xFFE8D5A3)),
                   ),
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

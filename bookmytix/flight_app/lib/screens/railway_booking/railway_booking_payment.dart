@@ -884,12 +884,17 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
             color: Color(0xFFB3B3B3),
           ),
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: Colors.black87,
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+            ),
           ),
         ),
       ],
@@ -1685,10 +1690,11 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                     style: const TextStyle(color: Colors.black),
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(11),
+                      LengthLimitingTextInputFormatter(10),
+                      _NoLeadingZeroFormatter(),
                     ],
                     decoration: InputDecoration(
-                      hintText: 'Enter a phone number',
+                      hintText: '3001234567',
                       hintStyle: TextStyle(
                         color: Colors.grey.shade400,
                         fontSize: 15,
@@ -1844,10 +1850,11 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
                     style: const TextStyle(color: Colors.black),
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(11),
+                      LengthLimitingTextInputFormatter(10),
+                      _NoLeadingZeroFormatter(),
                     ],
                     decoration: InputDecoration(
-                      hintText: 'Enter a phone number',
+                      hintText: '3001234567',
                       hintStyle: TextStyle(
                         color: Colors.grey.shade400,
                         fontSize: 15,
@@ -3463,5 +3470,19 @@ class _ExpiryDateInputFormatter extends TextInputFormatter {
       text: formatted,
       selection: TextSelection.collapsed(offset: formatted.length),
     );
+  }
+}
+
+// ── Prevent leading zero in phone number (international format) ────────────
+
+class _NoLeadingZeroFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    // If user tries to type 0 as first character, reject it
+    if (newValue.text.startsWith('0')) {
+      return oldValue;
+    }
+    return newValue;
   }
 }

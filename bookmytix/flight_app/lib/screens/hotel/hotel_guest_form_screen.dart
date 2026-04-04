@@ -191,8 +191,9 @@ class _HotelGuestFormScreenState extends State<HotelGuestFormScreen> {
     final cnicDigits = _cnicCtrl.text.replaceAll('-', '');
     if (cnicDigits.length != 13) return false;
     final phone = _phoneCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (phone.length != 11) return false;
-    if (!phone.startsWith('03') && !phone.startsWith('02')) return false;
+    if (phone.length != 10) return false;
+    if (phone.startsWith('0')) return false;
+    if (!phone.startsWith('3') && !phone.startsWith('2')) return false;
     for (int i = 0; i < _extraNameCtrls.length; i++) {
       if (_extraNameCtrls[i].text.trim().isEmpty) return false;
       final doc = _extraDocCtrls[i].text.replaceAll('-', '');
@@ -522,7 +523,7 @@ class _HotelGuestFormScreenState extends State<HotelGuestFormScreen> {
                                 controller: _phoneCtrl,
                                 style: const TextStyle(color: Colors.black),
                                 keyboardType: TextInputType.phone,
-                                maxLength: 11,
+                                maxLength: 10,
                                 buildCounter: (_,
                                         {required currentLength,
                                         required isFocused,
@@ -530,13 +531,19 @@ class _HotelGuestFormScreenState extends State<HotelGuestFormScreen> {
                                     null,
                                 inputFormatters: [
                                   FilteringTextInputFormatter.digitsOnly,
-                                  LengthLimitingTextInputFormatter(11),
+                                  LengthLimitingTextInputFormatter(10),
+                                  _NoLeadingZeroFormatter(),
                                 ],
                                 decoration: InputDecoration(
                                   labelText: 'Mobile *',
-                                  hintText: '03XX-XXXXXXX',
+                                  hintText: '3001234567',
                                   prefixIcon: const Icon(Icons.phone),
                                   prefixText: '+92 ',
+                                  prefixStyle: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15,
+                                    color: colorScheme(context).primary,
+                                  ),
                                   border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12)),
                                   enabledBorder: OutlineInputBorder(
@@ -554,15 +561,15 @@ class _HotelGuestFormScreenState extends State<HotelGuestFormScreen> {
                                   }
                                   final digits =
                                       v.replaceAll(RegExp(r'[^0-9]'), '');
-                                  if (digits.length != 11) {
-                                    return 'Enter 11-digit Pakistan number';
+                                  if (digits.startsWith('0')) {
+                                    return 'Do not include leading 0 with +92';
                                   }
-                                  if (!digits.startsWith('0')) {
-                                    return 'Number must start with 0';
+                                  if (digits.length != 10) {
+                                    return 'Enter 10-digit mobile number';
                                   }
-                                  if (!digits.startsWith('03') &&
-                                      !digits.startsWith('02')) {
-                                    return 'Must be a valid Pakistan mobile (03XX) or landline (02X)';
+                                  if (!digits.startsWith('3') &&
+                                      !digits.startsWith('2')) {
+                                    return 'Invalid Pakistan phone number';
                                   }
                                   return null;
                                 },
@@ -1172,5 +1179,19 @@ class _CnicFormatter extends TextInputFormatter {
     final str = buffer.toString();
     return TextEditingValue(
         text: str, selection: TextSelection.collapsed(offset: str.length));
+  }
+}
+
+// ── Prevent leading zero in phone number (international format) ────────────
+
+class _NoLeadingZeroFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    // If user tries to type 0 as first character, reject it
+    if (newValue.text.startsWith('0')) {
+      return oldValue;
+    }
+    return newValue;
   }
 }

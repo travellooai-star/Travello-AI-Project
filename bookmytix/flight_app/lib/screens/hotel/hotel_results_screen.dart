@@ -661,37 +661,40 @@ class _HotelResultsScreenState extends State<HotelResultsScreen> {
             color: Colors.white,
             padding: EdgeInsets.symmetric(
                 horizontal: spacingUnit(1.5), vertical: spacingUnit(0.75)),
-            child: Row(
-              children: [
-                _SortPill(
-                    label: 'Recommended',
-                    active: sortBy == 'recommended',
-                    onTap: () => setState(() {
-                          sortBy = 'recommended';
-                          _applyFilters();
-                        })),
-                _SortPill(
-                    label: 'Price ↑',
-                    active: sortBy == 'price_low',
-                    onTap: () => setState(() {
-                          sortBy = 'price_low';
-                          _applyFilters();
-                        })),
-                _SortPill(
-                    label: 'Stars ★★★',
-                    active: sortBy == 'rating',
-                    onTap: () => setState(() {
-                          sortBy = 'rating';
-                          _applyFilters();
-                        })),
-                _SortPill(
-                    label: 'Free cancel',
-                    active: sortBy == 'free',
-                    onTap: () => setState(() {
-                          sortBy = 'free';
-                          _applyFilters();
-                        })),
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _SortPill(
+                      label: 'Recommended',
+                      active: sortBy == 'recommended',
+                      onTap: () => setState(() {
+                            sortBy = 'recommended';
+                            _applyFilters();
+                          })),
+                  _SortPill(
+                      label: 'Price ↑',
+                      active: sortBy == 'price_low',
+                      onTap: () => setState(() {
+                            sortBy = 'price_low';
+                            _applyFilters();
+                          })),
+                  _SortPill(
+                      label: 'Stars ★★★',
+                      active: sortBy == 'rating',
+                      onTap: () => setState(() {
+                            sortBy = 'rating';
+                            _applyFilters();
+                          })),
+                  _SortPill(
+                      label: 'Free cancel',
+                      active: sortBy == 'free',
+                      onTap: () => setState(() {
+                            sortBy = 'free';
+                            _applyFilters();
+                          })),
+                ],
+              ),
             ),
           ),
           // ── Hotel List ─────────────────────────────────────────────────────

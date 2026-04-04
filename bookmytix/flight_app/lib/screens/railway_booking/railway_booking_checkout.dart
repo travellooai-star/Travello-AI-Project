@@ -844,13 +844,13 @@ class _RailwayBookingCheckoutState extends State<RailwayBookingCheckout> {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: const Color(0xFFE6C68E)),
           ),
-          child: Row(
+          child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.train_rounded,
+              Icon(Icons.train_rounded,
                   size: 17, color: Color(0xFFD4AF37)),
-              const SizedBox(width: 7),
-              const Text(
+              SizedBox(width: 7),
+              Text(
                 'Return Journey',
                 style: TextStyle(
                     fontSize: 14,
@@ -1962,8 +1962,8 @@ class _RailwayBookingCheckoutState extends State<RailwayBookingCheckout> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.payment_rounded,
-                        size: 18, color: const Color(0xFFD4AF37)),
+                    const Icon(Icons.payment_rounded,
+                        size: 18, color: Color(0xFFD4AF37)),
                     SizedBox(width: spacingUnit(1)),
                     Text(
                       'Payment',
