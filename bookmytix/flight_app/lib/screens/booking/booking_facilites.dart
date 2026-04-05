@@ -1576,10 +1576,14 @@ class _BookingFacilitesState extends State<BookingFacilites> {
   //  5-STEP STEPPER - Matches Bookme/Expedia Style
   // ─────────────────────────────────────────────
   Widget _buildStepper(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     const goldColor = Color(0xFFD4AF37);
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      padding: EdgeInsets.symmetric(
+        vertical: isMobile ? 8 : 12,
+        horizontal: isMobile ? 8 : 16,
+      ),
       child: Row(
         children: List.generate(9, (i) {
           if (i.isOdd) {
@@ -1603,8 +1607,8 @@ class _BookingFacilitesState extends State<BookingFacilites> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: isMobile ? 24 : 28,
+                height: isMobile ? 24 : 28,
                 decoration: BoxDecoration(
                   color: isCompleted || isActive
                       ? goldColor
@@ -1613,24 +1617,25 @@ class _BookingFacilitesState extends State<BookingFacilites> {
                 ),
                 child: Center(
                   child: isCompleted
-                      ? const Icon(Icons.check, color: Colors.white, size: 14)
+                      ? Icon(Icons.check,
+                          color: Colors.white, size: isMobile ? 12 : 14)
                       : Text(
                           '${index + 1}',
                           style: TextStyle(
                             color:
                                 isActive ? Colors.white : Colors.grey.shade500,
-                            fontSize: 12,
+                            fontSize: isMobile ? 10 : 12,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: isMobile ? 2 : 4),
               Text(
                 _steps[index],
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: isMobile ? 7 : 9,
                   color: isCompleted || isActive
                       ? goldColor
                       : Colors.grey.shade500,

@@ -10,7 +10,6 @@ import 'package:flight_app/widgets/home/dynamic_destination_cards.dart';
 import 'package:flight_app/widgets/home/package_list_slider.dart';
 import 'package:flight_app/widgets/home/train_package_slider.dart';
 import 'package:flight_app/widgets/title/title_action.dart';
-import 'package:flight_app/widgets/home/news_list.dart';
 import 'package:flight_app/widgets/home/premium_carousel.dart';
 import 'package:flight_app/widgets/bottom_nav/bottom_nav_menu.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
@@ -276,13 +275,6 @@ class _UnifiedHomeScreenState extends State<UnifiedHomeScreen> {
             // 🇵🇰 DISCOVER PAKISTAN CAROUSEL (static — same on all tabs)
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             const PremiumCarousel(),
-
-            SizedBox(height: spacingUnit(3)),
-
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            // 📰 NEWS & UPDATES SECTION (Common for all)
-            // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            const NewsList(),
 
             SizedBox(height: spacingUnit(10)), // Bottom nav clearance
           ],

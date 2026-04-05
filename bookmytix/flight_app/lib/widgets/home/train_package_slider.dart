@@ -296,10 +296,9 @@ class _TrainPackageSliderState extends State<TrainPackageSlider> {
   }
 
   String _getDateString(TrainPackage pkg, int index) {
-    // Show upcoming departure date + time — round-trip is shown via badge
+    // Show upcoming departure date — trip type shown via badge, time in train info
     final base = DateTime.now().add(Duration(days: 7 + index));
-    final dateFmt = DateFormat('d MMM yyyy');
-    return '${dateFmt.format(base)} · ${pkg.departureTime}';
+    return DateFormat('d MMM yyyy').format(base);
   }
 
   double _getDiscountPercent(TrainPackage package) {
@@ -465,4 +464,3 @@ class _TrainCardHoverState extends State<_TrainCardHover>
     );
   }
 }
-

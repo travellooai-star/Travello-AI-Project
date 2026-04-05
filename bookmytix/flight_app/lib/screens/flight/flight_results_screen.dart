@@ -739,40 +739,83 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
           _buildAlwaysVisibleSearchForm(),
 
           // Sort options
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: spacingUnit(2),
-              vertical: spacingUnit(1),
-            ),
-            color: colorScheme(context).surfaceContainerHighest,
-            child: Row(
-              children: [
-                const Text('Sort by:', style: ThemeText.caption),
-                SizedBox(width: spacingUnit(1)),
-                Expanded(
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildSortChip('Recommended'),
-                        SizedBox(width: spacingUnit(1)),
-                        _buildSortChip('Cheapest'),
-                        SizedBox(width: spacingUnit(1)),
-                        _buildSortChip('Fastest'),
-                      ],
-                    ),
-                  ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 600;
+              return Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: spacingUnit(isMobile ? 1.5 : 2),
+                  vertical: spacingUnit(isMobile ? 0.75 : 1),
                 ),
-                SizedBox(width: spacingUnit(1)),
-                Text(
-                  DateFormat('d MMM, E').format(_selectedDate),
-                  style: ThemeText.subtitle2.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme(context).primary,
-                  ),
-                ),
-              ],
-            ),
+                color: colorScheme(context).surfaceContainerHighest,
+                child: isMobile
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Sort by:',
+                                  style:
+                                      ThemeText.caption.copyWith(fontSize: 11)),
+                              Text(
+                                DateFormat('d MMM, E').format(_selectedDate),
+                                style: ThemeText.subtitle2.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: colorScheme(context).primary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: spacingUnit(0.5)),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                _buildSortChip('Recommended'),
+                                SizedBox(width: spacingUnit(1)),
+                                _buildSortChip('Cheapest'),
+                                SizedBox(width: spacingUnit(1)),
+                                _buildSortChip('Fastest'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          const Text('Sort by:', style: ThemeText.caption),
+                          SizedBox(width: spacingUnit(1)),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  _buildSortChip('Recommended'),
+                                  SizedBox(width: spacingUnit(1)),
+                                  _buildSortChip('Cheapest'),
+                                  SizedBox(width: spacingUnit(1)),
+                                  _buildSortChip('Fastest'),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: spacingUnit(1)),
+                          Flexible(
+                            child: Text(
+                              DateFormat('d MMM, E').format(_selectedDate),
+                              style: ThemeText.subtitle2.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme(context).primary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+              );
+            },
           ),
 
           // Flight list
@@ -820,6 +863,8 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
     final departureDate = searchParams['departureDate'] as DateTime?;
     final returnDate = searchParams['returnDate'] as DateTime?;
     final tripType = searchParams['tripType'] as String? ?? 'One-way';
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
 
     // Calculate total passengers
     final totalPassengers = _adults + _children + _infants;
@@ -841,8 +886,8 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
     return Container(
       color: colorScheme(context).primary,
       padding: EdgeInsets.symmetric(
-        horizontal: spacingUnit(2),
-        vertical: spacingUnit(1.5),
+        horizontal: spacingUnit(isMobile ? 1.5 : 2),
+        vertical: spacingUnit(isMobile ? 1 : 1.5),
       ),
       child: Column(
         children: [
@@ -852,119 +897,193 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
             children: [
               // Trip type tabs
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildTripTypeTab('Round Trip', tripType == 'Round-trip'),
-                  SizedBox(width: spacingUnit(1)),
-                  _buildTripTypeTab('One Way', tripType == 'One-way'),
+                  _buildTripTypeTab(
+                      'Round Trip', tripType == 'Round-trip', isMobile),
+                  SizedBox(width: spacingUnit(isMobile ? 0.5 : 1)),
+                  _buildTripTypeTab('One Way', tripType == 'One-way', isMobile),
                 ],
               ),
 
               // Passenger and Class info
-              Row(
-                children: [
-                  const Icon(CupertinoIcons.person,
-                      color: Colors.white, size: 16),
-                  SizedBox(width: spacingUnit(0.5)),
-                  Text(
-                    passengerText.isNotEmpty ? passengerText : '1 Adult',
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                  SizedBox(width: spacingUnit(2)),
-                  Text(
-                    _selectedCabinClass,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                ],
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(CupertinoIcons.person,
+                        color: Colors.white, size: isMobile ? 14 : 16),
+                    SizedBox(width: spacingUnit(0.5)),
+                    Flexible(
+                      child: Text(
+                        passengerText.isNotEmpty ? passengerText : '1 Adult',
+                        style: TextStyle(
+                            color: Colors.white, fontSize: isMobile ? 11 : 14),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    SizedBox(width: spacingUnit(isMobile ? 0.5 : 1)),
+                    Text(
+                      _selectedCabinClass,
+                      style: TextStyle(
+                          color: Colors.white, fontSize: isMobile ? 11 : 14),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
 
-          SizedBox(height: spacingUnit(1.5)),
+          SizedBox(height: spacingUnit(isMobile ? 0.75 : 1.5)),
 
           // Bottom row: From/To, Dates, and Modify Search button
           Row(
             children: [
               // FROM - TO with swap button
-              Expanded(
-                flex: 3,
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: spacingUnit(1.5),
-                    vertical: spacingUnit(1),
-                  ),
-                  decoration: BoxDecoration(
-                    color: colorScheme(context).primary.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.3),
+              isMobile
+                  ? Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: spacingUnit(0.75),
+                        vertical: spacingUnit(0.5),
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            colorScheme(context).primary.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.flight_takeoff,
+                              color: Colors.white70, size: 12),
+                          SizedBox(width: spacingUnit(0.25)),
+                          Text(
+                            fromAirport?.code ?? 'FROM',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 2),
+                            child: Icon(Icons.swap_horiz,
+                                color: Colors.white70, size: 14),
+                          ),
+                          const Icon(Icons.flight_land,
+                              color: Colors.white70, size: 12),
+                          SizedBox(width: spacingUnit(0.25)),
+                          Text(
+                            toAirport?.code ?? 'TO',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Expanded(
+                      flex: 2,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: spacingUnit(1.5),
+                          vertical: spacingUnit(1),
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme(context)
+                              .primary
+                              .withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.flight_takeoff,
+                                color: Colors.white70, size: 16),
+                            SizedBox(width: spacingUnit(0.5)),
+                            Flexible(
+                              child: Text(
+                                fromAirport?.code ?? 'FROM',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 4),
+                              child: Icon(Icons.swap_horiz,
+                                  color: Colors.white70, size: 18),
+                            ),
+                            const Icon(Icons.flight_land,
+                                color: Colors.white70, size: 16),
+                            SizedBox(width: spacingUnit(0.5)),
+                            Flexible(
+                              child: Text(
+                                toAirport?.code ?? 'TO',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.flight_takeoff,
-                          color: Colors.white70, size: 16),
-                      SizedBox(width: spacingUnit(0.75)),
-                      Text(
-                        '${fromAirport?.code ?? 'FROM'} - ${fromAirport?.location ?? ''}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const Spacer(),
-                      const Icon(Icons.swap_horiz,
-                          color: Colors.white70, size: 20),
-                      const Spacer(),
-                      const Icon(Icons.flight_land,
-                          color: Colors.white70, size: 16),
-                      SizedBox(width: spacingUnit(0.75)),
-                      Text(
-                        '${toAirport?.code ?? 'TO'} - ${toAirport?.location ?? ''}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
 
-              SizedBox(width: spacingUnit(1.5)),
+              SizedBox(width: spacingUnit(isMobile ? 0.5 : 1)),
 
               // Dates
               Expanded(
-                flex: 2,
+                flex: 1,
                 child: Container(
                   padding: EdgeInsets.symmetric(
-                    horizontal: spacingUnit(1.5),
-                    vertical: spacingUnit(1),
+                    horizontal: spacingUnit(isMobile ? 0.75 : 1.5),
+                    vertical: spacingUnit(isMobile ? 0.5 : 1),
                   ),
                   decoration: BoxDecoration(
                     color: colorScheme(context).primary.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
                     border: Border.all(
                       color: Colors.white.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(CupertinoIcons.calendar,
-                          color: Colors.white70, size: 16),
-                      SizedBox(width: spacingUnit(0.75)),
-                      Text(
-                        departureDate != null
-                            ? (tripType == 'Round-trip' && returnDate != null
-                                ? '${DateFormat('d MMM').format(departureDate)} - ${DateFormat('d MMM yyyy').format(returnDate)}'
-                                : DateFormat('d MMM yyyy')
-                                    .format(departureDate))
-                            : 'Select Date',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                      Icon(CupertinoIcons.calendar,
+                          color: Colors.white70, size: isMobile ? 12 : 16),
+                      SizedBox(width: spacingUnit(isMobile ? 0.25 : 0.5)),
+                      Flexible(
+                        child: Text(
+                          departureDate != null
+                              ? (tripType == 'Round-trip' && returnDate != null
+                                  ? '${DateFormat(isMobile ? 'd MMM' : 'd MMM').format(departureDate)} - ${DateFormat(isMobile ? 'd MMM' : 'd MMM').format(returnDate)}'
+                                  : DateFormat(isMobile
+                                          ? 'd MMM yyyy'
+                                          : 'd MMM yyyy')
+                                      .format(departureDate))
+                              : 'Date',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: isMobile ? 10 : 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -972,22 +1091,25 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
                 ),
               ),
 
-              SizedBox(width: spacingUnit(1.5)),
+              SizedBox(width: spacingUnit(isMobile ? 0.5 : 1)),
 
               // Modify Search Button
               ElevatedButton.icon(
                 onPressed: () => _showSearchModificationModal(),
-                icon: const Icon(Icons.search, size: 18),
-                label: const Text('Modify Search'),
+                icon: Icon(Icons.search, size: isMobile ? 14 : 16),
+                label: Text(
+                  'Modify',
+                  style: TextStyle(fontSize: isMobile ? 11 : 13),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: colorScheme(context).primary,
                   padding: EdgeInsets.symmetric(
-                    horizontal: spacingUnit(2),
-                    vertical: spacingUnit(1.25),
+                    horizontal: spacingUnit(isMobile ? 0.75 : 1.5),
+                    vertical: spacingUnit(isMobile ? 0.5 : 1.25),
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
                   ),
                 ),
               ),
@@ -1020,9 +1142,12 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
                   ),
                 ),
                 SizedBox(width: spacingUnit(1)),
-                const Text(
-                  'Different Airlines for Round Trip',
-                  style: TextStyle(color: Colors.white, fontSize: 12),
+                const Flexible(
+                  child: Text(
+                    'Different Airlines for Round Trip',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 SizedBox(width: spacingUnit(0.5)),
                 const Icon(Icons.info_outline, color: Colors.white70, size: 14),
@@ -1034,11 +1159,11 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
     );
   }
 
-  Widget _buildTripTypeTab(String label, bool isSelected) {
+  Widget _buildTripTypeTab(String label, bool isSelected, bool isMobile) {
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: spacingUnit(1.5),
-        vertical: spacingUnit(0.75),
+        horizontal: spacingUnit(isMobile ? 1.25 : 1.5),
+        vertical: spacingUnit(isMobile ? 0.5 : 0.75),
       ),
       decoration: BoxDecoration(
         color: isSelected ? Colors.white : Colors.transparent,
@@ -1048,7 +1173,7 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
         label,
         style: TextStyle(
           color: isSelected ? colorScheme(context).primary : Colors.white70,
-          fontSize: 13,
+          fontSize: isMobile ? 11 : 13,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
       ),

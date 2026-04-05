@@ -378,10 +378,14 @@ class _BookingCheckoutState extends State<BookingCheckout> {
   Widget _buildStepProgress() {
     const steps = ['PASSENGERS', 'FACILITIES', 'CHECKOUT', 'PAYMENT', 'DONE'];
     const goldColor = Color(0xFFD4AF37);
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      padding: EdgeInsets.symmetric(
+        vertical: isMobile ? 8 : 12,
+        horizontal: isMobile ? 8 : 16,
+      ),
       child: Row(
         children: List.generate(9, (i) {
           if (i.isOdd) {
@@ -405,8 +409,8 @@ class _BookingCheckoutState extends State<BookingCheckout> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: isMobile ? 24 : 28,
+                height: isMobile ? 24 : 28,
                 decoration: BoxDecoration(
                   color: isCompleted || isActive
                       ? goldColor
@@ -415,24 +419,25 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                 ),
                 child: Center(
                   child: isCompleted
-                      ? const Icon(Icons.check, color: Colors.white, size: 14)
+                      ? Icon(Icons.check,
+                          color: Colors.white, size: isMobile ? 12 : 14)
                       : Text(
                           '${index + 1}',
                           style: TextStyle(
                             color:
                                 isActive ? Colors.white : Colors.grey.shade500,
-                            fontSize: 12,
+                            fontSize: isMobile ? 10 : 12,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: isMobile ? 2 : 4),
               Text(
                 steps[index],
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: isMobile ? 7 : 9,
                   color: isCompleted || isActive
                       ? goldColor
                       : Colors.grey.shade500,
@@ -2819,103 +2824,84 @@ class _BookingCheckoutState extends State<BookingCheckout> {
     );
   }
 
-  void _showTermsAndConditionsPage() {
-    Get.to(
-      () => Scaffold(
-        backgroundColor: Colors.grey.shade50,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: Colors.black87, size: 20),
-            onPressed: () => Get.back(),
+  void _showTermsAndConditionsPage() => _showPolicySheet('Terms & Conditions', [
+        const _PolicyItem('1. Acceptance of Terms',
+            'By accessing and using Travello AI, you accept and agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not use our services.'),
+        const _PolicyItem('2. Booking & Payment',
+            'All bookings are subject to availability and confirmation. Payment must be made in full at the time of booking. We accept major credit cards, debit cards, and mobile wallet payments.'),
+        const _PolicyItem('3. Cancellation & Refunds',
+            'Cancellations are subject to airline policies and fare rules. Refunds, if applicable, will be processed within 7-14 business days. Cancellation fees may apply.'),
+        const _PolicyItem('4. User Responsibilities',
+            'You are responsible for providing accurate information, maintaining account security, and ensuring valid travel documents. You must arrive at the airport with sufficient time before departure.'),
+        const _PolicyItem('5. Liability',
+            'Travello AI acts as an intermediary between customers and airlines. We are not liable for flight delays, cancellations, or changes made by airlines.'),
+        const _PolicyItem('6. Privacy',
+            'We respect your privacy and handle your personal information in accordance with our Privacy Policy. Your data is used solely for providing and improving our services.'),
+        const _PolicyItem('7. Changes to Terms',
+            'We reserve the right to modify these terms at any time. Continued use of our services constitutes acceptance of updated terms.'),
+      ]);
+
+  void _showPolicySheet(String title, List<_PolicyItem> items) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          title: const Text(
-            'Terms & Conditions',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
-              letterSpacing: -0.3,
+          child: Column(children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2)),
             ),
-          ),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Divider(height: 1, color: Colors.grey.shade200),
-          ),
-        ),
-        body: SingleChildScrollView(
-          padding: EdgeInsets.all(spacingUnit(3)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildFullPageSection(
-                '1. Acceptance of Terms',
-                'By accessing and using Travello AI, you accept and agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not use our services.',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '2. Booking & Payment',
-                'All bookings are subject to availability and confirmation. Payment must be made in full at the time of booking. We accept major credit cards, debit cards, and mobile wallet payments.',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '3. Cancellation & Refunds',
-                'Cancellations are subject to airline policies and fare rules. Refunds, if applicable, will be processed within 7-14 business days. Cancellation fees may apply.',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '4. User Responsibilities',
-                'You are responsible for providing accurate information, maintaining account security, and ensuring valid travel documents. You must arrive at the airport with sufficient time before departure.',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '5. Liability',
-                'Travello AI acts as an intermediary between customers and airlines. We are not liable for flight delays, cancellations, or changes made by airlines.',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '6. Privacy',
-                'We respect your privacy and handle your personal information in accordance with our Privacy Policy. Your data is used solely for providing and improving our services.',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '7. Changes to Terms',
-                'We reserve the right to modify these terms at any time. Continued use of our services constitutes acceptance of updated terms.',
-              ),
-              SizedBox(height: spacingUnit(4)),
-              Container(
-                padding: EdgeInsets.all(spacingUnit(2.5)),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade100),
+            Padding(
+              padding: EdgeInsets.fromLTRB(spacingUnit(3), spacingUnit(1),
+                  spacingUnit(1), spacingUnit(2)),
+              child: Row(children: [
+                Expanded(
+                  child: Text(title,
+                      style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black87,
+                          letterSpacing: -0.5)),
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline_rounded,
-                        color: Colors.blue.shade700, size: 20),
-                    SizedBox(width: spacingUnit(1.5)),
-                    Expanded(
-                      child: Text(
-                        'Last updated: March 2026',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.blue.shade900,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
+                IconButton(
+                  icon:
+                      const Icon(Icons.close_rounded, color: Color(0xFFB3B3B3)),
+                  onPressed: () => Navigator.pop(context),
                 ),
+              ]),
+            ),
+            Divider(height: 1, color: Colors.grey.shade200),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: EdgeInsets.all(spacingUnit(3)),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: items
+                        .map((item) => Padding(
+                              padding:
+                                  EdgeInsets.only(bottom: spacingUnit(2.5)),
+                              child: _buildPolicySection(item.title, item.body),
+                            ))
+                        .toList()),
               ),
-            ],
-          ),
+            ),
+          ]),
         ),
       ),
-      transition: Transition.cupertino,
-      duration: const Duration(milliseconds: 300),
     );
   }
 
@@ -3009,6 +2995,12 @@ class _BookingCheckoutState extends State<BookingCheckout> {
       ),
     );
   }
+}
+
+class _PolicyItem {
+  final String title;
+  final String body;
+  const _PolicyItem(this.title, this.body);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

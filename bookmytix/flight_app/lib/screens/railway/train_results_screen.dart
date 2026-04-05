@@ -2380,6 +2380,10 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
     final toStation = searchParams['toStation'] as RailwayStation?;
     final tripType = _isRoundTrip ? 'Round-trip' : 'One-way';
 
+    // Get screen width for responsive design
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
     // Build passenger display text
     String passengerText = '';
     if (_adults > 0) passengerText += '$_adults Adult${_adults > 1 ? "s" : ""}';
@@ -2395,8 +2399,8 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
     return Container(
       color: const Color(0xFFD4AF37),
       padding: EdgeInsets.symmetric(
-        horizontal: spacingUnit(2),
-        vertical: spacingUnit(1.5),
+        horizontal: spacingUnit(isMobile ? 1 : 2),
+        vertical: spacingUnit(isMobile ? 0.75 : 1.5),
       ),
       child: Column(
         children: [
@@ -2407,112 +2411,162 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
               Row(
                 children: [
                   _buildTripTypeTab('Round Trip', tripType == 'Round-trip'),
-                  SizedBox(width: spacingUnit(1)),
+                  SizedBox(width: spacingUnit(isMobile ? 0.5 : 1)),
                   _buildTripTypeTab('One Way', tripType == 'One-way'),
                 ],
               ),
               Row(
                 children: [
-                  const Icon(CupertinoIcons.person,
-                      color: Colors.white, size: 16),
-                  SizedBox(width: spacingUnit(0.5)),
+                  Icon(CupertinoIcons.person,
+                      color: Colors.white, size: isMobile ? 12 : 16),
+                  SizedBox(width: spacingUnit(isMobile ? 0.25 : 0.5)),
                   Text(
                     passengerText.isNotEmpty ? passengerText : '1 Adult',
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    style: TextStyle(
+                        color: Colors.white, fontSize: isMobile ? 10 : 14),
                   ),
-                  SizedBox(width: spacingUnit(2)),
+                  SizedBox(width: spacingUnit(isMobile ? 0.5 : 2)),
                   Text(
                     _selectedTrainClass,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    style: TextStyle(
+                        color: Colors.white, fontSize: isMobile ? 10 : 14),
                   ),
                 ],
               ),
             ],
           ),
 
-          SizedBox(height: spacingUnit(1.5)),
+          SizedBox(height: spacingUnit(isMobile ? 0.75 : 1.5)),
 
           // Bottom row: FROM-TO pill | Date pill | Modify Search button
           Row(
             children: [
               // FROM — TO
-              Expanded(
-                flex: 3,
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: spacingUnit(1.5),
-                    vertical: spacingUnit(1),
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD4AF37).withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(8),
-                    border:
-                        Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(CupertinoIcons.train_style_one,
-                          color: Colors.white70, size: 16),
-                      SizedBox(width: spacingUnit(0.75)),
-                      Expanded(
-                        child: Text(
-                          '${fromStation?.code ?? 'FROM'} - ${fromStation?.city ?? ''}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+              isMobile
+                  ? Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: spacingUnit(0.75),
+                        vertical: spacingUnit(0.5),
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD4AF37).withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(CupertinoIcons.train_style_one,
+                              color: Colors.white70, size: 12),
+                          SizedBox(width: spacingUnit(0.25)),
+                          Text(
+                            fromStation?.code ?? 'FROM',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                          overflow: TextOverflow.ellipsis,
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 3),
+                            child: Icon(Icons.swap_horiz,
+                                color: Colors.white70, size: 14),
+                          ),
+                          Text(
+                            toStation?.code ?? 'TO',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Expanded(
+                      flex: 2,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: spacingUnit(1.5),
+                          vertical: spacingUnit(1),
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD4AF37).withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(CupertinoIcons.train_style_one,
+                                color: Colors.white70, size: 16),
+                            SizedBox(width: spacingUnit(0.75)),
+                            Flexible(
+                              child: Text(
+                                '${fromStation?.code ?? 'FROM'} - ${fromStation?.city ?? ''}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 4),
+                              child: Icon(Icons.swap_horiz,
+                                  color: Colors.white70, size: 20),
+                            ),
+                            Flexible(
+                              child: Text(
+                                '${toStation?.code ?? 'TO'} - ${toStation?.city ?? ''}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.right,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const Icon(Icons.swap_horiz,
-                          color: Colors.white70, size: 20),
-                      Expanded(
-                        child: Text(
-                          '${toStation?.code ?? 'TO'} - ${toStation?.city ?? ''}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.right,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+                    ),
 
-              SizedBox(width: spacingUnit(1.5)),
+              SizedBox(width: spacingUnit(isMobile ? 0.5 : 1.5)),
 
               // Date
               Expanded(
-                flex: 2,
+                flex: 1,
                 child: Container(
                   padding: EdgeInsets.symmetric(
-                    horizontal: spacingUnit(1.5),
-                    vertical: spacingUnit(1),
+                    horizontal: spacingUnit(isMobile ? 0.75 : 1.5),
+                    vertical: spacingUnit(isMobile ? 0.5 : 1),
                   ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFD4AF37).withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
                     border:
                         Border.all(color: Colors.white.withValues(alpha: 0.3)),
                   ),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(CupertinoIcons.calendar,
-                          color: Colors.white70, size: 16),
-                      SizedBox(width: spacingUnit(0.75)),
+                      Icon(CupertinoIcons.calendar,
+                          color: Colors.white70, size: isMobile ? 12 : 16),
+                      SizedBox(width: spacingUnit(isMobile ? 0.25 : 0.75)),
                       Flexible(
                         child: Text(
                           _isRoundTrip && _selectedReturnDate != null
-                              ? '${DateFormat('d MMM').format(_selectedDate)} - ${DateFormat('d MMM yyyy').format(_selectedReturnDate!)}'
-                              : DateFormat('d MMM yyyy').format(_selectedDate),
-                          style: const TextStyle(
+                              ? '${DateFormat(isMobile ? 'd MMM' : 'd MMM').format(_selectedDate)} - ${DateFormat(isMobile ? 'd MMM' : 'd MMM yyyy').format(_selectedReturnDate!)}'
+                              : DateFormat(
+                                      isMobile ? 'd MMM yyyy' : 'd MMM yyyy')
+                                  .format(_selectedDate),
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 14,
+                            fontSize: isMobile ? 10 : 14,
                             fontWeight: FontWeight.w500,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -2523,22 +2577,25 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
                 ),
               ),
 
-              SizedBox(width: spacingUnit(1.5)),
+              SizedBox(width: spacingUnit(isMobile ? 0.5 : 1.5)),
 
               // Modify Search Button
               ElevatedButton.icon(
                 onPressed: _showSearchModificationModal,
-                icon: const Icon(Icons.search, size: 18),
-                label: const Text('Modify Search'),
+                icon: Icon(Icons.search, size: isMobile ? 14 : 18),
+                label: Text(
+                  isMobile ? 'Modify' : 'Modify Search',
+                  style: TextStyle(fontSize: isMobile ? 11 : 14),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: const Color(0xFFD4AF37),
                   padding: EdgeInsets.symmetric(
-                    horizontal: spacingUnit(2),
-                    vertical: spacingUnit(1.25),
+                    horizontal: spacingUnit(isMobile ? 0.75 : 2),
+                    vertical: spacingUnit(isMobile ? 0.5 : 1.25),
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(isMobile ? 6 : 8),
                   ),
                 ),
               ),

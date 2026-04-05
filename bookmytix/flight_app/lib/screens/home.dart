@@ -3,7 +3,6 @@ import 'package:flight_app/utils/custom_tooltip.dart';
 import 'package:flight_app/widgets/bottom_nav/bottom_nav_menu.dart';
 import 'package:flight_app/widgets/home/city_destinations/city_destinations_main.dart';
 import 'package:flight_app/widgets/home/header.dart';
-import 'package:flight_app/widgets/home/news_list.dart';
 import 'package:flight_app/widgets/home/package_list_slider.dart';
 import 'package:flight_app/widgets/home/search.dart';
 import 'package:flight_app/widgets/home/quick_search_bar.dart';
@@ -122,8 +121,6 @@ class _HomeState extends State<Home> {
               const PackageListSlider(),
               const VSpaceBig(),
               const FlightListDouble(),
-              const VSpace(),
-              const NewsList(),
               const SizedBox(
                 height: 120,
               )

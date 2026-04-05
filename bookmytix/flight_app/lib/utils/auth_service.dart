@@ -65,11 +65,28 @@ class AuthService {
       // Get existing users
       List<Map<String, dynamic>> users = await getRegisteredUsers();
 
-      // Check if user already exists (by email or phone)
-      bool userExists = users.any((user) =>
-          user['emailOrPhone']?.toLowerCase() == emailOrPhone.toLowerCase() ||
-          (email != null &&
-              user['email']?.toLowerCase() == email.toLowerCase()));
+      // Check if user already exists - check BOTH email AND phone separately
+      bool userExists = users.any((user) {
+        // Check email match if provided
+        if (email != null && email.trim().isNotEmpty) {
+          final userEmail =
+              user['email']?.toString().toLowerCase().trim() ?? '';
+          if (userEmail == email.toLowerCase().trim()) return true;
+        }
+
+        // Check phone match if provided
+        if (phone != null && phone.trim().isNotEmpty) {
+          final userPhone = user['phone']?.toString().trim() ?? '';
+          if (userPhone == phone.trim()) return true;
+        }
+
+        // Also check emailOrPhone field for backward compatibility
+        final userEmailOrPhone =
+            user['emailOrPhone']?.toString().toLowerCase().trim() ?? '';
+        if (userEmailOrPhone == emailOrPhone.toLowerCase().trim()) return true;
+
+        return false;
+      });
 
       if (userExists) {
         return false; // User already exists

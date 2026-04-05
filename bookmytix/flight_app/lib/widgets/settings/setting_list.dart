@@ -1,16 +1,14 @@
 import 'package:flight_app/app/app_link.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:get/get.dart';
 import 'package:flight_app/constants/app_const.dart';
-import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/widgets/cards/paper_card.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
 import 'package:flight_app/widgets/settings/account_info.dart';
 import 'package:flight_app/widgets/title/title_basic.dart';
 import 'package:flight_app/utils/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingList extends StatefulWidget {
   const SettingList({super.key});
@@ -25,7 +23,6 @@ class _SettingListState extends State<SettingList> {
   @override
   void initState() {
     super.initState();
-    _getThemeStatus();
     _checkAuthStatus();
   }
 
@@ -38,44 +35,6 @@ class _SettingListState extends State<SettingList> {
     });
   }
 
-  final RxString _themeMode = 'auto'.obs;
-
-  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
-
-  _getThemeStatus() async {
-    var mode = _prefs.then((SharedPreferences prefs) {
-      return prefs.getString('appTheme') ?? 'auto';
-    }).obs;
-
-    _themeMode.value = await mode.value;
-  }
-
-  _saveThemeStatus(val) async {
-    SharedPreferences pref = await _prefs;
-
-    _themeMode.value = val;
-
-    switch (val) {
-      case 'dark':
-        pref.setString('appTheme', val);
-        Get.changeThemeMode(ThemeMode.dark);
-        break;
-      case 'light':
-        pref.setString('appTheme', 'light');
-        Get.changeThemeMode(ThemeMode.light);
-        break;
-      default:
-        pref.setString('appTheme', 'auto');
-        pref.remove('appTheme');
-
-        var brightness =
-            SchedulerBinding.instance.platformDispatcher.platformBrightness;
-        bool isDarkMode = brightness == Brightness.dark;
-        Get.changeThemeMode(isDarkMode ? ThemeMode.dark : ThemeMode.light);
-        break;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -83,48 +42,6 @@ class _SettingListState extends State<SettingList> {
         physics: const ClampingScrollPhysics(),
         padding: EdgeInsets.all(spacingUnit(2)),
         children: [
-          /// UI SETTINGS
-          const TitleBasicSmall(title: 'UI Settings'),
-          PaperCard(
-              content: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(children: [
-              ListTile(
-                leading: const Icon(Icons.brightness_6_outlined),
-                title: const Text('Auto'),
-                onTap: () {
-                  _saveThemeStatus('auto');
-                },
-                trailing: Obx(() => _themeMode.value == 'auto'
-                    ? Icon(Icons.check_circle, color: ThemePalette.primaryMain)
-                    : const Icon(Icons.circle_outlined)),
-              ),
-              const LineList(),
-              ListTile(
-                leading: const Icon(Icons.dark_mode),
-                title: const Text('Dark Mode'),
-                onTap: () {
-                  _saveThemeStatus('dark');
-                },
-                trailing: Obx(() => _themeMode.value == 'dark'
-                    ? Icon(Icons.check_circle, color: ThemePalette.primaryMain)
-                    : const Icon(Icons.circle_outlined)),
-              ),
-              const LineList(),
-              ListTile(
-                leading: const Icon(Icons.light_mode),
-                title: const Text('Light Mode'),
-                onTap: () {
-                  _saveThemeStatus('light');
-                },
-                trailing: Obx(() => _themeMode.value == 'light'
-                    ? Icon(Icons.check_circle, color: ThemePalette.primaryMain)
-                    : const Icon(Icons.circle_outlined)),
-              ),
-            ]),
-          )),
-          const VSpace(),
-
           /// AUTH PAGES - Only show for guest users
           if (_isGuestMode) ...[
             const TitleBasicSmall(title: 'Quick Access'),

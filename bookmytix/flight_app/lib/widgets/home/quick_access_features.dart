@@ -29,22 +29,11 @@ class QuickAccessFeatures extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Container(
-              width: 3,
-              height: 20,
-              decoration: BoxDecoration(
-                color: _kGold,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text('Features',
-                style: ThemeText.title.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme(context).onSurface,
-                )),
-          ]),
+          Text('Features',
+              style: ThemeText.title.copyWith(
+                fontWeight: FontWeight.w700,
+                color: colorScheme(context).onSurface,
+              )),
           SizedBox(height: spacingUnit(2)),
           LayoutBuilder(builder: (_, constraints) {
             final cards = [
@@ -77,13 +66,16 @@ class QuickAccessFeatures extends StatelessWidget {
               );
             }
 
-            return Row(
-              children: [
-                for (int i = 0; i < cards.length; i++) ...[
-                  if (i > 0) SizedBox(width: gap),
-                  Expanded(child: cards[i]),
-                ]
-              ],
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (int i = 0; i < cards.length; i++) ...[
+                    if (i > 0) SizedBox(width: gap),
+                    Expanded(child: cards[i]),
+                  ]
+                ],
+              ),
             );
           }),
         ],

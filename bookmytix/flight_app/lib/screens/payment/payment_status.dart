@@ -708,6 +708,7 @@ class _PaymentStatusState extends State<PaymentStatus>
           ]),
           pw.SizedBox(height: 10),
           pw.Container(
+            width: double.infinity,
             decoration: pw.BoxDecoration(
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(14)),
               border: pw.Border.all(color: _pdfBorder),
@@ -1177,6 +1178,7 @@ class _PaymentStatusState extends State<PaymentStatus>
           pw.SizedBox(height: 14),
           // Tips
           pw.Container(
+            width: double.infinity,
             padding: const pw.EdgeInsets.all(16),
             decoration: pw.BoxDecoration(
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),
@@ -1298,7 +1300,33 @@ class _PaymentStatusState extends State<PaymentStatus>
               seatNumber: seatNumber);
         }
       }
-      await Printing.layoutPdf(onLayout: (_) async => doc.save());
+      final pdfBytes = await doc.save();
+      if (mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => Scaffold(
+              backgroundColor: Colors.grey.shade100,
+              appBar: AppBar(
+                title: const Text('E-Ticket Preview'),
+                backgroundColor: const Color(0xFF1A1A2E),
+                foregroundColor: Colors.white,
+                elevation: 0,
+              ),
+              body: PdfPreview(
+                build: (_) async => pdfBytes,
+                canChangeOrientation: false,
+                canChangePageFormat: false,
+                allowPrinting: true,
+                allowSharing: true,
+                initialPageFormat: PdfPageFormat.a4,
+                pdfFileName:
+                    'travello_eticket_${_bookingData['pnr'] ?? 'ticket'}.pdf',
+              ),
+            ),
+          ),
+        );
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1436,7 +1464,7 @@ class _PaymentStatusState extends State<PaymentStatus>
                     .replaceAll(' ', '') ??
                 '--';
         final phone = pax['phone'] as String? ?? '--';
-        final age = _calcAgeFromPax(pax);
+        final age = pax['age'] as String? ?? '--';
         final gender = pax['gender'] as String? ?? 'Male';
         final rawType = pax['concessionType'] as String? ?? 'ADULT';
         final paxType = rawType == 'CHILD_3_10'
@@ -1529,7 +1557,7 @@ class _PaymentStatusState extends State<PaymentStatus>
                       .replaceAll(' ', '') ??
                   '--';
           final phone = pax['phone'] as String? ?? '--';
-          final age = _calcAgeFromPax(pax);
+          final age = pax['age'] as String? ?? '--';
           final gender = pax['gender'] as String? ?? 'Male';
           final rawType = pax['concessionType'] as String? ?? 'ADULT';
           final paxType = rawType == 'CHILD_3_10'
@@ -1611,7 +1639,33 @@ class _PaymentStatusState extends State<PaymentStatus>
           );
         }
       }
-      await Printing.layoutPdf(onLayout: (_) async => doc.save());
+      final pdfBytes = await doc.save();
+      if (mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => Scaffold(
+              backgroundColor: Colors.grey.shade100,
+              appBar: AppBar(
+                title: const Text('E-Ticket Preview'),
+                backgroundColor: const Color(0xFF1A1A2E),
+                foregroundColor: Colors.white,
+                elevation: 0,
+              ),
+              body: PdfPreview(
+                build: (_) async => pdfBytes,
+                canChangeOrientation: false,
+                canChangePageFormat: false,
+                allowPrinting: true,
+                allowSharing: true,
+                initialPageFormat: PdfPageFormat.a4,
+                pdfFileName:
+                    'travello_train_ticket_${_bookingData['pnr'] ?? 'ticket'}.pdf',
+              ),
+            ),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -1627,28 +1681,6 @@ class _PaymentStatusState extends State<PaymentStatus>
     }
   }
 
-  /// Calculates age from [pax]['dob'] ISO8601 string.
-  /// Falls back to [pax]['age'] string if dob is absent.
-  String _calcAgeFromPax(Map<String, dynamic> pax) {
-    final dobStr = pax['dob'] as String?;
-    if (dobStr != null && dobStr.isNotEmpty) {
-      final dob = DateTime.tryParse(dobStr);
-      if (dob != null) {
-        final today = DateTime.now();
-        int age = today.year - dob.year;
-        if (today.month < dob.month ||
-            (today.month == dob.month && today.day < dob.day)) {
-          age--;
-        }
-        return age.toString();
-      }
-    }
-    return (pax['age'] as String?)?.isNotEmpty == true
-        ? pax['age'] as String
-        : '--';
-  }
-
-  // Adds one Pakistan Railways-style ticket page per passenger
   void _addRailwayTicketPage(
     pw.Document doc, {
     required Map<String, dynamic>? td,
@@ -2993,13 +3025,13 @@ class _PaymentStatusState extends State<PaymentStatus>
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                      colors: [Color(0xFFD4AF37), Color(0xFFB8935C)],
+                      colors: [Color(0xFF1B5E20), Color(0xFF388E3C)],
                       begin: Alignment.centerLeft,
                       end: Alignment.centerRight),
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                        color: const Color(0xFFD4AF37).withValues(alpha: 0.30),
+                        color: railwayGreen.withValues(alpha: 0.30),
                         blurRadius: 16,
                         offset: const Offset(0, 5))
                   ],
@@ -3212,19 +3244,25 @@ class _PaymentStatusState extends State<PaymentStatus>
             child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(fromCode,
-                            style: const TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.w900,
-                                color: navy,
-                                letterSpacing: 2)),
-                        Text(from.split('(').first.trim(),
-                            style: TextStyle(
-                                fontSize: 10, color: Colors.blueGrey.shade500)),
-                      ]),
+                  SizedBox(
+                    width: 80,
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(fromCode,
+                              style: const TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w900,
+                                  color: navy,
+                                  letterSpacing: 2)),
+                          Text(from.split('(').first.trim(),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.blueGrey.shade500)),
+                        ]),
+                  ),
                   Expanded(
                       child: Column(children: [
                     Text(dep,
@@ -3273,18 +3311,26 @@ class _PaymentStatusState extends State<PaymentStatus>
                               letterSpacing: 0.5)),
                     ),
                   ])),
-                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text(toCode,
-                        style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                            color: navy,
-                            letterSpacing: 2)),
-                    Text(to.split('(').first.trim(),
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                            fontSize: 10, color: Colors.blueGrey.shade500)),
-                  ]),
+                  SizedBox(
+                    width: 80,
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(toCode,
+                              style: const TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w900,
+                                  color: navy,
+                                  letterSpacing: 2)),
+                          Text(to.split('(').first.trim(),
+                              textAlign: TextAlign.right,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.blueGrey.shade500)),
+                        ]),
+                  ),
                 ]),
           ),
 
@@ -4132,10 +4178,14 @@ class _PaymentStatusState extends State<PaymentStatus>
         (_bookingData['bookingType'] as String? ?? 'flight') == 'train';
     final stepColor =
         isTrain ? const Color(0xFFD4AF37) : colorScheme(context).primary;
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      padding: EdgeInsets.symmetric(
+        vertical: isMobile ? 8 : 16,
+        horizontal: isMobile ? 8 : 16,
+      ),
       child: Row(
         children: List.generate(9, (i) {
           if (i.isOdd) {
@@ -4145,6 +4195,7 @@ class _PaymentStatusState extends State<PaymentStatus>
             return Expanded(
               child: Container(
                 height: 2,
+                margin: const EdgeInsets.only(bottom: 18),
                 color: isCompleted ? stepColor : Colors.grey.shade300,
               ),
             );
@@ -4158,8 +4209,8 @@ class _PaymentStatusState extends State<PaymentStatus>
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: isMobile ? 24 : 32,
+                height: isMobile ? 24 : 32,
                 decoration: BoxDecoration(
                   color: isCompleted || isActive
                       ? stepColor
@@ -4167,24 +4218,27 @@ class _PaymentStatusState extends State<PaymentStatus>
                   shape: BoxShape.circle,
                 ),
                 child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      color: isCompleted || isActive
-                          ? Colors.white
-                          : Colors.grey.shade600,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: isCompleted && index < 4
+                      ? Icon(Icons.check,
+                          color: Colors.white, size: isMobile ? 12 : 14)
+                      : Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color: isCompleted || isActive
+                                ? Colors.white
+                                : Colors.grey.shade600,
+                            fontSize: isMobile ? 10 : 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: isMobile ? 2 : 4),
               Text(
                 steps[index],
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: isMobile ? 7 : 9,
                   color: isCompleted || isActive
                       ? stepColor
                       : Colors.grey.shade600,
@@ -4633,170 +4687,179 @@ class _PaymentStatusState extends State<PaymentStatus>
     final departureTime = flightDetails?['departure'] ?? 'N/A';
     final arrivalTime = flightDetails?['arrival'] ?? 'N/A';
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        children: [
-          // Table Header
-          Container(
-            color: Colors.grey.shade200,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: const Row(
-              children: [
-                SizedBox(
-                    width: 60,
-                    child: Text('FLIGHT',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 90,
-                    child: Text('DEPART/ARRIVE',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                Expanded(
-                    child: Text('AIRPORT/TERMINAL',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 90,
-                    child: Text('CHECK-IN OPENS',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 70,
-                    child: Text('CLASS',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 100,
-                    child: Text('COUPON VALIDITY',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-              ],
-            ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: 520,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
           ),
-          // Flight Row 1 - Departure
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade300, width: 0.5)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 60,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        flightDetails?['flightNumber'] ?? 'N/A',
-                        style: const TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'CONFIRMED',
-                        style: TextStyle(fontSize: 9, color: Colors.black87),
-                      ),
-                    ],
-                  ),
+          child: Column(
+            children: [
+              // Table Header
+              Container(
+                color: Colors.grey.shade200,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                        width: 60,
+                        child: Text('FLIGHT',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 90,
+                        child: Text('DEPART/ARRIVE',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    Expanded(
+                        child: Text('AIRPORT/TERMINAL',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 90,
+                        child: Text('CHECK-IN OPENS',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 70,
+                        child: Text('CLASS',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 100,
+                        child: Text('COUPON VALIDITY',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                  ],
                 ),
-                SizedBox(
-                  width: 90,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('$departureDate\n$departureTime',
+              ),
+              // Flight Row 1 - Departure
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  border: Border(
+                      bottom:
+                          BorderSide(color: Colors.grey.shade300, width: 0.5)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 60,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            flightDetails?['flightNumber'] ?? 'N/A',
+                            style: const TextStyle(
+                                fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'CONFIRMED',
+                            style:
+                                TextStyle(fontSize: 9, color: Colors.black87),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: 90,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('$departureDate\n$departureTime',
+                              style: const TextStyle(fontSize: 10)),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            flightDetails?['from'] ?? 'N/A',
+                            style: const TextStyle(
+                                fontSize: 10, fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                              'TERMINAL ${flightDetails?['departureTerminal'] ?? '0'}',
+                              style: const TextStyle(fontSize: 9)),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: 90,
+                      child: Text('$departureDate\n0730',
                           style: const TextStyle(fontSize: 10)),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        flightDetails?['from'] ?? 'N/A',
-                        style: const TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(
+                      width: 70,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('ECONOMY', style: TextStyle(fontSize: 10)),
+                          Text('27 K', style: TextStyle(fontSize: 9)),
+                        ],
                       ),
-                      Text(
-                          'TERMINAL ${flightDetails?['departureTerminal'] ?? '0'}',
+                    ),
+                    SizedBox(
+                      width: 100,
+                      child: Text(
+                          'NOT AFTER ${DateFormat('dd MMM yy').format(DateTime.now().add(const Duration(days: 365))).toUpperCase()}',
                           style: const TextStyle(fontSize: 9)),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                SizedBox(
-                  width: 90,
-                  child: Text('$departureDate\n0730',
-                      style: const TextStyle(fontSize: 10)),
-                ),
-                const SizedBox(
-                  width: 70,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('ECONOMY', style: TextStyle(fontSize: 10)),
-                      Text('27 K', style: TextStyle(fontSize: 9)),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  width: 100,
-                  child: Text(
-                      'NOT AFTER ${DateFormat('dd MMM yy').format(DateTime.now().add(const Duration(days: 365))).toUpperCase()}',
-                      style: const TextStyle(fontSize: 9)),
-                ),
-              ],
-            ),
-          ),
-          // Flight Row 2 - Arrival
-          Container(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(width: 60),
-                SizedBox(
-                  width: 90,
-                  child: Text('$departureDate\n$arrivalTime',
-                      style: const TextStyle(fontSize: 10)),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        flightDetails?['to'] ?? 'N/A',
-                        style: const TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.w600),
+              ),
+              // Flight Row 2 - Arrival
+              Container(
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(width: 60),
+                    SizedBox(
+                      width: 90,
+                      child: Text('$departureDate\n$arrivalTime',
+                          style: const TextStyle(fontSize: 10)),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            flightDetails?['to'] ?? 'N/A',
+                            style: const TextStyle(
+                                fontSize: 10, fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                              'TERMINAL ${flightDetails?['arrivalTerminal'] ?? '1'}',
+                              style: const TextStyle(fontSize: 9)),
+                        ],
                       ),
-                      Text(
-                          'TERMINAL ${flightDetails?['arrivalTerminal'] ?? '1'}',
-                          style: const TextStyle(fontSize: 9)),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 90),
+                    const SizedBox(
+                      width: 70,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('BAGGAGE', style: TextStyle(fontSize: 9)),
+                          Text('ALLOWANCE 30KGS',
+                              style: TextStyle(fontSize: 8)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 100),
+                  ],
                 ),
-                const SizedBox(width: 90),
-                const SizedBox(
-                  width: 70,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('BAGGAGE', style: TextStyle(fontSize: 9)),
-                      Text('ALLOWANCE 30KGS', style: TextStyle(fontSize: 8)),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 100),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -5059,171 +5122,180 @@ class _PaymentStatusState extends State<PaymentStatus>
     final departureTime = returnFlightDetails['departure'] ?? 'N/A';
     final arrivalTime = returnFlightDetails['arrival'] ?? 'N/A';
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        children: [
-          // Table Header
-          Container(
-            color: Colors.blue.shade100,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: const Row(
-              children: [
-                SizedBox(
-                    width: 60,
-                    child: Text('RETURN',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 90,
-                    child: Text('DEPART/ARRIVE',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                Expanded(
-                    child: Text('AIRPORT/TERMINAL',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 90,
-                    child: Text('CHECK-IN OPENS',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 70,
-                    child: Text('CLASS',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 100,
-                    child: Text('COUPON VALIDITY',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-              ],
-            ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: 520,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
           ),
-          // Return Flight Departure Row
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade300, width: 0.5)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 60,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        returnFlightDetails['flightNumber'] ?? 'N/A',
-                        style: const TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'CONFIRMED',
-                        style: TextStyle(fontSize: 9, color: Colors.black87),
-                      ),
-                    ],
-                  ),
+          child: Column(
+            children: [
+              // Table Header
+              Container(
+                color: Colors.blue.shade100,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                        width: 60,
+                        child: Text('RETURN',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 90,
+                        child: Text('DEPART/ARRIVE',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    Expanded(
+                        child: Text('AIRPORT/TERMINAL',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 90,
+                        child: Text('CHECK-IN OPENS',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 70,
+                        child: Text('CLASS',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 100,
+                        child: Text('COUPON VALIDITY',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                  ],
                 ),
-                SizedBox(
-                  width: 90,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('$departureDate\n$departureTime',
+              ),
+              // Return Flight Departure Row
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  border: Border(
+                      bottom:
+                          BorderSide(color: Colors.grey.shade300, width: 0.5)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 60,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            returnFlightDetails['flightNumber'] ?? 'N/A',
+                            style: const TextStyle(
+                                fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'CONFIRMED',
+                            style:
+                                TextStyle(fontSize: 9, color: Colors.black87),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: 90,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('$departureDate\n$departureTime',
+                              style: const TextStyle(fontSize: 10)),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            returnFlightDetails['from'] ?? 'N/A',
+                            style: const TextStyle(
+                                fontSize: 10, fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                              'TERMINAL ${returnFlightDetails['departureTerminal'] ?? '1'}',
+                              style: const TextStyle(fontSize: 9)),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: 90,
+                      child: Text('$departureDate\n0730',
                           style: const TextStyle(fontSize: 10)),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        returnFlightDetails['from'] ?? 'N/A',
-                        style: const TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.w600),
+                    ),
+                    SizedBox(
+                      width: 70,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(returnFlightDetails['class'] ?? 'ECONOMY',
+                              style: const TextStyle(fontSize: 10)),
+                          const Text('27 K', style: TextStyle(fontSize: 9)),
+                        ],
                       ),
-                      Text(
-                          'TERMINAL ${returnFlightDetails['departureTerminal'] ?? '1'}',
+                    ),
+                    SizedBox(
+                      width: 100,
+                      child: Text(
+                          'NOT AFTER ${DateFormat('dd MMM yy').format(DateTime.now().add(const Duration(days: 365))).toUpperCase()}',
                           style: const TextStyle(fontSize: 9)),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                SizedBox(
-                  width: 90,
-                  child: Text('$departureDate\n0730',
-                      style: const TextStyle(fontSize: 10)),
-                ),
-                SizedBox(
-                  width: 70,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(returnFlightDetails['class'] ?? 'ECONOMY',
+              ),
+              // Return Flight Arrival Row
+              Container(
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(width: 60),
+                    SizedBox(
+                      width: 90,
+                      child: Text('$departureDate\n$arrivalTime',
                           style: const TextStyle(fontSize: 10)),
-                      const Text('27 K', style: TextStyle(fontSize: 9)),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  width: 100,
-                  child: Text(
-                      'NOT AFTER ${DateFormat('dd MMM yy').format(DateTime.now().add(const Duration(days: 365))).toUpperCase()}',
-                      style: const TextStyle(fontSize: 9)),
-                ),
-              ],
-            ),
-          ),
-          // Return Flight Arrival Row
-          Container(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(width: 60),
-                SizedBox(
-                  width: 90,
-                  child: Text('$departureDate\n$arrivalTime',
-                      style: const TextStyle(fontSize: 10)),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        returnFlightDetails['to'] ?? 'N/A',
-                        style: const TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.w600),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            returnFlightDetails['to'] ?? 'N/A',
+                            style: const TextStyle(
+                                fontSize: 10, fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                              'TERMINAL ${returnFlightDetails['arrivalTerminal'] ?? '0'}',
+                              style: const TextStyle(fontSize: 9)),
+                        ],
                       ),
-                      Text(
-                          'TERMINAL ${returnFlightDetails['arrivalTerminal'] ?? '0'}',
-                          style: const TextStyle(fontSize: 9)),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 90),
+                    const SizedBox(
+                      width: 70,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('BAGGAGE', style: TextStyle(fontSize: 9)),
+                          Text('ALLOWANCE 30KGS',
+                              style: TextStyle(fontSize: 8)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 100),
+                  ],
                 ),
-                const SizedBox(width: 90),
-                const SizedBox(
-                  width: 70,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('BAGGAGE', style: TextStyle(fontSize: 9)),
-                      Text('ALLOWANCE 30KGS', style: TextStyle(fontSize: 8)),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 100),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -5296,137 +5368,148 @@ class _PaymentStatusState extends State<PaymentStatus>
       }
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        children: [
-          // Table Header
-          Container(
-            color: Colors.grey.shade200,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: const Row(
-              children: [
-                SizedBox(
-                    width: 80,
-                    child: Text('TRAIN',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 100,
-                    child: Text('DEPART/ARRIVE',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                Expanded(
-                    child: Text('STATION',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 80,
-                    child: Text('DURATION',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 100,
-                    child: Text('CLASS/COACH',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 80,
-                    child: Text('SEAT(S)',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-              ],
-            ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: 540,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
           ),
-          // Train Row 1 - Departure
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade300, width: 0.5)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        trainDetails?['trainNumber']?.toString() ?? 'N/A',
+          child: Column(
+            children: [
+              // Table Header
+              Container(
+                color: Colors.grey.shade200,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                        width: 80,
+                        child: Text('TRAIN',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 100,
+                        child: Text('DEPART/ARRIVE',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    Expanded(
+                        child: Text('STATION',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 80,
+                        child: Text('DURATION',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 100,
+                        child: Text('CLASS/COACH',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 80,
+                        child: Text('SEAT(S)',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                  ],
+                ),
+              ),
+              // Train Row 1 - Departure
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  border: Border(
+                      bottom:
+                          BorderSide(color: Colors.grey.shade300, width: 0.5)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 80,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            trainDetails?['trainNumber']?.toString() ?? 'N/A',
+                            style: const TextStyle(
+                                fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'CONFIRMED',
+                            style:
+                                TextStyle(fontSize: 9, color: Colors.black87),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: 100,
+                      child: Text('$departureDate\n$departureTime',
+                          style: const TextStyle(fontSize: 10)),
+                    ),
+                    Expanded(
+                      child: Text(
+                        trainDetails?['from']?.toString() ?? 'N/A',
                         style: const TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.bold),
+                            fontSize: 10, fontWeight: FontWeight.w600),
                       ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'CONFIRMED',
-                        style: TextStyle(fontSize: 9, color: Colors.black87),
+                    ),
+                    SizedBox(
+                      width: 80,
+                      child:
+                          Text(duration, style: const TextStyle(fontSize: 10)),
+                    ),
+                    SizedBox(
+                      width: 100,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(classType, style: const TextStyle(fontSize: 10)),
+                          Text('Coach $coach',
+                              style: const TextStyle(fontSize: 9)),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    SizedBox(
+                      width: 80,
+                      child:
+                          Text(seatStr, style: const TextStyle(fontSize: 10)),
+                    ),
+                  ],
                 ),
-                SizedBox(
-                  width: 100,
-                  child: Text('$departureDate\n$departureTime',
-                      style: const TextStyle(fontSize: 10)),
+              ),
+              // Train Row 2 - Arrival
+              Container(
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(width: 80),
+                    SizedBox(
+                      width: 100,
+                      child: Text('$departureDate\n$arrivalTime',
+                          style: const TextStyle(fontSize: 10)),
+                    ),
+                    Expanded(
+                      child: Text(
+                        trainDetails?['to']?.toString() ?? 'N/A',
+                        style: const TextStyle(
+                            fontSize: 10, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(width: 80),
+                    const SizedBox(width: 100),
+                    const SizedBox(width: 80),
+                  ],
                 ),
-                Expanded(
-                  child: Text(
-                    trainDetails?['from']?.toString() ?? 'N/A',
-                    style: const TextStyle(
-                        fontSize: 10, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                SizedBox(
-                  width: 80,
-                  child: Text(duration, style: const TextStyle(fontSize: 10)),
-                ),
-                SizedBox(
-                  width: 100,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(classType, style: const TextStyle(fontSize: 10)),
-                      Text('Coach $coach', style: const TextStyle(fontSize: 9)),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  width: 80,
-                  child: Text(seatStr, style: const TextStyle(fontSize: 10)),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          // Train Row 2 - Arrival
-          Container(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(width: 80),
-                SizedBox(
-                  width: 100,
-                  child: Text('$departureDate\n$arrivalTime',
-                      style: const TextStyle(fontSize: 10)),
-                ),
-                Expanded(
-                  child: Text(
-                    trainDetails?['to']?.toString() ?? 'N/A',
-                    style: const TextStyle(
-                        fontSize: 10, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                const SizedBox(width: 80),
-                const SizedBox(width: 100),
-                const SizedBox(width: 80),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -5466,137 +5549,149 @@ class _PaymentStatusState extends State<PaymentStatus>
       }
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        children: [
-          // Table Header
-          Container(
-            color: Colors.grey.shade200,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: const Row(
-              children: [
-                SizedBox(
-                    width: 80,
-                    child: Text('RETURN TRAIN',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 100,
-                    child: Text('DEPART/ARRIVE',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                Expanded(
-                    child: Text('STATION',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 80,
-                    child: Text('DURATION',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 100,
-                    child: Text('CLASS/COACH',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-                SizedBox(
-                    width: 80,
-                    child: Text('SEAT(S)',
-                        style: TextStyle(
-                            fontSize: 9, fontWeight: FontWeight.bold))),
-              ],
-            ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: 540,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
           ),
-          // Train Row 1 - Departure
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade300, width: 0.5)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        returnTrainDetails?['trainNumber']?.toString() ?? 'N/A',
+          child: Column(
+            children: [
+              // Table Header
+              Container(
+                color: Colors.grey.shade200,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                        width: 80,
+                        child: Text('RETURN TRAIN',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 100,
+                        child: Text('DEPART/ARRIVE',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    Expanded(
+                        child: Text('STATION',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 80,
+                        child: Text('DURATION',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 100,
+                        child: Text('CLASS/COACH',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                    SizedBox(
+                        width: 80,
+                        child: Text('SEAT(S)',
+                            style: TextStyle(
+                                fontSize: 9, fontWeight: FontWeight.bold))),
+                  ],
+                ),
+              ),
+              // Train Row 1 - Departure
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  border: Border(
+                      bottom:
+                          BorderSide(color: Colors.grey.shade300, width: 0.5)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 80,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            returnTrainDetails?['trainNumber']?.toString() ??
+                                'N/A',
+                            style: const TextStyle(
+                                fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'CONFIRMED',
+                            style:
+                                TextStyle(fontSize: 9, color: Colors.black87),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: 100,
+                      child: Text('$departureDate\n$departureTime',
+                          style: const TextStyle(fontSize: 10)),
+                    ),
+                    Expanded(
+                      child: Text(
+                        returnTrainDetails?['from']?.toString() ?? 'N/A',
                         style: const TextStyle(
-                            fontSize: 10, fontWeight: FontWeight.bold),
+                            fontSize: 10, fontWeight: FontWeight.w600),
                       ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'CONFIRMED',
-                        style: TextStyle(fontSize: 9, color: Colors.black87),
+                    ),
+                    SizedBox(
+                      width: 80,
+                      child:
+                          Text(duration, style: const TextStyle(fontSize: 10)),
+                    ),
+                    SizedBox(
+                      width: 100,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(classType, style: const TextStyle(fontSize: 10)),
+                          Text('Coach $coach',
+                              style: const TextStyle(fontSize: 9)),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    SizedBox(
+                      width: 80,
+                      child:
+                          Text(seatStr, style: const TextStyle(fontSize: 10)),
+                    ),
+                  ],
                 ),
-                SizedBox(
-                  width: 100,
-                  child: Text('$departureDate\n$departureTime',
-                      style: const TextStyle(fontSize: 10)),
+              ),
+              // Train Row 2 - Arrival
+              Container(
+                padding: const EdgeInsets.all(8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(width: 80),
+                    SizedBox(
+                      width: 100,
+                      child: Text('$departureDate\n$arrivalTime',
+                          style: const TextStyle(fontSize: 10)),
+                    ),
+                    Expanded(
+                      child: Text(
+                        returnTrainDetails?['to']?.toString() ?? 'N/A',
+                        style: const TextStyle(
+                            fontSize: 10, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(width: 80),
+                    const SizedBox(width: 100),
+                    const SizedBox(width: 80),
+                  ],
                 ),
-                Expanded(
-                  child: Text(
-                    returnTrainDetails?['from']?.toString() ?? 'N/A',
-                    style: const TextStyle(
-                        fontSize: 10, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                SizedBox(
-                  width: 80,
-                  child: Text(duration, style: const TextStyle(fontSize: 10)),
-                ),
-                SizedBox(
-                  width: 100,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(classType, style: const TextStyle(fontSize: 10)),
-                      Text('Coach $coach', style: const TextStyle(fontSize: 9)),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  width: 80,
-                  child: Text(seatStr, style: const TextStyle(fontSize: 10)),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-          // Train Row 2 - Arrival
-          Container(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(width: 80),
-                SizedBox(
-                  width: 100,
-                  child: Text('$departureDate\n$arrivalTime',
-                      style: const TextStyle(fontSize: 10)),
-                ),
-                Expanded(
-                  child: Text(
-                    returnTrainDetails?['to']?.toString() ?? 'N/A',
-                    style: const TextStyle(
-                        fontSize: 10, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                const SizedBox(width: 80),
-                const SizedBox(width: 100),
-                const SizedBox(width: 80),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -5838,10 +5933,32 @@ class _PaymentStatusState extends State<PaymentStatus>
         ),
       );
 
-      await Printing.layoutPdf(
-        name: 'Tax Invoice - $invoiceNumber',
-        onLayout: (PdfPageFormat format) async => pdf.save(),
-      );
+      final pdfBytes = await pdf.save();
+      if (mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => Scaffold(
+              backgroundColor: Colors.grey.shade100,
+              appBar: AppBar(
+                title: const Text('Invoice Preview'),
+                backgroundColor: const Color(0xFF1A1A2E),
+                foregroundColor: Colors.white,
+                elevation: 0,
+              ),
+              body: PdfPreview(
+                build: (_) async => pdfBytes,
+                canChangeOrientation: false,
+                canChangePageFormat: false,
+                allowPrinting: true,
+                allowSharing: true,
+                initialPageFormat: PdfPageFormat.a4,
+                pdfFileName: 'travello_invoice_$invoiceNumber.pdf',
+              ),
+            ),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

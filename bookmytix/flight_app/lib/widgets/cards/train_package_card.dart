@@ -121,90 +121,111 @@ class TrainPackageCard extends StatelessWidget {
                     ]),
                   ),
 
-                  /// DATE + TRIP TYPE
+                  /// DATE + TRIP TYPE & PRICE
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      date,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: ThemeText.caption.copyWith(
+                                          color: colorScheme(context)
+                                              .onSurfaceVariant),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: roundTrip
+                                          ? colorScheme(context)
+                                              .primaryContainer
+                                          : colorScheme(context)
+                                              .secondaryContainer,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      roundTrip ? 'Round-Trip' : 'One-Way',
+                                      style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color:
+                                              colorScheme(context).onSurface),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Wrap(
+                                    spacing: 4,
+                                    children: tags.asMap().entries.map((entry) {
+                                      int index = entry.key;
+                                      String tag = entry.value;
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 4),
+                                        decoration: BoxDecoration(
+                                            borderRadius: ThemeRadius.xsmall,
+                                            color: index % 2 == 0
+                                                ? colorScheme(context)
+                                                    .primaryContainer
+                                                : colorScheme(context)
+                                                    .secondaryContainer),
+                                        child: Text(tag.toCapitalCase(),
+                                            style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w500,
+                                                color: colorScheme(context)
+                                                    .onSurface)),
+                                      );
+                                    }).toList(),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                        borderRadius: ThemeRadius.xsmall,
+                                        color: colorScheme(context)
+                                            .tertiaryContainer),
+                                    child: Icon(CupertinoIcons.arrow_uturn_left,
+                                        color: colorScheme(context).tertiary,
+                                        size: 10),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                date,
+                                'Start from',
                                 style: ThemeText.caption.copyWith(
                                     color:
                                         colorScheme(context).onSurfaceVariant),
                               ),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: roundTrip
-                                      ? colorScheme(context).primaryContainer
-                                      : colorScheme(context).secondaryContainer,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  roundTrip ? 'Round-Trip' : 'One-Way',
-                                  style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w700,
-                                      color: colorScheme(context).onSurface),
-                                ),
-                              ),
+                              Text('Rs.${price.toStringAsFixed(0)}',
+                                  style: ThemeText.title2.copyWith(
+                                      color: colorScheme(context).primary,
+                                      fontWeight: FontWeight.bold,
+                                      height: 1.1)),
                             ],
-                          ),
-                          Text(
-                            'Start from',
-                            style: ThemeText.caption.copyWith(
-                                color: colorScheme(context).onSurfaceVariant),
                           ),
                         ]),
                   ),
-
-                  /// PRICE & TAGS
-                  Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Flexible(
-                        child: Wrap(
-                      spacing: 4,
-                      children: tags.asMap().entries.map((entry) {
-                        int index = entry.key;
-                        String tag = entry.value;
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          decoration: BoxDecoration(
-                              borderRadius: ThemeRadius.xsmall,
-                              color: index % 2 == 0
-                                  ? colorScheme(context).primaryContainer
-                                  : colorScheme(context).secondaryContainer),
-                          child: Text(tag.toCapitalCase(),
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                  color: colorScheme(context).onSurface)),
-                        );
-                      }).toList(),
-                    )),
-                    const SizedBox(width: 4),
-                    Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                          borderRadius: ThemeRadius.xsmall,
-                          color: colorScheme(context).tertiaryContainer),
-                      child: Icon(CupertinoIcons.arrow_uturn_left,
-                          color: colorScheme(context).tertiary, size: 10),
-                    ),
-                    Expanded(
-                      child: Text('Rs.${price.toStringAsFixed(0)}',
-                          textAlign: TextAlign.end,
-                          style: ThemeText.title2.copyWith(
-                              color: colorScheme(context).primary,
-                              fontWeight: FontWeight.bold,
-                              height: 1)),
-                    )
-                  ]),
 
                   /// TRAIN INFO
                   const Padding(

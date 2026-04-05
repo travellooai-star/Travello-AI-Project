@@ -54,7 +54,7 @@ final List<Plane> planeList = [
   Plane(
     id: '4',
     code: 'A320-B',
-    name: 'Airbus A320 (Business)',
+    name: 'Airbus A320',
     classType: 'Business',
     description:
         'Premium Airbus A320 with business class seating. Most common business class aircraft in Pakistan.',
@@ -63,7 +63,7 @@ final List<Plane> planeList = [
   Plane(
     id: '5',
     code: 'B737-B',
-    name: 'Boeing 737 (Business)',
+    name: 'Boeing 737',
     classType: 'Business',
     description:
         'Business class configured Boeing 737 for premium domestic travel.',
@@ -99,7 +99,7 @@ final List<Plane> planeList = [
   Plane(
     id: '9',
     code: 'A320-P',
-    name: 'Airbus A320 (Premium)',
+    name: 'Airbus A320',
     classType: 'First',
     description:
         'Premium economy A320 configuration with extra legroom and amenities.',
@@ -108,7 +108,7 @@ final List<Plane> planeList = [
   Plane(
     id: '10',
     code: 'B737-P',
-    name: 'Boeing 737 (Premium)',
+    name: 'Boeing 737',
     classType: 'First',
     description:
         'Premium economy Boeing 737 with enhanced comfort for longer domestic flights.',

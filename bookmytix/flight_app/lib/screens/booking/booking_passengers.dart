@@ -574,10 +574,15 @@ class _BookingPassengersState extends State<BookingPassengers> {
   // â”€â”€ 5-step stepper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   Widget _buildStepper(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
     const goldColor = Color(0xFFD4AF37);
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      padding: EdgeInsets.symmetric(
+        vertical: isMobile ? 8 : 12,
+        horizontal: isMobile ? 8 : 16,
+      ),
       child: Row(
         children: List.generate(9, (i) {
           if (i.isOdd) {
@@ -601,8 +606,8 @@ class _BookingPassengersState extends State<BookingPassengers> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: isMobile ? 24 : 28,
+                height: isMobile ? 24 : 28,
                 decoration: BoxDecoration(
                   color: isCompleted || isActive
                       ? goldColor
@@ -611,24 +616,25 @@ class _BookingPassengersState extends State<BookingPassengers> {
                 ),
                 child: Center(
                   child: isCompleted
-                      ? const Icon(Icons.check, color: Colors.white, size: 14)
+                      ? Icon(Icons.check,
+                          color: Colors.white, size: isMobile ? 12 : 14)
                       : Text(
                           '${index + 1}',
                           style: TextStyle(
                             color:
                                 isActive ? Colors.white : Colors.grey.shade500,
-                            fontSize: 12,
+                            fontSize: isMobile ? 10 : 12,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: isMobile ? 2 : 4),
               Text(
                 _steps[index],
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: isMobile ? 7 : 9,
                   color: isCompleted || isActive
                       ? goldColor
                       : Colors.grey.shade500,
@@ -1570,108 +1576,240 @@ class _BookingPassengersState extends State<BookingPassengers> {
                         SizedBox(height: spacingUnit(2)),
 
                         // first + last name
-                        Row(
-                          children: [
-                            Expanded(
-                                child: _buildTextField(
-                              label: 'First Name',
-                              controller: p.firstNameCtrl,
-                              icon: Icons.person_outline,
-                              hint: 'Enter First Name',
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                    RegExp(r'[a-zA-Z ]'))
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMobile = constraints.maxWidth < 600;
+                            if (isMobile) {
+                              return Column(
+                                children: [
+                                  _buildTextField(
+                                    label: 'First Name',
+                                    controller: p.firstNameCtrl,
+                                    icon: Icons.person_outline,
+                                    hint: 'Enter First Name',
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(
+                                          RegExp(r'[a-zA-Z ]'))
+                                    ],
+                                    validator: (v) {
+                                      final s = v?.trim() ?? '';
+                                      if (s.isEmpty) {
+                                        return 'First name is required';
+                                      }
+                                      if (s.length < 2) {
+                                        return 'Minimum 2 characters';
+                                      }
+                                      if (!RegExp(r'^[a-zA-Z ]+$')
+                                          .hasMatch(s)) {
+                                        return 'Letters only';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  SizedBox(height: spacingUnit(2)),
+                                  _buildTextField(
+                                    label: 'Last Name',
+                                    controller: p.lastNameCtrl,
+                                    icon: Icons.person_outline,
+                                    hint: 'Enter Last Name',
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(
+                                          RegExp(r'[a-zA-Z ]'))
+                                    ],
+                                    validator: (v) {
+                                      final s = v?.trim() ?? '';
+                                      if (s.isEmpty) {
+                                        return 'Last name is required';
+                                      }
+                                      if (s.length < 2) {
+                                        return 'Minimum 2 characters';
+                                      }
+                                      if (!RegExp(r'^[a-zA-Z ]+$')
+                                          .hasMatch(s)) {
+                                        return 'Letters only';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ],
+                              );
+                            }
+                            return Row(
+                              children: [
+                                Expanded(
+                                    child: _buildTextField(
+                                  label: 'First Name',
+                                  controller: p.firstNameCtrl,
+                                  icon: Icons.person_outline,
+                                  hint: 'Enter First Name',
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'[a-zA-Z ]'))
+                                  ],
+                                  validator: (v) {
+                                    final s = v?.trim() ?? '';
+                                    if (s.isEmpty) {
+                                      return 'First name is required';
+                                    }
+                                    if (s.length < 2) {
+                                      return 'Minimum 2 characters';
+                                    }
+                                    if (!RegExp(r'^[a-zA-Z ]+$').hasMatch(s)) {
+                                      return 'Letters only';
+                                    }
+                                    return null;
+                                  },
+                                )),
+                                SizedBox(width: spacingUnit(1.5)),
+                                Expanded(
+                                    child: _buildTextField(
+                                  label: 'Last Name',
+                                  controller: p.lastNameCtrl,
+                                  icon: Icons.person_outline,
+                                  hint: 'Enter Last Name',
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'[a-zA-Z ]'))
+                                  ],
+                                  validator: (v) {
+                                    final s = v?.trim() ?? '';
+                                    if (s.isEmpty) {
+                                      return 'Last name is required';
+                                    }
+                                    if (s.length < 2) {
+                                      return 'Minimum 2 characters';
+                                    }
+                                    if (!RegExp(r'^[a-zA-Z ]+$').hasMatch(s)) {
+                                      return 'Letters only';
+                                    }
+                                    return null;
+                                  },
+                                )),
                               ],
-                              validator: (v) {
-                                final s = v?.trim() ?? '';
-                                if (s.isEmpty) return 'First name is required';
-                                if (s.length < 2) return 'Minimum 2 characters';
-                                if (!RegExp(r'^[a-zA-Z ]+$').hasMatch(s)) {
-                                  return 'Letters only';
-                                }
-                                return null;
-                              },
-                            )),
-                            SizedBox(width: spacingUnit(1.5)),
-                            Expanded(
-                                child: _buildTextField(
-                              label: 'Last Name',
-                              controller: p.lastNameCtrl,
-                              icon: Icons.person_outline,
-                              hint: 'Enter Last Name',
-                              inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                    RegExp(r'[a-zA-Z ]'))
-                              ],
-                              validator: (v) {
-                                final s = v?.trim() ?? '';
-                                if (s.isEmpty) return 'Last name is required';
-                                if (s.length < 2) return 'Minimum 2 characters';
-                                if (!RegExp(r'^[a-zA-Z ]+$').hasMatch(s)) {
-                                  return 'Letters only';
-                                }
-                                return null;
-                              },
-                            )),
-                          ],
+                            );
+                          },
                         ),
                         SizedBox(height: spacingUnit(2)),
 
                         // nationality + date of birth
-                        Row(
-                          children: [
-                            Expanded(
-                                child: _buildDropdown(
-                              label: 'Nationality',
-                              icon: Icons.language,
-                              value: p.nationality,
-                              hint: 'Select',
-                              items: _kCountries,
-                              onChanged: (v) =>
-                                  setState(() => p.nationality = v),
-                              showError: p.submitted && p.nationality == null,
-                            )),
-                            SizedBox(width: spacingUnit(1.5)),
-                            Expanded(
-                                child: _buildDatePicker(
-                              context: context,
-                              label: 'Date of Birth',
-                              icon: Icons.calendar_month_outlined,
-                              value: p.dateOfBirth,
-                              hint: 'Select',
-                              // Age-based date range
-                              firstDate: i >= _adults + _children
-                                  ? _departureDate
-                                      .subtract(const Duration(days: 730))
-                                  : i >= _adults
-                                      ? _departureDate
-                                          .subtract(const Duration(days: 4383))
-                                      : DateTime(1920),
-                              lastDate: i >= _adults + _children
-                                  ? _departureDate
-                                  : i >= _adults
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMobile = constraints.maxWidth < 600;
+                            if (isMobile) {
+                              return Column(
+                                children: [
+                                  _buildDropdown(
+                                    label: 'Nationality',
+                                    icon: Icons.language,
+                                    value: p.nationality,
+                                    hint: 'Select',
+                                    items: _kCountries,
+                                    onChanged: (v) =>
+                                        setState(() => p.nationality = v),
+                                    showError:
+                                        p.submitted && p.nationality == null,
+                                  ),
+                                  SizedBox(height: spacingUnit(2)),
+                                  _buildDatePicker(
+                                    context: context,
+                                    label: 'Date of Birth',
+                                    icon: Icons.calendar_month_outlined,
+                                    value: p.dateOfBirth,
+                                    hint: 'Select',
+                                    // Age-based date range
+                                    firstDate: i >= _adults + _children
+                                        ? _departureDate
+                                            .subtract(const Duration(days: 730))
+                                        : i >= _adults
+                                            ? _departureDate.subtract(
+                                                const Duration(days: 4383))
+                                            : DateTime(1920),
+                                    lastDate: i >= _adults + _children
+                                        ? _departureDate
+                                        : i >= _adults
+                                            ? _departureDate.subtract(
+                                                const Duration(days: 730))
+                                            : _departureDate.subtract(
+                                                const Duration(days: 4383)),
+                                    initialPickerDate: i >= _adults + _children
+                                        ? _departureDate
+                                            .subtract(const Duration(days: 180))
+                                        : i >= _adults
+                                            ? _departureDate.subtract(
+                                                const Duration(days: 2190))
+                                            : _departureDate.subtract(
+                                                const Duration(days: 9125)),
+                                    ageHint: i >= _adults + _children
+                                        ? 'Infant: 0 – 24 months at travel date'
+                                        : i >= _adults
+                                            ? 'Child: 2 – 12 years at travel date'
+                                            : 'Adult: 12+ years at travel date',
+                                    onPicked: (d) =>
+                                        setState(() => p.dateOfBirth = d),
+                                    showError:
+                                        p.submitted && p.dateOfBirth == null,
+                                  ),
+                                ],
+                              );
+                            }
+                            return Row(
+                              children: [
+                                Expanded(
+                                    child: _buildDropdown(
+                                  label: 'Nationality',
+                                  icon: Icons.language,
+                                  value: p.nationality,
+                                  hint: 'Select',
+                                  items: _kCountries,
+                                  onChanged: (v) =>
+                                      setState(() => p.nationality = v),
+                                  showError:
+                                      p.submitted && p.nationality == null,
+                                )),
+                                SizedBox(width: spacingUnit(1.5)),
+                                Expanded(
+                                    child: _buildDatePicker(
+                                  context: context,
+                                  label: 'Date of Birth',
+                                  icon: Icons.calendar_month_outlined,
+                                  value: p.dateOfBirth,
+                                  hint: 'Select',
+                                  // Age-based date range
+                                  firstDate: i >= _adults + _children
                                       ? _departureDate
                                           .subtract(const Duration(days: 730))
-                                      : _departureDate
-                                          .subtract(const Duration(days: 4383)),
-                              initialPickerDate: i >= _adults + _children
-                                  ? _departureDate
-                                      .subtract(const Duration(days: 180))
-                                  : i >= _adults
+                                      : i >= _adults
+                                          ? _departureDate.subtract(
+                                              const Duration(days: 4383))
+                                          : DateTime(1920),
+                                  lastDate: i >= _adults + _children
                                       ? _departureDate
-                                          .subtract(const Duration(days: 2190))
-                                      : _departureDate
-                                          .subtract(const Duration(days: 9125)),
-                              ageHint: i >= _adults + _children
-                                  ? 'Infant: 0 – 24 months at travel date'
-                                  : i >= _adults
-                                      ? 'Child: 2 – 12 years at travel date'
-                                      : 'Adult: 12+ years at travel date',
-                              onPicked: (d) =>
-                                  setState(() => p.dateOfBirth = d),
-                              showError: p.submitted && p.dateOfBirth == null,
-                            )),
-                          ],
+                                      : i >= _adults
+                                          ? _departureDate.subtract(
+                                              const Duration(days: 730))
+                                          : _departureDate.subtract(
+                                              const Duration(days: 4383)),
+                                  initialPickerDate: i >= _adults + _children
+                                      ? _departureDate
+                                          .subtract(const Duration(days: 180))
+                                      : i >= _adults
+                                          ? _departureDate.subtract(
+                                              const Duration(days: 2190))
+                                          : _departureDate.subtract(
+                                              const Duration(days: 9125)),
+                                  ageHint: i >= _adults + _children
+                                      ? 'Infant: 0 – 24 months at travel date'
+                                      : i >= _adults
+                                          ? 'Child: 2 – 12 years at travel date'
+                                          : 'Adult: 12+ years at travel date',
+                                  onPicked: (d) =>
+                                      setState(() => p.dateOfBirth = d),
+                                  showError:
+                                      p.submitted && p.dateOfBirth == null,
+                                )),
+                              ],
+                            );
+                          },
                         ),
                         SizedBox(height: spacingUnit(2)),
 
@@ -1721,126 +1859,144 @@ class _BookingPassengersState extends State<BookingPassengers> {
                                   ),
                                 ),
                                 SizedBox(height: spacingUnit(1.5)),
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: InkWell(
-                                        onTap: () => setState(
-                                            () => p.documentType = 'CNIC'),
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Container(
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: spacingUnit(2),
-                                            vertical: spacingUnit(1.5),
-                                          ),
-                                          decoration: BoxDecoration(
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final isMobile = constraints.maxWidth < 500;
+                                    final spacing = isMobile
+                                        ? spacingUnit(1)
+                                        : spacingUnit(1.5);
+
+                                    final cnicButton = InkWell(
+                                      onTap: () => setState(
+                                          () => p.documentType = 'CNIC'),
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: spacingUnit(2),
+                                          vertical: spacingUnit(1.5),
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: p.documentType == 'CNIC'
+                                              ? Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
+                                                  .withOpacity(0.1)
+                                              : Colors.transparent,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          border: Border.all(
                                             color: p.documentType == 'CNIC'
                                                 ? Theme.of(context)
                                                     .colorScheme
                                                     .primary
-                                                    .withOpacity(0.1)
-                                                : Colors.transparent,
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                            border: Border.all(
+                                                : Theme.of(context)
+                                                    .dividerColor,
+                                            width: p.documentType == 'CNIC'
+                                                ? 2
+                                                : 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              p.documentType == 'CNIC'
+                                                  ? Icons.radio_button_checked
+                                                  : Icons
+                                                      .radio_button_unchecked,
+                                              size: 20,
                                               color: p.documentType == 'CNIC'
                                                   ? Theme.of(context)
                                                       .colorScheme
                                                       .primary
                                                   : Theme.of(context)
-                                                      .dividerColor,
-                                              width: p.documentType == 'CNIC'
-                                                  ? 2
-                                                  : 1,
+                                                      .colorScheme
+                                                      .onSurface
+                                                      .withOpacity(0.5),
                                             ),
-                                          ),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                p.documentType == 'CNIC'
-                                                    ? Icons.radio_button_checked
-                                                    : Icons
-                                                        .radio_button_unchecked,
-                                                size: 20,
+                                            SizedBox(width: spacingUnit(1)),
+                                            Text(
+                                              'CNIC',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight:
+                                                    p.documentType == 'CNIC'
+                                                        ? FontWeight.w600
+                                                        : FontWeight.w500,
                                                 color: p.documentType == 'CNIC'
                                                     ? Theme.of(context)
                                                         .colorScheme
                                                         .primary
                                                     : Theme.of(context)
                                                         .colorScheme
-                                                        .onSurface
-                                                        .withOpacity(0.5),
+                                                        .onSurface,
                                               ),
-                                              SizedBox(width: spacingUnit(1)),
-                                              Text(
-                                                'CNIC',
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight:
-                                                      p.documentType == 'CNIC'
-                                                          ? FontWeight.w600
-                                                          : FontWeight.w500,
-                                                  color:
-                                                      p.documentType == 'CNIC'
-                                                          ? Theme.of(context)
-                                                              .colorScheme
-                                                              .primary
-                                                          : Theme.of(context)
-                                                              .colorScheme
-                                                              .onSurface,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ),
-                                    SizedBox(width: spacingUnit(1.5)),
-                                    Expanded(
-                                      child: InkWell(
-                                        onTap: () => setState(
-                                            () => p.documentType = 'Passport'),
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: Container(
-                                          padding: EdgeInsets.symmetric(
-                                            horizontal: spacingUnit(2),
-                                            vertical: spacingUnit(1.5),
-                                          ),
-                                          decoration: BoxDecoration(
+                                    );
+
+                                    final passportButton = InkWell(
+                                      onTap: () => setState(
+                                          () => p.documentType = 'Passport'),
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal: spacingUnit(2),
+                                          vertical: spacingUnit(1.5),
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: p.documentType == 'Passport'
+                                              ? Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
+                                                  .withOpacity(0.1)
+                                              : Colors.transparent,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          border: Border.all(
                                             color: p.documentType == 'Passport'
                                                 ? Theme.of(context)
                                                     .colorScheme
                                                     .primary
-                                                    .withOpacity(0.1)
-                                                : Colors.transparent,
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                            border: Border.all(
+                                                : Theme.of(context)
+                                                    .dividerColor,
+                                            width: p.documentType == 'Passport'
+                                                ? 2
+                                                : 1,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              p.documentType == 'Passport'
+                                                  ? Icons.radio_button_checked
+                                                  : Icons
+                                                      .radio_button_unchecked,
+                                              size: 20,
                                               color:
                                                   p.documentType == 'Passport'
                                                       ? Theme.of(context)
                                                           .colorScheme
                                                           .primary
                                                       : Theme.of(context)
-                                                          .dividerColor,
-                                              width:
-                                                  p.documentType == 'Passport'
-                                                      ? 2
-                                                      : 1,
+                                                          .colorScheme
+                                                          .onSurface
+                                                          .withOpacity(0.5),
                                             ),
-                                          ),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Icon(
-                                                p.documentType == 'Passport'
-                                                    ? Icons.radio_button_checked
-                                                    : Icons
-                                                        .radio_button_unchecked,
-                                                size: 20,
+                                            SizedBox(width: spacingUnit(1)),
+                                            Text(
+                                              'Passport',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight:
+                                                    p.documentType == 'Passport'
+                                                        ? FontWeight.w600
+                                                        : FontWeight.w500,
                                                 color:
                                                     p.documentType == 'Passport'
                                                         ? Theme.of(context)
@@ -1848,34 +2004,34 @@ class _BookingPassengersState extends State<BookingPassengers> {
                                                             .primary
                                                         : Theme.of(context)
                                                             .colorScheme
-                                                            .onSurface
-                                                            .withOpacity(0.5),
+                                                            .onSurface,
                                               ),
-                                              SizedBox(width: spacingUnit(1)),
-                                              Text(
-                                                'Passport',
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: p.documentType ==
-                                                          'Passport'
-                                                      ? FontWeight.w600
-                                                      : FontWeight.w500,
-                                                  color: p.documentType ==
-                                                          'Passport'
-                                                      ? Theme.of(context)
-                                                          .colorScheme
-                                                          .primary
-                                                      : Theme.of(context)
-                                                          .colorScheme
-                                                          .onSurface,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                    );
+
+                                    if (isMobile) {
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          cnicButton,
+                                          SizedBox(height: spacing),
+                                          passportButton,
+                                        ],
+                                      );
+                                    }
+
+                                    return Row(
+                                      children: [
+                                        Expanded(child: cnicButton),
+                                        SizedBox(width: spacing),
+                                        Expanded(child: passportButton),
+                                      ],
+                                    );
+                                  },
                                 ),
                               ],
                             ),

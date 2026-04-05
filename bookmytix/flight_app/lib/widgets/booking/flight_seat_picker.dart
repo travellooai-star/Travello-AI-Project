@@ -364,20 +364,19 @@ class _FlightSeatPickerState extends State<FlightSeatPicker> {
           Column(
             children: [
               // Status legend
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
                 children: [
                   _legendItem('Available', Colors.white,
                       colorScheme(context).outlineVariant),
-                  const SizedBox(width: 16),
                   _legendItem('Your Seat', colorScheme(context).primary,
                       Colors.transparent),
-                  const SizedBox(width: 16),
                   _legendItem(
                       'Other Pax',
                       colorScheme(context).secondaryContainer,
                       Colors.transparent),
-                  const SizedBox(width: 16),
                   _legendItem(
                       'Reserved', Colors.grey.shade300, Colors.transparent),
                 ],
@@ -389,20 +388,23 @@ class _FlightSeatPickerState extends State<FlightSeatPicker> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: colorScheme(context).surfaceContainerHighest.withOpacity(0.5),
+                    color: colorScheme(context)
+                        .surfaceContainerHighest
+                        .withOpacity(0.5),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.info_outline,
                           size: 16, color: colorScheme(context).primary),
                       const SizedBox(width: 8),
-                      Text(
-                        'Rows 4-11, 14-22: FREE  •  Rows 1-3: ₨1,500  •  Rows 12-13: ₨2,000',
-                        style: ThemeText.caption.copyWith(
-                          color: colorScheme(context).onSurfaceVariant,
-                          fontWeight: FontWeight.w500,
+                      Flexible(
+                        child: Text(
+                          'Rows 4-11, 14-22: FREE  •  Rows 1-3: ₨1,500  •  Rows 12-13: ₨2,000',
+                          style: ThemeText.caption.copyWith(
+                            color: colorScheme(context).onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ],
@@ -423,16 +425,17 @@ class _FlightSeatPickerState extends State<FlightSeatPicker> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.check_circle,
                           size: 16, color: colorScheme(context).primary),
                       const SizedBox(width: 8),
-                      Text(
-                        'All seats included FREE with your ${widget.cabinClass} ticket',
-                        style: ThemeText.caption.copyWith(
-                          color: colorScheme(context).onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          'All seats included FREE with your ${widget.cabinClass} ticket',
+                          style: ThemeText.caption.copyWith(
+                            color: colorScheme(context).onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
@@ -444,34 +447,23 @@ class _FlightSeatPickerState extends State<FlightSeatPicker> {
 
           SizedBox(height: spacingUnit(2)),
 
-          // Aircraft structure with wings
-          Stack(
-            alignment: Alignment.center,
-            clipBehavior: Clip.none,
-            children: [
-              // Left Wing
-              Positioned(
-                left: -60,
-                top: 180,
-                child: CustomPaint(
-                  size: const Size(80, 120),
-                  painter: _WingPainter(
-                      isLeft: true, color: colorScheme(context).primary),
-                ),
-              ),
-              // Right Wing
-              Positioned(
-                right: -60,
-                top: 180,
-                child: CustomPaint(
-                  size: const Size(80, 120),
-                  painter: _WingPainter(
-                      isLeft: false, color: colorScheme(context).primary),
-                ),
-              ),
-              // Aircraft fuselage
-              Container(
-                padding: EdgeInsets.all(spacingUnit(1.5)),
+          // Aircraft structure
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Available content width = container width minus:
+              //   - container padding: spacingUnit(1.5)*2 ≈ 24px
+              //   - row number column + aisle column: each = rowNumWidth
+              // We solve iteratively: rowNumWidth = seatCell*0.7
+              // seatCell = (avail - 24 - 2*rowNumWidth) / 6
+              //          = (avail - 24 - 2*seatCell*0.7) / 6
+              // 6*seatCell + 1.4*seatCell = avail - 24
+              // seatCell = (avail - 24) / 7.4
+              final contentWidth = constraints.maxWidth - 24;
+              final seatCell = (contentWidth / 7.4).clamp(26.0, 40.0);
+              final seatSize = seatCell - 4;
+              final rowNumWidth = seatCell * 0.7;
+
+              return Container(
                 decoration: BoxDecoration(
                   color: Colors.grey.shade50,
                   borderRadius: ThemeRadius.medium,
@@ -485,28 +477,24 @@ class _FlightSeatPickerState extends State<FlightSeatPicker> {
                     ),
                   ],
                 ),
+                padding: EdgeInsets.all(spacingUnit(1.5)),
                 child: Column(
                   children: [
-                    // Nose cone / Cockpit
-                    CustomPaint(
-                      size: const Size(200, 40),
-                      painter:
-                          _NoseConePainter(color: colorScheme(context).primary),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Center(
-                          child: Icon(
-                            Icons.flight_rounded,
-                            color: colorScheme(context).primary,
-                            size: 24,
-                          ),
+                    // Cockpit icon
+                    SizedBox(
+                      height: 40,
+                      child: Center(
+                        child: Icon(
+                          Icons.flight_rounded,
+                          color: colorScheme(context).primary,
+                          size: 24,
                         ),
                       ),
                     ),
                     const SizedBox(height: 8),
 
                     // Column headers
-                    _buildColumnHeaders(),
+                    _buildColumnHeaders(seatCell, rowNumWidth),
                     const SizedBox(height: 4),
 
                     // Seat grid
@@ -517,12 +505,12 @@ class _FlightSeatPickerState extends State<FlightSeatPicker> {
                         itemBuilder: (context, rowIndex) {
                           final rowNum = rowIndex + 1;
                           final isExitRow = _exitRows.contains(rowNum);
-
                           return Column(
                             children: [
                               if (isExitRow && rowNum == _exitRows.first)
                                 _buildExitRowMarker(),
-                              _buildSeatRow(rowNum, isExitRow),
+                              _buildSeatRow(rowNum, isExitRow, seatCell,
+                                  seatSize, rowNumWidth),
                               if (isExitRow && rowNum == _exitRows.last)
                                 _buildExitRowMarker(),
                             ],
@@ -532,28 +520,19 @@ class _FlightSeatPickerState extends State<FlightSeatPicker> {
                     ),
 
                     const SizedBox(height: 8),
-                    // Tail section
-                    CustomPaint(
-                      size: const Size(200, 50),
-                      painter:
-                          _TailPainter(color: colorScheme(context).primary),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Text(
-                          'TAIL',
-                          textAlign: TextAlign.center,
-                          style: ThemeText.caption.copyWith(
-                            color: colorScheme(context).primary,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                          ),
-                        ),
+                    Text(
+                      '— TAIL —',
+                      textAlign: TextAlign.center,
+                      style: ThemeText.caption.copyWith(
+                        color: colorScheme(context).primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+              );
+            },
           ),
 
           SizedBox(height: spacingUnit(2)),
@@ -699,21 +678,21 @@ class _FlightSeatPickerState extends State<FlightSeatPicker> {
     );
   }
 
-  Widget _buildColumnHeaders() {
+  Widget _buildColumnHeaders(double seatCell, double rowNumWidth) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const SizedBox(width: 30), // Row number space
-        ..._columns.take(3).map((col) => _columnHeader(col)),
-        const SizedBox(width: 30), // Aisle space
-        ..._columns.skip(3).map((col) => _columnHeader(col)),
+        SizedBox(width: rowNumWidth), // Row number space
+        ..._columns.take(3).map((col) => _columnHeader(col, seatCell)),
+        SizedBox(width: rowNumWidth), // Aisle space
+        ..._columns.skip(3).map((col) => _columnHeader(col, seatCell)),
       ],
     );
   }
 
-  Widget _columnHeader(String col) {
+  Widget _columnHeader(String col, double seatCell) {
     return SizedBox(
-      width: 40,
+      width: seatCell,
       child: Text(
         col,
         textAlign: TextAlign.center,
@@ -725,30 +704,16 @@ class _FlightSeatPickerState extends State<FlightSeatPicker> {
     );
   }
 
-  Widget _buildSeatRow(int rowNum, bool isExitRow) {
-    // Show wing indicators on rows 8-10 (mid-section)
-    final bool isWingRow = rowNum >= 8 && rowNum <= 10;
-
+  Widget _buildSeatRow(int rowNum, bool isExitRow, double seatCell,
+      double seatSize, double rowNumWidth) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: isExitRow ? 4 : 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Left wing indicator
-          if (isWingRow)
-            Container(
-              width: 20,
-              height: 3,
-              margin: const EdgeInsets.only(right: 4),
-              decoration: BoxDecoration(
-                color: colorScheme(context).primary.withOpacity(0.6),
-                borderRadius:
-                    const BorderRadius.horizontal(left: Radius.circular(2)),
-              ),
-            ),
           // Row number
           SizedBox(
-            width: 30,
+            width: rowNumWidth,
             child: Text(
               '$rowNum',
               textAlign: TextAlign.center,
@@ -761,31 +726,19 @@ class _FlightSeatPickerState extends State<FlightSeatPicker> {
           // Left side seats (A, B, C)
           ..._columns
               .take(3)
-              .map((col) => _buildSeat('$col$rowNum', isExitRow)),
+              .map((col) => _buildSeat('$col$rowNum', isExitRow, seatSize)),
           // Aisle
-          const SizedBox(width: 30),
+          SizedBox(width: rowNumWidth),
           // Right side seats (D, E, F)
           ..._columns
               .skip(3)
-              .map((col) => _buildSeat('$col$rowNum', isExitRow)),
-          // Right wing indicator
-          if (isWingRow)
-            Container(
-              width: 20,
-              height: 3,
-              margin: const EdgeInsets.only(left: 4),
-              decoration: BoxDecoration(
-                color: colorScheme(context).primary.withOpacity(0.6),
-                borderRadius:
-                    const BorderRadius.horizontal(right: Radius.circular(2)),
-              ),
-            ),
+              .map((col) => _buildSeat('$col$rowNum', isExitRow, seatSize)),
         ],
       ),
     );
   }
 
-  Widget _buildSeat(String seatName, bool isExitRow) {
+  Widget _buildSeat(String seatName, bool isExitRow, double seatSize) {
     final status = _getSeatStatus(seatName);
     final isDisabled = status == 'reserved';
     final seatPrice = _calculateSeatPrice(seatName);
@@ -819,11 +772,11 @@ class _FlightSeatPickerState extends State<FlightSeatPicker> {
     return InkWell(
       onTap: isDisabled ? null : () => _selectSeat(seatName),
       child: Stack(
-        clipBehavior: Clip.none,
+        clipBehavior: Clip.hardEdge,
         children: [
           Container(
-            width: 40,
-            height: isExitRow ? 45 : 35,
+            width: seatSize,
+            height: isExitRow ? seatSize * 1.15 : seatSize * 0.9,
             margin: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               color: getSeatColor(),
@@ -865,20 +818,24 @@ class _FlightSeatPickerState extends State<FlightSeatPicker> {
           // Price badge for premium seats (only when available and Economy class)
           if (isPremiumSeat && status == 'available')
             Positioned(
-              top: -4,
-              right: -4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade600,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '₨${seatPrice.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    fontSize: 7,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade600,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '₨${(seatPrice / 1000).toStringAsFixed(0)}k',
+                    style: const TextStyle(
+                      fontSize: 7,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),

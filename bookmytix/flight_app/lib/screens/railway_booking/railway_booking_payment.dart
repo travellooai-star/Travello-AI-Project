@@ -3108,118 +3108,86 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
     );
   }
 
-  void _showTermsAndConditionsPage() {
-    Get.to(
-      () => Scaffold(
-        backgroundColor: Colors.grey.shade50,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: Colors.black87, size: 20),
-            onPressed: () => Get.back(),
+  void _showTermsAndConditionsPage() => _showPolicySheet('Terms & Conditions', [
+        const _PolicyItem('1. Acceptance of Terms',
+            'By booking train tickets through Travello AI, you accept and agree to be bound by these Terms and Conditions and comply with Pakistan Railways regulations. If you do not agree, please do not proceed with booking.'),
+        const _PolicyItem('2. Ticket Booking & Validity',
+            'All bookings are subject to availability and Pakistan Railways confirmation. Tickets are non-transferable, valid only for the specific train/date/class booked, and require valid CNIC/Passport matching booking details at boarding.'),
+        const _PolicyItem('3. Payment Terms',
+            'Payment must be made in full at booking time through secure gateways. Payment includes base fare, service fee (Rs. 100, non-refundable), and gateway fee (Rs. 24-74, non-refundable). Booking confirmation sent via email/SMS.'),
+        const _PolicyItem('4. Passenger Concessions',
+            'Age-based fare concessions apply: Adults (12+ years) 100% of base fare, Children (3-11 years) 50% discount, Infants (under 3 years) free with no seat allocated.'),
+        const _PolicyItem('5. Cancellation Policy',
+            'Free cancellation allowed up to 2 hours before scheduled departure. No cancellation permitted within 2 hours of departure. Refunds processed in 7-14 working days to original payment method.'),
+        const _PolicyItem('6. Passenger Responsibilities',
+            'You must provide accurate information, carry valid photo ID matching booking, arrive at station 30 minutes before departure, and follow Pakistan Railways safety rules and regulations.'),
+        const _PolicyItem('7. Liability & Force Majeure',
+            'Travello AI acts as a booking intermediary. We are not liable for train delays, cancellations, loss of belongings, or Acts of God. Liability is limited to refund of ticket fare as per cancellation policy.'),
+        const _PolicyItem('8. Privacy & Data Protection',
+            'Your personal information is collected, stored, and processed in accordance with our Privacy Policy and Pakistan data protection laws. Data is used for ticket booking, identity verification, and compliance with Pakistan Railways regulations.'),
+      ]);
+
+  void _showPolicySheet(String title, List<_PolicyItem> items) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          title: const Text(
-            'Terms & Conditions',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: Colors.black87,
-              letterSpacing: -0.3,
+          child: Column(children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2)),
             ),
-          ),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Divider(height: 1, color: Colors.grey.shade200),
-          ),
-        ),
-        body: SingleChildScrollView(
-          padding: EdgeInsets.all(spacingUnit(3)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildFullPageSection(
-                '1. Acceptance of Terms',
-                'By booking train tickets through Travello AI, you accept and agree to be bound by these Terms and Conditions and comply with Pakistan Railways regulations. If you do not agree, please do not proceed with booking.',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '2. Ticket Booking & Validity',
-                'All bookings are subject to availability and Pakistan Railways confirmation. Tickets are:\n• Non-transferable and issued in passenger\'s name\n• Valid only for the specific train, date, and class booked\n• Require valid CNIC/Passport matching booking details at boarding\n• Subject to Pakistan Railways right to cancel/reschedule trains',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '3. Payment Terms',
-                'Payment must be made in full at booking time through secure gateways (JazzCash, Easypaisa, Credit/Debit Cards). Payment includes:\n• Base Fare (varies by class, route, distance)\n• Reservation Fee: Rs. 0 (included in base fare for online bookings)\n• Service Fee: Rs. 100 (non-refundable)\n• Payment Gateway Fee: Rs. 24-74 (non-refundable)\n\nBooking confirmation sent via email/SMS. Print or digital ticket required for boarding.',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '4. Passenger Concessions',
-                'Age-based fare concessions apply:\n• Adults (12+ years): 100% of base fare\n• Children (3-11 years): 50% discount\n• Infants (under 3 years): Free (no seat allocated, lap travel)',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '5. Cancellation Policy',
-                'Free cancellation allowed up to 2 hours before scheduled departure. NO cancellation permitted within 2 hours of departure.\n\nRefund breakdown:\n• Ticket Fare: Fully refundable\n• Reservation Fee (Rs. 0): No charge for online bookings\n• Service Fee (Rs. 100): Non-refundable\n• Gateway Fee (Rs. 24-74): Non-refundable\n\nRefunds processed in 7-14 working days to original payment method.',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '6. Passenger Responsibilities',
-                'You must:\n• Provide accurate information (name, CNIC, contact details)\n• Carry valid photo ID (CNIC/Passport/Driving License) matching booking\n• Arrive at station 30 minutes before departure\n• Check PNR status before traveling\n• Report discrepancies immediately\n• Follow Pakistan Railways safety rules and regulations\n• Maintain personal baggage within reasonable limits',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '7. Ticket Restrictions',
-                'Tickets are subject to the following restrictions:\n• No name changes or corrections allowed\n• No date/time modifications permitted (must cancel and rebook)\n• No class upgrades/downgrades after booking\n• No refund for no-show (failure to board)\n• Platform ticket/entry may be required at railway station',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '8. Liability & Force Majeure',
-                'Travello AI acts as a booking intermediary. We are not liable for:\n• Train delays, cancellations, or rescheduling by Pakistan Railways\n• Loss of personal belongings during travel\n• Service quality or safety issues during journey\n• Acts of God, strikes, technical failures, or government actions\n\nLiability is limited to refund of ticket fare as per cancellation policy.',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '9. Privacy & Data Protection',
-                'Your personal information is collected, stored, and processed in accordance with our Privacy Policy and Pakistan data protection laws. Data is used for:\n• Ticket booking and payment processing\n• Identity verification at boarding\n• Compliance with Pakistan Railways and SBP regulations\n• Service improvement and customer support',
-              ),
-              SizedBox(height: spacingUnit(3)),
-              _buildFullPageSection(
-                '10. Changes to Terms',
-                'We reserve the right to modify these terms in accordance with Pakistan Railways policy updates. Continued use constitutes acceptance of updated terms. Last updated: March 2026.',
-              ),
-              SizedBox(height: spacingUnit(4)),
-              Container(
-                padding: EdgeInsets.all(spacingUnit(2.5)),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFBF5DC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE8D5A3)),
+            Padding(
+              padding: EdgeInsets.fromLTRB(spacingUnit(3), spacingUnit(1),
+                  spacingUnit(1), spacingUnit(2)),
+              child: Row(children: [
+                Expanded(
+                  child: Text(title,
+                      style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black87,
+                          letterSpacing: -0.5)),
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline_rounded,
-                        color: ThemePalette.primaryMain, size: 20),
-                    SizedBox(width: spacingUnit(1.5)),
-                    Expanded(
-                      child: Text(
-                        'Last updated: March 2026',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: ThemePalette.primaryMain,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
+                IconButton(
+                  icon:
+                      const Icon(Icons.close_rounded, color: Color(0xFFB3B3B3)),
+                  onPressed: () => Navigator.pop(context),
                 ),
+              ]),
+            ),
+            Divider(height: 1, color: Colors.grey.shade200),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: EdgeInsets.all(spacingUnit(3)),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: items
+                        .map((item) => Padding(
+                              padding:
+                                  EdgeInsets.only(bottom: spacingUnit(2.5)),
+                              child: _buildPolicySection(item.title, item.body),
+                            ))
+                        .toList()),
               ),
-            ],
-          ),
+            ),
+          ]),
         ),
       ),
-      transition: Transition.cupertino,
-      duration: const Duration(milliseconds: 300),
     );
   }
 
@@ -3428,6 +3396,12 @@ class _RailwayBookingPaymentState extends State<RailwayBookingPayment>
       ),
     );
   }
+}
+
+class _PolicyItem {
+  final String title;
+  final String body;
+  const _PolicyItem(this.title, this.body);
 }
 
 // ────────────────────────────────────────────────────────────

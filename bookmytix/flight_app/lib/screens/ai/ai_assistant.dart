@@ -870,22 +870,28 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
   // TAB 1 — CHAT
   // ══════════════════════════════════════════════════════════════════════════
   Widget _buildChatTab() {
+    final showSuggestions = _messages.length == 1 && !_isTyping;
     return Column(
       children: [
         Expanded(
           child: ListView.builder(
             controller: _scrollController,
             padding: EdgeInsets.all(spacingUnit(2)),
-            itemCount: _messages.length + (_isTyping ? 1 : 0),
+            itemCount: _messages.length + (_isTyping ? 1 : 0) + (showSuggestions ? 1 : 0),
             itemBuilder: (context, index) {
-              if (index == _messages.length && _isTyping) {
+              if (index < _messages.length) {
+                return _buildMessageBubble(_messages[index]);
+              }
+              if (_isTyping && index == _messages.length) {
                 return _buildTypingIndicator();
               }
-              return _buildMessageBubble(_messages[index]);
+              if (showSuggestions) {
+                return _buildSuggestions();
+              }
+              return const SizedBox.shrink();
             },
           ),
         ),
-        if (_messages.length == 1) _buildSuggestions(),
         _buildInputField(),
       ],
     );
@@ -1008,8 +1014,10 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
         ),
       ),
       child: Padding(
-        padding: EdgeInsets.symmetric(
-            horizontal: spacingUnit(2), vertical: spacingUnit(1)),
+        padding: EdgeInsets.only(
+            left: spacingUnit(2),
+            right: spacingUnit(2),
+            bottom: spacingUnit(1)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1022,6 +1030,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
             Wrap(
               spacing: 8,
               runSpacing: 8,
+              alignment: WrapAlignment.start,
               children: suggestions.asMap().entries.map((entry) {
                 final i = entry.key;
                 final s = entry.value;

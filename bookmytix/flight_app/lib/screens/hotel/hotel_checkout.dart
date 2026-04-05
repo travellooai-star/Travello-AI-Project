@@ -1098,104 +1098,22 @@ class _HotelCheckoutState extends State<HotelCheckout> {
         ],
       );
 
-  void _showTermsPage() {
-    Get.to(
-      () => Scaffold(
-        backgroundColor: Colors.grey.shade50,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: Colors.black87, size: 20),
-            onPressed: () => Get.back(),
-          ),
-          title: const Text('Terms & Conditions',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black87,
-                  letterSpacing: -0.3)),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Divider(height: 1, color: Colors.grey.shade200),
-          ),
-        ),
-        body: SingleChildScrollView(
-          padding: EdgeInsets.all(spacingUnit(3)),
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _termsSection('1. Acceptance of Terms',
-                'By completing this hotel booking through Travello AI, you agree to be bound by these Terms and Conditions. These terms are governed by the laws of the Islamic Republic of Pakistan.'),
-            SizedBox(height: spacingUnit(2.5)),
-            _termsSection('2. Booking & Payment',
-                'All hotel bookings are subject to availability and confirmation by the property. Payment must be completed in full at the time of booking. We accept credit/debit cards and approved mobile wallets.'),
-            SizedBox(height: spacingUnit(2.5)),
-            _termsSection('3. Cancellation & Refunds',
-                'Cancellation terms vary by property and rate type. Refundable bookings may be cancelled up to 24 hours before check-in. Non-refundable bookings cannot be cancelled or modified.'),
-            SizedBox(height: spacingUnit(2.5)),
-            _termsSection('4. Guest Responsibilities',
-                'Guests must provide valid CNIC/Passport at check-in. Per Pakistani law, unmarried guests sharing a room may be required to show legal documentation. Guests must comply with all hotel rules and property regulations.'),
-            SizedBox(height: spacingUnit(2.5)),
-            _termsSection('5. Liability',
-                'Travello AI acts as an intermediary between guests and hotel properties. We are not liable for hotel service quality issues, property changes, or force majeure events.'),
-            SizedBox(height: spacingUnit(2.5)),
-            _termsSection('6. Privacy & PECA Compliance',
-                'We handle your personal data in accordance with Pakistani privacy laws including PECA 2016. Your data is used solely for booking fulfillment and service improvement.'),
-            SizedBox(height: spacingUnit(2.5)),
-            _termsSection('7. Dispute Resolution',
-                'Any disputes arising from hotel bookings will be resolved through the Consumer Protection Courts of Pakistan or as mutually agreed upon.'),
-            SizedBox(height: spacingUnit(3)),
-            Container(
-              padding: EdgeInsets.all(spacingUnit(2)),
-              decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade100)),
-              child: Row(children: [
-                Icon(Icons.info_outline_rounded,
-                    color: Colors.blue.shade700, size: 20),
-                SizedBox(width: spacingUnit(1.5)),
-                Expanded(
-                  child: Text(
-                      'Last updated: March 2026 | Governed by Pakistani Law',
-                      style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.blue.shade900,
-                          fontWeight: FontWeight.w500)),
-                ),
-              ]),
-            ),
-          ]),
-        ),
-      ),
-      transition: Transition.cupertino,
-      duration: const Duration(milliseconds: 300),
-    );
-  }
-
-  Widget _termsSection(String title, String content) => Container(
-        padding: EdgeInsets.all(spacingUnit(2.5)),
-        decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black87,
-                  letterSpacing: -0.4)),
-          SizedBox(height: spacingUnit(1.5)),
-          Text(content,
-              style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF666666),
-                  height: 1.7,
-                  letterSpacing: -0.1)),
-        ]),
-      );
+  void _showTermsPage() => _showPolicySheet('Terms & Conditions', [
+        const _PolicyItem('1. Acceptance of Terms',
+            'By completing this hotel booking through Travello AI, you agree to be bound by these Terms and Conditions. These terms are governed by the laws of the Islamic Republic of Pakistan.'),
+        const _PolicyItem('2. Booking & Payment',
+            'All hotel bookings are subject to availability and confirmation by the property. Payment must be completed in full at the time of booking. We accept credit/debit cards and approved mobile wallets.'),
+        const _PolicyItem('3. Cancellation & Refunds',
+            'Cancellation terms vary by property and rate type. Refundable bookings may be cancelled up to 24 hours before check-in. Non-refundable bookings cannot be cancelled or modified.'),
+        const _PolicyItem('4. Guest Responsibilities',
+            'Guests must provide valid CNIC/Passport at check-in. Per Pakistani law, unmarried guests sharing a room may be required to show legal documentation. Guests must comply with all hotel rules and property regulations.'),
+        const _PolicyItem('5. Liability',
+            'Travello AI acts as an intermediary between guests and hotel properties. We are not liable for hotel service quality issues, property changes, or force majeure events.'),
+        const _PolicyItem('6. Privacy & PECA Compliance',
+            'We handle your personal data in accordance with Pakistani privacy laws including PECA 2016. Your data is used solely for booking fulfillment and service improvement.'),
+        const _PolicyItem('7. Dispute Resolution',
+            'Any disputes arising from hotel bookings will be resolved through the Consumer Protection Courts of Pakistan or as mutually agreed upon.'),
+      ]);
 
   BoxDecoration _card() => BoxDecoration(
         color: Colors.white,
