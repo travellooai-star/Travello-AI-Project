@@ -19,6 +19,8 @@ import 'package:flight_app/widgets/flight/flight_routes.dart';
 import 'package:flight_app/widgets/flight/flight_routes_horizontal.dart';
 import 'package:flight_app/widgets/railway/train_summary.dart';
 import 'package:flight_app/widgets/railway/train_summary_wide.dart';
+import 'package:flight_app/utils/auth_service.dart';
+import 'package:flight_app/widgets/auth/auth_gate_sheet.dart';
 
 /// Train package detail screen - matches flight package UI exactly
 class TrainDetailPackage extends StatefulWidget {
@@ -68,7 +70,13 @@ class _TrainDetailPackageState extends State<TrainDetailPackage> {
     }
   }
 
-  void _onBookNow() {
+  void _onBookNow() async {
+    // Auth gate at booking intent — browsing train details was free
+    final isGuest = await AuthService.isGuestMode();
+    if (isGuest && context.mounted) {
+      AuthGateSheet.show(context, action: 'to book this train');
+      return;
+    }
     final pkg = _pkg;
     final fromStation = _stationByName(pkg?.fromStation ?? 'Karachi');
     final toStation = _stationByName(pkg?.toStation ?? 'Lahore');

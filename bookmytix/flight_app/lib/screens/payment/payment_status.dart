@@ -708,7 +708,6 @@ class _PaymentStatusState extends State<PaymentStatus>
           ]),
           pw.SizedBox(height: 10),
           pw.Container(
-            width: double.infinity,
             decoration: pw.BoxDecoration(
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(14)),
               border: pw.Border.all(color: _pdfBorder),
@@ -1178,7 +1177,6 @@ class _PaymentStatusState extends State<PaymentStatus>
           pw.SizedBox(height: 14),
           // Tips
           pw.Container(
-            width: double.infinity,
             padding: const pw.EdgeInsets.all(16),
             decoration: pw.BoxDecoration(
               borderRadius: const pw.BorderRadius.all(pw.Radius.circular(10)),

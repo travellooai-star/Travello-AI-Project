@@ -21,6 +21,7 @@ import 'package:flight_app/controllers/notification_controller.dart';
 import 'package:flight_app/models/destination.dart';
 import 'package:flight_app/models/hotel.dart';
 import 'package:flight_app/utils/wishlist_service.dart';
+import 'package:flight_app/widgets/auth/auth_gate_sheet.dart';
 import 'package:intl/intl.dart';
 
 /// 🔥 TRAVELLO AI - UNIFIED HOME SCREEN
@@ -95,6 +96,7 @@ class _UnifiedHomeScreenState extends State<UnifiedHomeScreen> {
   // 🚀 NAVIGATION LOGIC - Routes to existing booking screens
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   void _navigateToBooking() {
+    // Search is FREE for all users — auth gate only at BOOK NOW (Expedia/Booking.com standard)
     switch (_selectedService) {
       case 'flight':
         Get.toNamed('/flight-search-home');
@@ -186,33 +188,74 @@ class _UnifiedHomeScreenState extends State<UnifiedHomeScreen> {
             ),
           ),
           actions: [
-            Obx(() {
-              final ctrl = Get.find<NotificationController>();
-              final n = ctrl.unreadCount.value;
-              return Badge.count(
-                backgroundColor: ThemePalette.primaryMain,
-                textColor: Colors.black,
-                count: n,
-                isLabelVisible: n > 0,
-                offset: const Offset(0, -1),
-                child: IconButton(
-                  icon: Icon(
-                    CupertinoIcons.bell,
-                    color: Colors.white.withValues(alpha: 0.9),
+            if (_isGuest) ...
+              // ── Guest: Sign In pill in top-right (Booking.com / Expedia style)
+              [
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: GestureDetector(
+                  onTap: () => AuthGateSheet.show(
+                    context,
+                    action: 'to access all features',
                   ),
-                  onPressed: () =>
-                      Get.toNamed(AppLink.notification, arguments: {'tab': 0}),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: ThemePalette.primaryMain,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              ThemePalette.primaryMain.withValues(alpha: 0.4),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Text(
+                      'Sign In',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
                 ),
-              );
-            }),
-            IconButton(
-              icon: Icon(
-                CupertinoIcons.chat_bubble_text,
-                color: Colors.white.withValues(alpha: 0.9),
               ),
-              onPressed: () =>
-                  Get.toNamed(AppLink.notification, arguments: {'tab': 1}),
-            ),
+            ] else ...
+              // ── Logged-in: notification + chat icons
+              [
+              Obx(() {
+                final ctrl = Get.find<NotificationController>();
+                final n = ctrl.unreadCount.value;
+                return Badge.count(
+                  backgroundColor: ThemePalette.primaryMain,
+                  textColor: Colors.black,
+                  count: n,
+                  isLabelVisible: n > 0,
+                  offset: const Offset(0, -1),
+                  child: IconButton(
+                    icon: Icon(
+                      CupertinoIcons.bell,
+                      color: Colors.white.withValues(alpha: 0.9),
+                    ),
+                    onPressed: () => Get.toNamed(AppLink.notification,
+                        arguments: {'tab': 0}),
+                  ),
+                );
+              }),
+              IconButton(
+                icon: Icon(
+                  CupertinoIcons.chat_bubble_text,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
+                onPressed: () =>
+                    Get.toNamed(AppLink.notification, arguments: {'tab': 1}),
+              ),
+            ],
           ],
         ),
       ),

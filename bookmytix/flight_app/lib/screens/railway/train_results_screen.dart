@@ -5,6 +5,8 @@ import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
 import 'package:flight_app/models/railway_station.dart';
 import 'package:flight_app/utils/format_utils.dart';
+import 'package:flight_app/utils/auth_service.dart';
+import 'package:flight_app/widgets/auth/auth_gate_sheet.dart';
 import 'package:intl/intl.dart';
 
 // Train result model
@@ -3313,7 +3315,13 @@ class _TrainResultsScreenState extends State<TrainResultsScreen> {
     );
   }
 
-  void _handleTrainSelection(TrainResult train, String trainClass) {
+  void _handleTrainSelection(TrainResult train, String trainClass) async {
+    // Auth gate at Select — industry standard (browsing was free)
+    final isGuest = await AuthService.isGuestMode();
+    if (isGuest && context.mounted) {
+      AuthGateSheet.show(context, action: 'to book this train');
+      return;
+    }
     // Handle round-trip selection
     if (_isRoundTrip && _currentJourneyIndex == 0) {
       // Outbound selected, move to return

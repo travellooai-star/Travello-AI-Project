@@ -40,8 +40,9 @@ class _StartScreenState extends State<StartScreen> {
   _saveIntroStatus() async {
     SharedPreferences pref = await _prefs;
     await pref.setBool(_key, true);
-    // Navigate to welcome screen after saving intro status
-    Get.offAllNamed(AppLink.welcome);
+    // Industry pattern: after intro → home as guest (no forced login)
+    await AuthService.enableGuestMode();
+    Get.offAllNamed('/home-hub');
   }
 
   @override

@@ -4,9 +4,11 @@ import 'package:get/get.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
+import 'package:flight_app/utils/auth_service.dart';
 import 'package:flight_app/models/airport.dart';
 import 'package:flight_app/app/app_link.dart';
 import 'package:flight_app/utils/format_utils.dart';
+import 'package:flight_app/widgets/auth/auth_gate_sheet.dart';
 import 'package:intl/intl.dart';
 
 // Flight model for results
@@ -2814,7 +2816,14 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
                             ],
                           ),
                           ElevatedButton(
-                            onPressed: () {
+                            onPressed: () async {
+                              // Auth gate at Select — industry standard (browsing was free)
+                              final isGuest = await AuthService.isGuestMode();
+                              if (isGuest && context.mounted) {
+                                AuthGateSheet.show(context,
+                                    action: 'to book this flight');
+                                return;
+                              }
                               // Handle round-trip selection
                               if (_isRoundTrip && _currentJourneyIndex == 0) {
                                 // Outbound selected, move to return

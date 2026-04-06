@@ -3,9 +3,11 @@ import 'package:get/get.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
+import 'package:flight_app/utils/auth_service.dart';
 import 'package:flight_app/models/hotel.dart';
 import 'package:flight_app/models/room_type.dart';
 import 'package:flight_app/widgets/app_button/ds_button.dart';
+import 'package:flight_app/widgets/auth/auth_gate_sheet.dart';
 import 'package:intl/intl.dart';
 
 class HotelDetailScreen extends StatefulWidget {
@@ -1105,7 +1107,13 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
     return base;
   }
 
-  void _proceedToBooking() {
+  void _proceedToBooking() async {
+    // Auth gate at booking intent — browsing hotel details was free
+    final isGuest = await AuthService.isGuestMode();
+    if (isGuest && mounted) {
+      AuthGateSheet.show(context, action: 'to book this hotel');
+      return;
+    }
     if (selectedRoom == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
