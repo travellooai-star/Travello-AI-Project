@@ -545,11 +545,15 @@ class _RailwayBookingCheckoutState extends State<RailwayBookingCheckout> {
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                 child: Row(
                   children: [
-                    Text(
-                      '$_fromStation($_fromStationCode) - $_toStation($_toStationCode)',
-                      style: ThemeText.cardHeading,
+                    Flexible(
+                      child: Text(
+                        '$_fromStation($_fromStationCode) - $_toStation($_toStationCode)',
+                        style: ThemeText.cardHeading,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     const Icon(Icons.schedule_rounded,
                         size: 15, color: Color(0xFF666666)),
                     const SizedBox(width: 5),
@@ -633,31 +637,30 @@ class _RailwayBookingCheckoutState extends State<RailwayBookingCheckout> {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         // From station badge
-                        Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 11, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: greenTheme.withValues(alpha: 0.13),
-                                borderRadius: BorderRadius.circular(9),
-                                border: Border.all(
-                                    color: greenTheme.withValues(alpha: 0.25),
-                                    width: 1),
+                        Flexible(
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 11, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: greenTheme.withValues(alpha: 0.13),
+                                  borderRadius: BorderRadius.circular(9),
+                                  border: Border.all(
+                                      color: greenTheme.withValues(alpha: 0.25),
+                                      width: 1),
+                                ),
+                                child: Text(
+                                  _fromStationCode,
+                                  style: const TextStyle(
+                                      fontSize: 21,
+                                      fontWeight: FontWeight.w900,
+                                      color: greenTheme,
+                                      letterSpacing: 1.6),
+                                ),
                               ),
-                              child: Text(
-                                _fromStationCode,
-                                style: const TextStyle(
-                                    fontSize: 21,
-                                    fontWeight: FontWeight.w900,
-                                    color: greenTheme,
-                                    letterSpacing: 1.6),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            SizedBox(
-                              width: 80,
-                              child: Text(
+                              const SizedBox(height: 6),
+                              Text(
                                 _fromStation,
                                 style: const TextStyle(
                                     fontSize: 11,
@@ -667,8 +670,8 @@ class _RailwayBookingCheckoutState extends State<RailwayBookingCheckout> {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                         const SizedBox(width: 10),
 
@@ -719,31 +722,30 @@ class _RailwayBookingCheckoutState extends State<RailwayBookingCheckout> {
                         const SizedBox(width: 10),
 
                         // To station badge
-                        Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 11, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: greenTheme.withValues(alpha: 0.13),
-                                borderRadius: BorderRadius.circular(9),
-                                border: Border.all(
-                                    color: greenTheme.withValues(alpha: 0.25),
-                                    width: 1),
+                        Flexible(
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 11, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: greenTheme.withValues(alpha: 0.13),
+                                  borderRadius: BorderRadius.circular(9),
+                                  border: Border.all(
+                                      color: greenTheme.withValues(alpha: 0.25),
+                                      width: 1),
+                                ),
+                                child: Text(
+                                  _toStationCode,
+                                  style: const TextStyle(
+                                      fontSize: 21,
+                                      fontWeight: FontWeight.w900,
+                                      color: greenTheme,
+                                      letterSpacing: 1.6),
+                                ),
                               ),
-                              child: Text(
-                                _toStationCode,
-                                style: const TextStyle(
-                                    fontSize: 21,
-                                    fontWeight: FontWeight.w900,
-                                    color: greenTheme,
-                                    letterSpacing: 1.6),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            SizedBox(
-                              width: 80,
-                              child: Text(
+                              const SizedBox(height: 6),
+                              Text(
                                 _toStation,
                                 style: const TextStyle(
                                     fontSize: 11,
@@ -753,8 +755,8 @@ class _RailwayBookingCheckoutState extends State<RailwayBookingCheckout> {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -900,11 +902,15 @@ class _RailwayBookingCheckoutState extends State<RailwayBookingCheckout> {
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                 child: Row(
                   children: [
-                    Text(
-                      '$_toStation($_toStationCode) - $_fromStation($_fromStationCode)',
-                      style: ThemeText.cardHeading,
+                    Flexible(
+                      child: Text(
+                        '$_toStation($_toStationCode) - $_fromStation($_fromStationCode)',
+                        style: ThemeText.cardHeading,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                      ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     const Icon(Icons.schedule_rounded,
                         size: 15, color: Color(0xFF666666)),
                     const SizedBox(width: 5),

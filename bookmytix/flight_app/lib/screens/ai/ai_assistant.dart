@@ -4,6 +4,7 @@ import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:get/route_manager.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Send button with hover scale effect
@@ -676,6 +677,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
   late TabController _tabController;
   late AnimationController _dotController;
   late AnimationController _entryController;
+  late Animation<double> _headerFade;
+  late Animation<Offset> _headerSlide;
 
   // ── Hover state ────────────────────────────────────────────────────────────
   int _hoveredSuggestion = -1;
@@ -782,8 +785,21 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
     )..repeat();
     _entryController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 1200),
     )..forward();
+    _headerFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entryController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      ),
+    );
+    _headerSlide = Tween<Offset>(
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _entryController,
+      curve: const Interval(0.0, 0.8, curve: Curves.easeOutCubic),
+    ));
     _messages.add(ChatMessage(
       id: '1',
       message:
@@ -809,59 +825,161 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.0, end: 1.0),
-          duration: const Duration(milliseconds: 700),
-          curve: Curves.easeOut,
-          builder: (context, value, child) => Opacity(
-            opacity: value,
-            child: Transform.translate(
-              offset: Offset(0, 10 * (1 - value)),
-              child: child,
+      backgroundColor: Colors.grey.shade50,
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverAppBar(
+            expandedHeight: 200.0,
+            floating: false,
+            pinned: true,
+            elevation: 0,
+            backgroundColor: const Color(0xFFD4AF37),
+            iconTheme: const IconThemeData(color: Color(0xFFD4AF37)),
+            leading: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new,
+                    color: Color(0xFFD4AF37), size: 18),
+                onPressed: () => Get.back(),
+              ),
+            ),
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(48),
+              child: Container(
+                color: Colors.white,
+                child: TabBar(
+                  controller: _tabController,
+                  indicatorColor: const Color(0xFFD4AF37),
+                  indicatorWeight: 3,
+                  labelColor: const Color(0xFFD4AF37),
+                  unselectedLabelColor: Colors.black45,
+                  tabs: const [
+                    Tab(
+                        icon: Icon(Icons.chat_bubble_outline, size: 18),
+                        text: 'Chat'),
+                    Tab(
+                        icon: Icon(Icons.map_outlined, size: 18),
+                        text: 'Plan Trip'),
+                    Tab(
+                        icon: Icon(CupertinoIcons.bookmark, size: 18),
+                        text: 'Saved'),
+                  ],
+                ),
+              ),
+            ),
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFD4AF37),
+                      Color(0xFFDAB853),
+                      Color(0xFFE8C76A),
+                    ],
+                  ),
+                ),
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.only(
+                      left: 64,
+                      right: 20,
+                      top: 12,
+                      bottom: 56,
+                    ),
+                    child: SlideTransition(
+                      position: _headerSlide,
+                      child: FadeTransition(
+                        opacity: _headerFade,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.25),
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.auto_awesome_rounded,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text(
+                                    'AI Planner',
+                                    style: TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      letterSpacing: -0.8,
+                                      height: 1.1,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Your smart Pakistan travel guide',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color:
+                                          Colors.white.withValues(alpha: 0.9),
+                                      letterSpacing: 0.2,
+                                      height: 1.2,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.auto_awesome, size: 20, color: Colors.white),
-              SizedBox(width: 8),
-              Text('AI Planner',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                      shadows: [
-                        Shadow(
-                            color: Colors.black26,
-                            blurRadius: 8,
-                            offset: Offset(0, 2))
-                      ])),
-            ],
-          ),
-        ),
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
-        bottom: TabBar(
+        ],
+        body: TabBarView(
           controller: _tabController,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white60,
-          tabs: const [
-            Tab(icon: Icon(Icons.chat_bubble_outline, size: 18), text: 'Chat'),
-            Tab(icon: Icon(Icons.map_outlined, size: 18), text: 'Plan Trip'),
-            Tab(icon: Icon(CupertinoIcons.bookmark, size: 18), text: 'Saved'),
+          children: [
+            _buildChatTab(),
+            _buildPlanTripTab(),
+            _buildSavedTripsTab(),
           ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildChatTab(),
-          _buildPlanTripTab(),
-          _buildSavedTripsTab(),
-        ],
       ),
     );
   }
@@ -877,7 +995,9 @@ class _AIAssistantScreenState extends State<AIAssistantScreen>
           child: ListView.builder(
             controller: _scrollController,
             padding: EdgeInsets.all(spacingUnit(2)),
-            itemCount: _messages.length + (_isTyping ? 1 : 0) + (showSuggestions ? 1 : 0),
+            itemCount: _messages.length +
+                (_isTyping ? 1 : 0) +
+                (showSuggestions ? 1 : 0),
             itemBuilder: (context, index) {
               if (index < _messages.length) {
                 return _buildMessageBubble(_messages[index]);

@@ -3529,7 +3529,27 @@ class _BookingDetailState extends State<BookingDetail> {
                     .replaceAll(' ', '') ??
                 '--';
         final phone = pax['phone'] as String? ?? '--';
-        final age = pax['age'] as String? ?? '--';
+        // Calculate age from DOB if age field is missing
+        String age = pax['age'] as String? ?? '';
+        if (age.isEmpty) {
+          final dobStr = pax['dateOfBirth'] as String? ?? '';
+          if (dobStr.isNotEmpty) {
+            try {
+              final dob = DateTime.parse(dobStr);
+              final now = DateTime.now();
+              int ageNum = now.year - dob.year;
+              if (now.month < dob.month ||
+                  (now.month == dob.month && now.day < dob.day)) {
+                ageNum--;
+              }
+              age = ageNum.toString();
+            } catch (_) {
+              age = '--';
+            }
+          } else {
+            age = '--';
+          }
+        }
         final gender = pax['gender'] as String? ?? 'Male';
         final rawType = pax['concessionType'] as String? ?? 'ADULT';
         final paxType = rawType == 'CHILD_3_10'
@@ -3621,7 +3641,27 @@ class _BookingDetailState extends State<BookingDetail> {
                       .replaceAll(' ', '') ??
                   '--';
           final phone = pax['phone'] as String? ?? '--';
-          final age = pax['age'] as String? ?? '--';
+          // Calculate age from DOB if age field is missing
+          String age = pax['age'] as String? ?? '';
+          if (age.isEmpty) {
+            final dobStr = pax['dateOfBirth'] as String? ?? '';
+            if (dobStr.isNotEmpty) {
+              try {
+                final dob = DateTime.parse(dobStr);
+                final now = DateTime.now();
+                int ageNum = now.year - dob.year;
+                if (now.month < dob.month ||
+                    (now.month == dob.month && now.day < dob.day)) {
+                  ageNum--;
+                }
+                age = ageNum.toString();
+              } catch (_) {
+                age = '--';
+              }
+            } else {
+              age = '--';
+            }
+          }
           final gender = pax['gender'] as String? ?? 'Male';
           final rawType = pax['concessionType'] as String? ?? 'ADULT';
           final paxType = rawType == 'CHILD_3_10'

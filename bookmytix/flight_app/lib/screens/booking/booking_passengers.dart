@@ -2780,10 +2780,17 @@ class _BookingPassengersState extends State<BookingPassengers> {
                           hint: 'Enter full name',
                           prefixIcon: Icons.person_outline,
                           textCapitalization: TextCapitalization.words,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[a-zA-Z ]')),
+                          ],
                           validator: (v) {
                             final s = v?.trim() ?? '';
                             if (s.isEmpty) return 'Full name is required';
                             if (s.length < 3) return 'Minimum 3 characters';
+                            if (!RegExp(r'^[a-zA-Z ]+$').hasMatch(s)) {
+                              return 'Letters only';
+                            }
                             return null;
                           },
                         ),
@@ -2894,12 +2901,19 @@ class _BookingPassengersState extends State<BookingPassengers> {
                           hint: 'Enter emergency contact name',
                           prefixIcon: Icons.person_outline,
                           textCapitalization: TextCapitalization.words,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[a-zA-Z ]')),
+                          ],
                           validator: (v) {
                             final s = v?.trim() ?? '';
                             if (s.isEmpty) {
                               return 'Emergency contact name is required';
                             }
                             if (s.length < 3) return 'Minimum 3 characters';
+                            if (!RegExp(r'^[a-zA-Z ]+$').hasMatch(s)) {
+                              return 'Letters only';
+                            }
                             return null;
                           },
                         ),
@@ -2910,10 +2924,17 @@ class _BookingPassengersState extends State<BookingPassengers> {
                           hint: 'e.g., Father, Mother, Spouse, Sibling',
                           prefixIcon: Icons.family_restroom_outlined,
                           textCapitalization: TextCapitalization.words,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[a-zA-Z ]')),
+                          ],
                           validator: (v) {
                             final s = v?.trim() ?? '';
                             if (s.isEmpty) return 'Relationship is required';
                             if (s.length < 3) return 'Minimum 3 characters';
+                            if (!RegExp(r'^[a-zA-Z ]+$').hasMatch(s)) {
+                              return 'Letters only';
+                            }
                             return null;
                           },
                         ),

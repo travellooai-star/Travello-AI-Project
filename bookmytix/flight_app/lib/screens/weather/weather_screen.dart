@@ -3,6 +3,7 @@ import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
 import 'package:flutter/material.dart';
+import 'package:get/route_manager.dart';
 
 class WeatherScreen extends StatefulWidget {
   const WeatherScreen({super.key});
@@ -11,14 +12,44 @@ class WeatherScreen extends StatefulWidget {
   State<WeatherScreen> createState() => _WeatherScreenState();
 }
 
-class _WeatherScreenState extends State<WeatherScreen> {
+class _WeatherScreenState extends State<WeatherScreen>
+    with SingleTickerProviderStateMixin {
   String _selectedCity = 'Karachi';
   late WeatherData _currentWeather;
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
     _currentWeather = PakistanWeatherData.getWeatherForCity(_selectedCity);
+
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      ),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.8, curve: Curves.easeOutCubic),
+    ));
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   void _changeCity(String city) {
@@ -33,179 +64,332 @@ class _WeatherScreenState extends State<WeatherScreen> {
     final warnings = PakistanWeatherData.getCitiesWithWarnings();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Weather Updates'),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // City Selector
-            Container(
-              padding: EdgeInsets.all(spacingUnit(2)),
-              color: colorScheme(context).primaryContainer,
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.location_on,
-                    color: colorScheme(context).onPrimaryContainer,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButton<String>(
-                      value: _selectedCity,
-                      isExpanded: true,
-                      underline: const SizedBox(),
-                      dropdownColor: colorScheme(context).primaryContainer,
-                      style: ThemeText.subtitle.copyWith(
-                        color: colorScheme(context).onPrimaryContainer,
-                      ),
-                      items: PakistanWeatherData.getCities().map((city) {
-                        return DropdownMenuItem(
-                          value: city,
-                          child: Text(city),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) _changeCity(value);
-                      },
-                    ),
+      backgroundColor: Colors.grey.shade50,
+      body: CustomScrollView(
+        slivers: [
+          // ── Animated Golden Header ───────────────────────────────────────
+          SliverAppBar(
+            expandedHeight: 140.0,
+            floating: false,
+            pinned: true,
+            elevation: 0,
+            backgroundColor: Colors.white,
+            leading: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new,
+                    color: Color(0xFFD4AF37), size: 18),
+                onPressed: () => Get.back(),
+              ),
             ),
-
-            // Current Weather Card
-            Padding(
-              padding: EdgeInsets.all(spacingUnit(2)),
-              child: Card(
-                child: Padding(
-                  padding: EdgeInsets.all(spacingUnit(3)),
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFD4AF37),
+                      Color(0xFFDAB853),
+                      Color(0xFFE8C76A),
+                    ],
+                  ),
+                ),
+                child: SafeArea(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final isSmall = constraints.maxWidth < 360;
-                      return Column(
-                        children: [
-                          Text(
-                            _currentWeather.icon,
-                            style: TextStyle(fontSize: isSmall ? 56.0 : 72.0),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            '${_currentWeather.temperature.toStringAsFixed(0)}°C',
-                            style: TextStyle(
-                              fontSize: isSmall ? 36.0 : 48.0,
-                              fontWeight: FontWeight.bold,
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          left: 20,
+                          right: 20,
+                          top: constraints.maxHeight > 120 ? 24 : 16,
+                          bottom: 8,
+                        ),
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.25),
+                                        borderRadius: BorderRadius.circular(14),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.1),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.wb_sunny_rounded,
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Text(
+                                            'Weather Updates',
+                                            style: TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.white,
+                                              letterSpacing: -0.8,
+                                              height: 1.1,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Live weather across Pakistan',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.9),
+                                              letterSpacing: 0.2,
+                                              height: 1.2,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
-                          Text(
-                            _currentWeather.condition,
-                            style: ThemeText.title.copyWith(fontSize: 16),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 24),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _WeatherDetail(
-                                icon: Icons.water_drop,
-                                label: 'Humidity',
-                                value: '${_currentWeather.humidity}%',
-                              ),
-                              _WeatherDetail(
-                                icon: Icons.air,
-                                label: 'Wind',
-                                value: '${_currentWeather.windSpeed} km/h',
-                              ),
-                            ],
-                          ),
-                        ],
+                        ),
                       );
                     },
                   ),
                 ),
               ),
             ),
+          ),
 
-            // Travel Warning (if applicable)
-            if (_currentWeather.travelWarning)
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: spacingUnit(2)),
-                child: Card(
-                  color: Colors.orange.shade50,
-                  child: Padding(
-                    padding: EdgeInsets.all(spacingUnit(2)),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.warning_amber_rounded,
-                          color: Colors.orange.shade800,
-                          size: 32,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+          // ── Body content ─────────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // City Selector
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: spacingUnit(2), vertical: spacingUnit(1.5)),
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedCity,
+                    dropdownColor: Colors.white,
+                    style: const TextStyle(
+                      color: Color(0xFFD4AF37),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                        color: Color(0xFFD4AF37)),
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.location_on_rounded,
+                          color: Color(0xFFD4AF37)),
+                      labelText: 'Select City',
+                      labelStyle: const TextStyle(
+                          color: Color(0xFFD4AF37),
+                          fontWeight: FontWeight.w600),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                            color: Color(0xFFD4AF37), width: 1.5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(
+                            color: Color(0xFFD4AF37), width: 2),
+                      ),
+                    ),
+                    items: PakistanWeatherData.getCities().map((city) {
+                      return DropdownMenuItem(
+                        value: city,
+                        child: Text(city,
+                            style: const TextStyle(
+                                color: Color(0xFFD4AF37),
+                                fontWeight: FontWeight.w500)),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) _changeCity(value);
+                    },
+                  ),
+                ),
+
+                // Current Weather Card
+                Padding(
+                  padding: EdgeInsets.all(spacingUnit(2)),
+                  child: Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(spacingUnit(3)),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isSmall = constraints.maxWidth < 360;
+                          return Column(
                             children: [
                               Text(
-                                'Travel Warning',
-                                style: ThemeText.subtitle.copyWith(
-                                  color: Colors.orange.shade800,
+                                _currentWeather.icon,
+                                style:
+                                    TextStyle(fontSize: isSmall ? 56.0 : 72.0),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                '${_currentWeather.temperature.toStringAsFixed(0)}°C',
+                                style: TextStyle(
+                                  fontSize: isSmall ? 36.0 : 48.0,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(height: 4),
                               Text(
-                                _currentWeather.warningMessage,
-                                style: ThemeText.caption.copyWith(
-                                  color: Colors.orange.shade900,
-                                ),
+                                _currentWeather.condition,
+                                style: ThemeText.title.copyWith(fontSize: 16),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 24),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: [
+                                  _WeatherDetail(
+                                    icon: Icons.water_drop,
+                                    label: 'Humidity',
+                                    value: '${_currentWeather.humidity}%',
+                                  ),
+                                  _WeatherDetail(
+                                    icon: Icons.air,
+                                    label: 'Wind',
+                                    value: '${_currentWeather.windSpeed} km/h',
+                                  ),
+                                ],
                               ),
                             ],
-                          ),
-                        ),
-                      ],
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
-              ),
 
-            // Weather Warnings Section
-            if (warnings.isNotEmpty) ...[
-              Padding(
-                padding: EdgeInsets.all(spacingUnit(2)),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Active Weather Alerts',
-                    style: ThemeText.title.copyWith(fontSize: 16),
+                // Travel Warning (if applicable)
+                if (_currentWeather.travelWarning)
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: spacingUnit(2)),
+                    child: Card(
+                      color: Colors.orange.shade50,
+                      child: Padding(
+                        padding: EdgeInsets.all(spacingUnit(2)),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.orange.shade800,
+                              size: 32,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Travel Warning',
+                                    style: ThemeText.subtitle.copyWith(
+                                      color: Colors.orange.shade800,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _currentWeather.warningMessage,
+                                    style: ThemeText.caption.copyWith(
+                                      color: Colors.orange.shade900,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Weather Warnings Section
+                if (warnings.isNotEmpty) ...[
+                  Padding(
+                    padding: EdgeInsets.all(spacingUnit(2)),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Active Weather Alerts',
+                        style: ThemeText.title.copyWith(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                  ...warnings.map((weather) => _WarningCard(weather: weather)),
+                ],
+
+                // All Cities Weather
+                Padding(
+                  padding: EdgeInsets.all(spacingUnit(2)),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'All Cities',
+                      style: ThemeText.title.copyWith(fontSize: 16),
+                    ),
                   ),
                 ),
-              ),
-              ...warnings.map((weather) => _WarningCard(weather: weather)),
-            ],
-
-            // All Cities Weather
-            Padding(
-              padding: EdgeInsets.all(spacingUnit(2)),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'All Cities',
-                  style: ThemeText.title.copyWith(fontSize: 16),
-                ),
-              ),
+                ...PakistanWeatherData.getAllCitiesWeather().map((weather) {
+                  return _CityWeatherTile(
+                    weather: weather,
+                    isSelected: weather.city == _selectedCity,
+                    onTap: () => _changeCity(weather.city),
+                  );
+                }),
+                SizedBox(height: spacingUnit(2)),
+              ],
             ),
-            ...PakistanWeatherData.getAllCitiesWeather().map((weather) {
-              return _CityWeatherTile(
-                weather: weather,
-                isSelected: weather.city == _selectedCity,
-                onTap: () => _changeCity(weather.city),
-              );
-            }),
-            SizedBox(height: spacingUnit(2)),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

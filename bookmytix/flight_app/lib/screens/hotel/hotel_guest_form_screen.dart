@@ -458,18 +458,36 @@ class _HotelGuestFormScreenState extends State<HotelGuestFormScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Name
-                        Row(
-                          children: [
-                            Expanded(
-                                child: _field(_firstNameCtrl, 'First Name *',
-                                    Icons.person_outline,
-                                    required: true)),
-                            SizedBox(width: spacingUnit(1.5)),
-                            Expanded(
-                                child: _field(_lastNameCtrl, 'Last Name *',
-                                    Icons.person_outline,
-                                    required: true)),
-                          ],
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMobile = constraints.maxWidth < 600;
+                            if (isMobile) {
+                              return Column(
+                                children: [
+                                  _field(_firstNameCtrl, 'First Name *',
+                                      Icons.person_outline,
+                                      required: true),
+                                  SizedBox(height: spacingUnit(1.5)),
+                                  _field(_lastNameCtrl, 'Last Name *',
+                                      Icons.person_outline,
+                                      required: true),
+                                ],
+                              );
+                            }
+                            return Row(
+                              children: [
+                                Expanded(
+                                    child: _field(_firstNameCtrl, 'First Name *',
+                                        Icons.person_outline,
+                                        required: true)),
+                                SizedBox(width: spacingUnit(1.5)),
+                                Expanded(
+                                    child: _field(_lastNameCtrl, 'Last Name *',
+                                        Icons.person_outline,
+                                        required: true)),
+                              ],
+                            );
+                          },
                         ),
                         SizedBox(height: spacingUnit(1.5)),
 
@@ -516,11 +534,99 @@ class _HotelGuestFormScreenState extends State<HotelGuestFormScreen> {
                         SizedBox(height: spacingUnit(1.5)),
 
                         // Phone + Gender
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _phoneCtrl,
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMobile = constraints.maxWidth < 600;
+                            if (isMobile) {
+                              return Column(
+                                children: [
+                                  TextFormField(
+                                    controller: _phoneCtrl,
+                                    style: const TextStyle(color: Colors.black),
+                                    keyboardType: TextInputType.phone,
+                                    maxLength: 10,
+                                    buildCounter: (_,
+                                            {required currentLength,
+                                            required isFocused,
+                                            maxLength}) =>
+                                        null,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      LengthLimitingTextInputFormatter(10),
+                                      _NoLeadingZeroFormatter(),
+                                    ],
+                                    decoration: InputDecoration(
+                                      labelText: 'Mobile *',
+                                      hintText: '3001234567',
+                                      prefixIcon: const Icon(Icons.phone),
+                                      prefixText: '+92 ',
+                                      prefixStyle: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 15,
+                                        color: colorScheme(context).primary,
+                                      ),
+                                      border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12)),
+                                      enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(
+                                              color: Colors.grey.shade300)),
+                                      focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(
+                                              color: colorScheme(context).primary)),
+                                    ),
+                                    validator: (v) {
+                                      if (v == null || v.trim().isEmpty) {
+                                        return 'Phone required';
+                                      }
+                                      final digits =
+                                          v.replaceAll(RegExp(r'[^0-9]'), '');
+                                      if (digits.startsWith('0')) {
+                                        return 'Do not include leading 0 with +92';
+                                      }
+                                      if (digits.length != 10) {
+                                        return 'Enter 10-digit mobile number';
+                                      }
+                                      if (!digits.startsWith('3') &&
+                                          !digits.startsWith('2')) {
+                                        return 'Invalid Pakistan phone number';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  SizedBox(height: spacingUnit(1.5)),
+                                  DropdownButtonFormField<String>(
+                                    initialValue: _gender,
+                                    decoration: InputDecoration(
+                                      labelText: 'Gender',
+                                      prefixIcon: const Icon(Icons.wc),
+                                      border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12)),
+                                      enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(
+                                              color: Colors.grey.shade300)),
+                                      focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(
+                                              color: colorScheme(context).primary)),
+                                    ),
+                                    items: ['Male', 'Female']
+                                        .map((g) => DropdownMenuItem(
+                                            value: g, child: Text(g)))
+                                        .toList(),
+                                    onChanged: (v) =>
+                                        setState(() => _gender = v ?? 'Male'),
+                                  ),
+                                ],
+                              );
+                            }
+                            return Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _phoneCtrl,
                                 style: const TextStyle(color: Colors.black),
                                 keyboardType: TextInputType.phone,
                                 maxLength: 10,
@@ -597,11 +703,13 @@ class _HotelGuestFormScreenState extends State<HotelGuestFormScreen> {
                                     .map((g) => DropdownMenuItem(
                                         value: g, child: Text(g)))
                                     .toList(),
-                                onChanged: (v) =>
-                                    setState(() => _gender = v ?? 'Male'),
-                              ),
-                            ),
-                          ],
+                                    onChanged: (v) =>
+                                        setState(() => _gender = v ?? 'Male'),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                         SizedBox(height: spacingUnit(1.5)),
 
@@ -983,6 +1091,10 @@ class _HotelGuestFormScreenState extends State<HotelGuestFormScreen> {
     return TextFormField(
       controller: ctrl,
       style: const TextStyle(color: Colors.black),
+      textCapitalization: TextCapitalization.words,
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z ]')),
+      ],
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),

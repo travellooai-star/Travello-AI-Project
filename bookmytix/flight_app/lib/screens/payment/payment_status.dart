@@ -1462,7 +1462,27 @@ class _PaymentStatusState extends State<PaymentStatus>
                     .replaceAll(' ', '') ??
                 '--';
         final phone = pax['phone'] as String? ?? '--';
-        final age = pax['age'] as String? ?? '--';
+        // Calculate age from DOB if age field is missing
+        String age = pax['age'] as String? ?? '';
+        if (age.isEmpty) {
+          final dobStr = pax['dateOfBirth'] as String? ?? '';
+          if (dobStr.isNotEmpty) {
+            try {
+              final dob = DateTime.parse(dobStr);
+              final now = DateTime.now();
+              int ageNum = now.year - dob.year;
+              if (now.month < dob.month ||
+                  (now.month == dob.month && now.day < dob.day)) {
+                ageNum--;
+              }
+              age = ageNum.toString();
+            } catch (_) {
+              age = '--';
+            }
+          } else {
+            age = '--';
+          }
+        }
         final gender = pax['gender'] as String? ?? 'Male';
         final rawType = pax['concessionType'] as String? ?? 'ADULT';
         final paxType = rawType == 'CHILD_3_10'
@@ -1555,7 +1575,27 @@ class _PaymentStatusState extends State<PaymentStatus>
                       .replaceAll(' ', '') ??
                   '--';
           final phone = pax['phone'] as String? ?? '--';
-          final age = pax['age'] as String? ?? '--';
+          // Calculate age from DOB if age field is missing
+          String age = pax['age'] as String? ?? '';
+          if (age.isEmpty) {
+            final dobStr = pax['dateOfBirth'] as String? ?? '';
+            if (dobStr.isNotEmpty) {
+              try {
+                final dob = DateTime.parse(dobStr);
+                final now = DateTime.now();
+                int ageNum = now.year - dob.year;
+                if (now.month < dob.month ||
+                    (now.month == dob.month && now.day < dob.day)) {
+                  ageNum--;
+                }
+                age = ageNum.toString();
+              } catch (_) {
+                age = '--';
+              }
+            } else {
+              age = '--';
+            }
+          }
           final gender = pax['gender'] as String? ?? 'Male';
           final rawType = pax['concessionType'] as String? ?? 'ADULT';
           final paxType = rawType == 'CHILD_3_10'
@@ -2603,22 +2643,26 @@ class _PaymentStatusState extends State<PaymentStatus>
             ),
             child: Row(children: [
               // FROM
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(fromCode,
-                    style: const TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w900,
-                        color: railwayGreen,
-                        letterSpacing: -0.5)),
-                const SizedBox(height: 4),
-                Text(from,
-                    style: TextStyle(
-                        fontSize: 9,
-                        color: Colors.grey.shade500,
-                        fontWeight: FontWeight.w500),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ]),
+              Flexible(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(fromCode,
+                          style: const TextStyle(
+                              fontSize: 34,
+                              fontWeight: FontWeight.w900,
+                              color: railwayGreen,
+                              letterSpacing: -0.5)),
+                      const SizedBox(height: 4),
+                      Text(from,
+                          style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ]),
+              ),
               // Route line
               Expanded(
                 child: Padding(
@@ -2664,126 +2708,147 @@ class _PaymentStatusState extends State<PaymentStatus>
                 ),
               ),
               // TO
-              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text(toCode,
-                    style: const TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w900,
-                        color: railwayGreen,
-                        letterSpacing: -0.5)),
-                const SizedBox(height: 4),
-                Text(to,
-                    style: TextStyle(
-                        fontSize: 9,
-                        color: Colors.grey.shade500,
-                        fontWeight: FontWeight.w500),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ]),
+              Flexible(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(toCode,
+                          style: const TextStyle(
+                              fontSize: 34,
+                              fontWeight: FontWeight.w900,
+                              color: railwayGreen,
+                              letterSpacing: -0.5)),
+                      const SizedBox(height: 4),
+                      Text(to,
+                          style: TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                    ]),
+              ),
             ]),
           ),
 
           // ── Main content: Passenger info (left) + QR (right) ───────────
           Padding(
             padding: const EdgeInsets.all(18),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // LEFT: Passenger info box
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FFF8),
-                    borderRadius: BorderRadius.circular(14),
-                    border:
-                        Border.all(color: railwayGreen.withValues(alpha: 0.15)),
-                  ),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('PASSENGER',
-                            style: TextStyle(
-                                fontSize: 9,
-                                color: Colors.grey.shade500,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.5)),
-                        const SizedBox(height: 6),
-                        Text(
-                            passengers.isNotEmpty
-                                ? (passengers[0]['name'] as String?) ??
-                                    'Passenger'
-                                : 'Passenger',
-                            style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: railwayGreen),
-                            overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 12),
-                        Text('PNR',
-                            style: TextStyle(
-                                fontSize: 9,
-                                color: Colors.grey.shade500,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.5)),
-                        const SizedBox(height: 6),
-                        GestureDetector(
-                          onTap: _copyPnr,
-                          child: Row(children: [
-                            Text(pnr,
-                                style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                    color: railwayGreen,
-                                    letterSpacing: 1.2)),
-                            const SizedBox(width: 8),
-                            Icon(Icons.copy_rounded,
-                                size: 13, color: Colors.grey.shade400),
-                          ]),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isSmallScreen = constraints.maxHeight < 600;
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // LEFT: Passenger info box
+                    Expanded(
+                      flex: isSmallScreen ? 1 : 2,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FFF8),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: railwayGreen.withValues(alpha: 0.15)),
                         ),
-                        const SizedBox(height: 12),
-                        Row(children: [
-                          _miniChip(
-                              Icons.calendar_today_rounded, date, railwayGreen),
-                          const SizedBox(width: 8),
-                          _miniChip(
-                              Icons.chair_outlined, classType, railwayGreen),
-                        ]),
-                      ]),
-                ),
-              ),
-              const SizedBox(width: 16),
-              // RIGHT: QR code
-              Column(children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.grey.shade200, width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                          color: railwayGreen.withValues(alpha: 0.08),
-                          blurRadius: 12)
-                    ],
-                  ),
-                  child: QrImageView(
-                    data: qrData,
-                    version: QrVersions.auto,
-                    size: 120,
-                    eyeStyle: const QrEyeStyle(
-                        eyeShape: QrEyeShape.square, color: railwayGreen),
-                    dataModuleStyle: const QrDataModuleStyle(
-                        dataModuleShape: QrDataModuleShape.square,
-                        color: railwayGreen),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text('Scan at Check-in',
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.grey.shade500,
-                        fontWeight: FontWeight.w500)),
-              ]),
-            ]),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('PASSENGER',
+                                  style: TextStyle(
+                                      fontSize: 9,
+                                      color: Colors.grey.shade500,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.5)),
+                              const SizedBox(height: 6),
+                              Text(
+                                  passengers.isNotEmpty
+                                      ? (passengers[0]['name'] as String?) ??
+                                          'Passenger'
+                                      : 'Passenger',
+                                  style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: railwayGreen),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2),
+                              const SizedBox(height: 12),
+                              Text('PNR',
+                                  style: TextStyle(
+                                      fontSize: 9,
+                                      color: Colors.grey.shade500,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.5)),
+                              const SizedBox(height: 6),
+                              GestureDetector(
+                                onTap: _copyPnr,
+                                child: Row(children: [
+                                  Flexible(
+                                    child: Text(pnr,
+                                        style: const TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                            color: railwayGreen,
+                                            letterSpacing: 1.2),
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Icon(Icons.copy_rounded,
+                                      size: 13, color: Colors.grey.shade400),
+                                ]),
+                              ),
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _miniChip(Icons.calendar_today_rounded, date,
+                                      railwayGreen),
+                                  _miniChip(Icons.chair_outlined, classType,
+                                      railwayGreen),
+                                ],
+                              ),
+                            ]),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    // RIGHT: QR code
+                    Column(children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: Colors.grey.shade200, width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                                color: railwayGreen.withValues(alpha: 0.08),
+                                blurRadius: 12)
+                          ],
+                        ),
+                        child: QrImageView(
+                          data: qrData,
+                          version: QrVersions.auto,
+                          size: 120,
+                          eyeStyle: const QrEyeStyle(
+                              eyeShape: QrEyeShape.square, color: railwayGreen),
+                          dataModuleStyle: const QrDataModuleStyle(
+                              dataModuleShape: QrDataModuleShape.square,
+                              color: railwayGreen),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Scan at Check-in',
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey.shade500,
+                              fontWeight: FontWeight.w500)),
+                    ]),
+                  ],
+                );
+              },
+            ),
           ),
 
           // ── Additional Details (expandable) ─────────────────────────────
@@ -3043,18 +3108,23 @@ class _PaymentStatusState extends State<PaymentStatus>
                               strokeWidth: 2, color: Colors.white),
                         ),
                       )
-                    : const Row(
+                    : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                            Icon(Icons.train_rounded,
+                            const Icon(Icons.train_rounded,
                                 color: Colors.white, size: 18),
-                            SizedBox(width: 8),
-                            Text('VIEW & DOWNLOAD TICKET',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                    letterSpacing: 0.5)),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text('VIEW & DOWNLOAD TICKET',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                      letterSpacing: 0.5),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1),
+                            ),
                           ]),
               ),
             ),
@@ -3508,9 +3578,13 @@ class _PaymentStatusState extends State<PaymentStatus>
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 10, color: color),
           const SizedBox(width: 4),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 9, color: color, fontWeight: FontWeight.w600)),
+          Flexible(
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 9, color: color, fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1),
+          ),
         ]),
       );
 

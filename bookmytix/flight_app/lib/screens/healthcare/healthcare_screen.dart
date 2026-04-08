@@ -3,6 +3,7 @@ import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
 import 'package:flutter/material.dart';
+import 'package:get/route_manager.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HealthcareScreen extends StatefulWidget {
@@ -12,14 +13,44 @@ class HealthcareScreen extends StatefulWidget {
   State<HealthcareScreen> createState() => _HealthcareScreenState();
 }
 
-class _HealthcareScreenState extends State<HealthcareScreen> {
+class _HealthcareScreenState extends State<HealthcareScreen>
+    with SingleTickerProviderStateMixin {
   String _selectedCity = 'Karachi';
   List<Hospital> _hospitals = [];
+
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
     _loadHospitals();
+
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+      ),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: const Interval(0.0, 0.8, curve: Curves.easeOutCubic),
+    ));
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   void _loadHospitals() {
@@ -56,163 +87,288 @@ class _HealthcareScreenState extends State<HealthcareScreen> {
     final emergencyContacts = EmergencyContact.getContacts();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Healthcare Guidance'),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Emergency Banner
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(spacingUnit(2)),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
+      backgroundColor: Colors.grey.shade50,
+      body: CustomScrollView(
+        slivers: [
+          // ── Animated Golden Header ───────────────────────────────────────
+          SliverAppBar(
+            expandedHeight: 140.0,
+            floating: false,
+            pinned: true,
+            elevation: 0,
+            backgroundColor: Colors.white,
+            leading: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new,
+                    color: Color(0xFFD4AF37), size: 18),
+                onPressed: () => Get.back(),
+              ),
+            ),
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFD4AF37),
+                      Color(0xFFDAB853),
+                      Color(0xFFE8C76A),
+                    ],
+                  ),
                 ),
-              ),
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.local_hospital,
-                    color: Colors.white,
-                    size: 48,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Emergency Healthcare',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Find nearby hospitals and emergency contacts',
-                    style: ThemeText.caption.copyWith(color: Colors.white70),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-
-            // Emergency Contacts Section
-            Padding(
-              padding: EdgeInsets.all(spacingUnit(2)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Emergency Hotlines',
-                    style: ThemeText.title.copyWith(fontSize: 16),
-                  ),
-                  const SizedBox(height: 12),
-                  ...emergencyContacts.map((contact) {
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      color: Colors.red.shade50,
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.red.shade100,
-                          child: Icon(
-                            contact.icon,
-                            color: Colors.red.shade900,
+                child: SafeArea(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          left: 20,
+                          right: 20,
+                          top: constraints.maxHeight > 120 ? 24 : 16,
+                          bottom: 8,
+                        ),
+                        child: SlideTransition(
+                          position: _slideAnimation,
+                          child: FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.25),
+                                        borderRadius: BorderRadius.circular(14),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.1),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.local_hospital_rounded,
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Text(
+                                            'Healthcare Guidance',
+                                            style: TextStyle(
+                                              fontSize: 28,
+                                              fontWeight: FontWeight.w800,
+                                              color: Colors.white,
+                                              letterSpacing: -0.8,
+                                              height: 1.1,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Hospitals & emergency contacts',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.9),
+                                              letterSpacing: 0.2,
+                                              height: 1.2,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        title: Text(
-                          contact.service,
-                          style: ThemeText.subtitle,
-                        ),
-                        trailing: FilledButton.icon(
-                          onPressed: () => _makePhoneCall(contact.number),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.red.shade700,
-                          ),
-                          icon: const Icon(Icons.phone, size: 18),
-                          label: Text(contact.number),
-                        ),
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-
-            const Divider(height: 32),
-
-            // City Selector
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: spacingUnit(2)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Nearby Hospitals',
-                    style: ThemeText.title.copyWith(fontSize: 16),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.location_city),
-                      labelText: 'Select City',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      filled: true,
-                    ),
-                    initialValue: _selectedCity,
-                    items: PakistanHospitals.getCities().map((city) {
-                      return DropdownMenuItem(
-                        value: city,
-                        child: Text(city),
                       );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) _changeCity(value);
                     },
                   ),
-                ],
+                ),
               ),
             ),
+          ),
 
-            const SizedBox(height: 16),
-
-            // Hospitals List
-            if (_hospitals.isEmpty)
-              Padding(
-                padding: EdgeInsets.all(spacingUnit(4)),
-                child: Center(
+          // ── Body content ─────────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Emergency Contacts Section
+                Padding(
+                  padding: EdgeInsets.all(spacingUnit(2)),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.local_hospital_outlined,
-                        size: 64,
-                        color: colorScheme(context).outline,
+                      Text(
+                        'Emergency Hotlines',
+                        style: ThemeText.title.copyWith(fontSize: 16),
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'No hospitals found',
-                        style: ThemeText.subtitle,
+                      const SizedBox(height: 12),
+                      ...emergencyContacts.map((contact) {
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          color: Colors.red.shade50,
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.red.shade100,
+                              child: Icon(
+                                contact.icon,
+                                color: Colors.red.shade900,
+                              ),
+                            ),
+                            title: Text(
+                              contact.service,
+                              style: ThemeText.subtitle,
+                            ),
+                            trailing: FilledButton.icon(
+                              onPressed: () => _makePhoneCall(contact.number),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.red.shade700,
+                              ),
+                              icon: const Icon(Icons.phone, size: 18),
+                              label: Text(contact.number),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+
+                const Divider(height: 32),
+
+                // City Selector
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: spacingUnit(2)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Nearby Hospitals',
+                        style: ThemeText.title.copyWith(fontSize: 16),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: _selectedCity,
+                        dropdownColor: Colors.white,
+                        style: const TextStyle(
+                          color: Color(0xFFD4AF37),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                        icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                            color: Color(0xFFD4AF37)),
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.location_on_rounded,
+                              color: Color(0xFFD4AF37)),
+                          labelText: 'Select City',
+                          labelStyle: const TextStyle(
+                              color: Color(0xFFD4AF37),
+                              fontWeight: FontWeight.w600),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                                color: Color(0xFFD4AF37), width: 1.5),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: const BorderSide(
+                                color: Color(0xFFD4AF37), width: 2),
+                          ),
+                        ),
+                        items: PakistanHospitals.getCities().map((city) {
+                          return DropdownMenuItem(
+                            value: city,
+                            child: Text(city,
+                                style: const TextStyle(
+                                    color: Color(0xFFD4AF37),
+                                    fontWeight: FontWeight.w500)),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) _changeCity(value);
+                        },
                       ),
                     ],
                   ),
                 ),
-              )
-            else
-              ...(_hospitals..sort((a, b) => a.distance.compareTo(b.distance)))
-                  .map((hospital) {
-                return _HospitalCard(
-                  hospital: hospital,
-                  onCall: () => _makePhoneCall(hospital.phone),
-                );
-              }),
 
-            SizedBox(height: spacingUnit(2)),
-          ],
-        ),
+                const SizedBox(height: 16),
+
+                // Hospitals List
+                if (_hospitals.isEmpty)
+                  Padding(
+                    padding: EdgeInsets.all(spacingUnit(4)),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.local_hospital_outlined,
+                            size: 64,
+                            color: colorScheme(context).outline,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'No hospitals found',
+                            style: ThemeText.subtitle,
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  ...(_hospitals
+                        ..sort((a, b) => a.distance.compareTo(b.distance)))
+                      .map((hospital) {
+                    return _HospitalCard(
+                      hospital: hospital,
+                      onCall: () => _makePhoneCall(hospital.phone),
+                    );
+                  }),
+
+                SizedBox(height: spacingUnit(2)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

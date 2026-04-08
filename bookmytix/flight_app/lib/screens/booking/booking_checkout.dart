@@ -33,8 +33,6 @@ class _BookingCheckoutState extends State<BookingCheckout> {
   late List<Map<String, dynamic>> _passengers;
   late List<Map<String, dynamic>> _baggageData;
   late double _baggageExtraTotal;
-  List<Map<String, dynamic>> _returnBaggageData = [];
-  String _returnBaggageMode = 'same';
   late String _contactEmail;
   late String _contactPhone;
 
@@ -94,11 +92,6 @@ class _BookingCheckoutState extends State<BookingCheckout> {
     _baggageData =
         bagRaw.map((b) => Map<String, dynamic>.from(b as Map)).toList();
     _baggageExtraTotal = (args['baggageExtraTotal'] as double?) ?? 0.0;
-
-    final returnBagRaw = (args['returnBaggageData'] as List<dynamic>?) ?? [];
-    _returnBaggageData =
-        returnBagRaw.map((b) => Map<String, dynamic>.from(b as Map)).toList();
-    _returnBaggageMode = (args['returnBaggageMode'] as String?) ?? 'same';
 
     // Read seat selection data
     if (_isRoundTrip) {
@@ -221,12 +214,12 @@ class _BookingCheckoutState extends State<BookingCheckout> {
       return (_outboundFlight!.price + _returnFlight!.price) *
           _passengers.length;
     }
-    return _flight.price * _passengers.length;
+    return _flight!.price * _passengers.length;
   }
 
   double get _discountPercent {
-    if (_flight.badge.contains('%')) {
-      final match = RegExp(r'(\d+)%').firstMatch(_flight.badge);
+    if (_flight!.badge.contains('%')) {
+      final match = RegExp(r'(\d+)%').firstMatch(_flight!.badge);
       if (match != null) return double.tryParse(match.group(1) ?? '0') ?? 0;
     }
     return 0;
@@ -269,8 +262,6 @@ class _BookingCheckoutState extends State<BookingCheckout> {
       'searchParams': _searchParams,
       'passengers': _passengers,
       'baggageData': _baggageData,
-      'returnBaggageData': _returnBaggageData,
-      'returnBaggageMode': _returnBaggageMode,
       'totalAmount': _grandTotal,
       'discount': _discount,
       'isRoundTrip': _isRoundTrip,
@@ -295,6 +286,47 @@ class _BookingCheckoutState extends State<BookingCheckout> {
 
   @override
   Widget build(BuildContext context) {
+    // Safety check: if flight data is missing, show error
+    if (_flight == null) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: colorScheme(context).primary,
+          title: const Text('Checkout', style: TextStyle(color: Colors.white)),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Get.back(),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 64, color: Colors.red.shade300),
+                const SizedBox(height: 24),
+                const Text(
+                  'Flight data is missing',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Please start your booking from the search page.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Get.offAllNamed(AppLink.home),
+                  child: const Text('Go to Home'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA), // Light background
       appBar: _buildAppBar(),
@@ -378,14 +410,10 @@ class _BookingCheckoutState extends State<BookingCheckout> {
   Widget _buildStepProgress() {
     const steps = ['PASSENGERS', 'FACILITIES', 'CHECKOUT', 'PAYMENT', 'DONE'];
     const goldColor = Color(0xFFD4AF37);
-    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Container(
       color: Colors.white,
-      padding: EdgeInsets.symmetric(
-        vertical: isMobile ? 8 : 12,
-        horizontal: isMobile ? 8 : 16,
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Row(
         children: List.generate(9, (i) {
           if (i.isOdd) {
@@ -409,8 +437,8 @@ class _BookingCheckoutState extends State<BookingCheckout> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: isMobile ? 24 : 28,
-                height: isMobile ? 24 : 28,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   color: isCompleted || isActive
                       ? goldColor
@@ -419,25 +447,24 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                 ),
                 child: Center(
                   child: isCompleted
-                      ? Icon(Icons.check,
-                          color: Colors.white, size: isMobile ? 12 : 14)
+                      ? const Icon(Icons.check, color: Colors.white, size: 14)
                       : Text(
                           '${index + 1}',
                           style: TextStyle(
                             color:
                                 isActive ? Colors.white : Colors.grey.shade500,
-                            fontSize: isMobile ? 10 : 12,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                 ),
               ),
-              SizedBox(height: isMobile ? 2 : 4),
+              const SizedBox(height: 4),
               Text(
                 steps[index],
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: isMobile ? 7 : 9,
+                  fontSize: 9,
                   color: isCompleted || isActive
                       ? goldColor
                       : Colors.grey.shade500,
@@ -502,21 +529,22 @@ class _BookingCheckoutState extends State<BookingCheckout> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
-              color: ThemePalette.primaryMain,
+              color: Colors.blue.shade50,
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.blue.shade200),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.flight_takeoff_rounded,
-                    size: 17, color: Colors.white),
-                SizedBox(width: 7),
+                    size: 17, color: Colors.blue.shade700),
+                const SizedBox(width: 7),
                 Text(
                   'Outbound Flight',
                   style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white),
+                      color: Colors.blue.shade700),
                 ),
               ],
             ),
@@ -537,7 +565,7 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                 border: Border.all(color: Colors.grey.shade300),
               ),
               child: Text(
-                'Non-Stop - Duration: ${_flight.duration}',
+                'Non-Stop - Duration: ${_flight!.duration}',
                 style: ThemeText.durationBadge,
               ),
             ),
@@ -582,7 +610,7 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                         size: 15, color: Color(0xFF666666)),
                     const SizedBox(width: 5),
                     Text(
-                      _flight.duration,
+                      _flight!.duration,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -607,7 +635,7 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _flight.departureTime,
+                                _flight!.departureTime,
                                 style: const TextStyle(
                                     fontSize: 34,
                                     fontWeight: FontWeight.w900,
@@ -631,7 +659,7 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                _flight.arrivalTime,
+                                _flight!.arrivalTime,
                                 style: const TextStyle(
                                     fontSize: 34,
                                     fontWeight: FontWeight.w900,
@@ -828,7 +856,7 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _flight.airlineName,
+                            _flight!.airlineName,
                             style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
@@ -836,7 +864,7 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '${_flight.cabinClass} ${_flight.airlineCode}',
+                            '${_flight!.cabinClass} ${_flight!.airlineCode}',
                             style: const TextStyle(
                                 fontSize: 11.5, color: Color(0xFF666666)),
                           ),
@@ -871,30 +899,6 @@ class _BookingCheckoutState extends State<BookingCheckout> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Inbound label ──
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          decoration: BoxDecoration(
-            color: ThemePalette.primaryMain,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.flight_land_rounded, size: 17, color: Colors.white),
-              SizedBox(width: 7),
-              Text(
-                'Inbound Flight',
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-
         // ── Return Section ──
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1988,7 +1992,7 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                           : 'Ticket ${_fromAirport.location} → ${_toAirport.location}',
                       subtitle: _isRoundTrip
                           ? '${_fromAirport.location} ⇄ ${_toAirport.location} · ${_passengerBreakdownText()}'
-                          : '${_formatPrice(_flight.price)} × ${_passengers.length} pax  (${_passengerBreakdownText()})',
+                          : '${_formatPrice(_flight!.price)} × ${_passengers.length} pax  (${_passengerBreakdownText()})',
                       price: _formatPrice(_ticketPrice),
                     ),
                     const SizedBox(height: 14),
@@ -2036,14 +2040,14 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                     _buildPriceRow(
                       icon: Icons.local_airport_outlined,
                       title: 'Airport Development Fee',
-                      subtitle: 'PKR 200 × $_passengerCount pax',
+                      subtitle: 'PKR 200 × ${_passengerCount} pax',
                       price: _formatPrice(_taxAirportFee),
                     ),
                     const SizedBox(height: 14),
                     _buildPriceRow(
                       icon: Icons.security_outlined,
                       title: 'Aviation Security Fee',
-                      subtitle: 'PKR 150 × $_passengerCount pax',
+                      subtitle: 'PKR 150 × ${_passengerCount} pax',
                       price: _formatPrice(_taxSecurityFee),
                     ),
                     const SizedBox(height: 14),
@@ -2167,7 +2171,7 @@ class _BookingCheckoutState extends State<BookingCheckout> {
               if (subtitle.isNotEmpty)
                 Text(subtitle,
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xFFB3B3B3))),
+                        fontSize: 11, color: Color(0xFF666666))),
             ],
           ),
         ),
@@ -2226,12 +2230,12 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: ThemePalette.primaryMain.withValues(alpha: 0.12),
+                        color: const Color(0xFFFBF5DC),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.policy_rounded,
-                        color: ThemePalette.primaryMain,
+                        color: Color(0xFFD4AF37),
                         size: 22,
                       ),
                     ),
@@ -2302,14 +2306,14 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                               height: 24,
                               decoration: BoxDecoration(
                                 color: _agreeToTerms
-                                    ? ThemePalette.primaryMain
+                                    ? const Color(0xFFD4AF37)
                                     : Colors.white,
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
                                   color: _showTermsError
                                       ? Colors.red.shade400
                                       : _agreeToTerms
-                                          ? ThemePalette.primaryMain
+                                          ? const Color(0xFFD4AF37)
                                           : Colors.grey.shade400,
                                   width: 2,
                                 ),
@@ -2341,12 +2345,12 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                                         child: GestureDetector(
                                           onTap: () =>
                                               _showTermsAndConditionsPage(),
-                                          child: Text(
+                                          child: const Text(
                                             'Terms & Conditions',
                                             style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.w600,
-                                              color: ThemePalette.primaryMain,
+                                              color: Color(0xFFD4AF37),
                                               decoration:
                                                   TextDecoration.underline,
                                             ),
@@ -2360,12 +2364,12 @@ class _BookingCheckoutState extends State<BookingCheckout> {
                                         child: GestureDetector(
                                           onTap: () =>
                                               _showPrivacyPolicyModal(),
-                                          child: Text(
+                                          child: const Text(
                                             'Privacy Policy',
                                             style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.w600,
-                                              color: ThemePalette.primaryMain,
+                                              color: Color(0xFFD4AF37),
                                               decoration:
                                                   TextDecoration.underline,
                                             ),
@@ -2824,84 +2828,103 @@ class _BookingCheckoutState extends State<BookingCheckout> {
     );
   }
 
-  void _showTermsAndConditionsPage() => _showPolicySheet('Terms & Conditions', [
-        const _PolicyItem('1. Acceptance of Terms',
-            'By accessing and using Travello AI, you accept and agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not use our services.'),
-        const _PolicyItem('2. Booking & Payment',
-            'All bookings are subject to availability and confirmation. Payment must be made in full at the time of booking. We accept major credit cards, debit cards, and mobile wallet payments.'),
-        const _PolicyItem('3. Cancellation & Refunds',
-            'Cancellations are subject to airline policies and fare rules. Refunds, if applicable, will be processed within 7-14 business days. Cancellation fees may apply.'),
-        const _PolicyItem('4. User Responsibilities',
-            'You are responsible for providing accurate information, maintaining account security, and ensuring valid travel documents. You must arrive at the airport with sufficient time before departure.'),
-        const _PolicyItem('5. Liability',
-            'Travello AI acts as an intermediary between customers and airlines. We are not liable for flight delays, cancellations, or changes made by airlines.'),
-        const _PolicyItem('6. Privacy',
-            'We respect your privacy and handle your personal information in accordance with our Privacy Policy. Your data is used solely for providing and improving our services.'),
-        const _PolicyItem('7. Changes to Terms',
-            'We reserve the right to modify these terms at any time. Continued use of our services constitutes acceptance of updated terms.'),
-      ]);
-
-  void _showPolicySheet(String title, List<_PolicyItem> items) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.75,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+  void _showTermsAndConditionsPage() {
+    Get.to(
+      () => Scaffold(
+        backgroundColor: Colors.grey.shade50,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: Colors.black87, size: 20),
+            onPressed: () => Get.back(),
           ),
-          child: Column(children: [
-            Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 8),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2)),
+          title: const Text(
+            'Terms & Conditions',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.black87,
+              letterSpacing: -0.3,
             ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(spacingUnit(3), spacingUnit(1),
-                  spacingUnit(1), spacingUnit(2)),
-              child: Row(children: [
-                Expanded(
-                  child: Text(title,
-                      style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.black87,
-                          letterSpacing: -0.5)),
-                ),
-                IconButton(
-                  icon:
-                      const Icon(Icons.close_rounded, color: Color(0xFFB3B3B3)),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ]),
-            ),
-            Divider(height: 1, color: Colors.grey.shade200),
-            Expanded(
-              child: SingleChildScrollView(
-                controller: scrollController,
-                padding: EdgeInsets.all(spacingUnit(3)),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: items
-                        .map((item) => Padding(
-                              padding:
-                                  EdgeInsets.only(bottom: spacingUnit(2.5)),
-                              child: _buildPolicySection(item.title, item.body),
-                            ))
-                        .toList()),
+          ),
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Divider(height: 1, color: Colors.grey.shade200),
+          ),
+        ),
+        body: SingleChildScrollView(
+          padding: EdgeInsets.all(spacingUnit(3)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildFullPageSection(
+                '1. Acceptance of Terms',
+                'By accessing and using Travello AI, you accept and agree to be bound by these Terms and Conditions. If you do not agree to these terms, please do not use our services.',
               ),
-            ),
-          ]),
+              SizedBox(height: spacingUnit(3)),
+              _buildFullPageSection(
+                '2. Booking & Payment',
+                'All bookings are subject to availability and confirmation. Payment must be made in full at the time of booking. We accept major credit cards, debit cards, and mobile wallet payments.',
+              ),
+              SizedBox(height: spacingUnit(3)),
+              _buildFullPageSection(
+                '3. Cancellation & Refunds',
+                'Cancellations are subject to airline policies and fare rules. Refunds, if applicable, will be processed within 7-14 business days. Cancellation fees may apply.',
+              ),
+              SizedBox(height: spacingUnit(3)),
+              _buildFullPageSection(
+                '4. User Responsibilities',
+                'You are responsible for providing accurate information, maintaining account security, and ensuring valid travel documents. You must arrive at the airport with sufficient time before departure.',
+              ),
+              SizedBox(height: spacingUnit(3)),
+              _buildFullPageSection(
+                '5. Liability',
+                'Travello AI acts as an intermediary between customers and airlines. We are not liable for flight delays, cancellations, or changes made by airlines.',
+              ),
+              SizedBox(height: spacingUnit(3)),
+              _buildFullPageSection(
+                '6. Privacy',
+                'We respect your privacy and handle your personal information in accordance with our Privacy Policy. Your data is used solely for providing and improving our services.',
+              ),
+              SizedBox(height: spacingUnit(3)),
+              _buildFullPageSection(
+                '7. Changes to Terms',
+                'We reserve the right to modify these terms at any time. Continued use of our services constitutes acceptance of updated terms.',
+              ),
+              SizedBox(height: spacingUnit(4)),
+              Container(
+                padding: EdgeInsets.all(spacingUnit(2.5)),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade100),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline_rounded,
+                        color: Colors.blue.shade700, size: 20),
+                    SizedBox(width: spacingUnit(1.5)),
+                    Expanded(
+                      child: Text(
+                        'Last updated: March 2026',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue.shade900,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+      transition: Transition.cupertino,
+      duration: const Duration(milliseconds: 300),
     );
   }
 
@@ -2995,12 +3018,6 @@ class _BookingCheckoutState extends State<BookingCheckout> {
       ),
     );
   }
-}
-
-class _PolicyItem {
-  final String title;
-  final String body;
-  const _PolicyItem(this.title, this.body);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

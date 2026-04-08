@@ -259,6 +259,18 @@ class _TrainPassengerFormState extends State<TrainPassengerForm> {
         duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
   }
 
+  // Calculate age from date of birth
+  String _calculateAge(DateTime? dob) {
+    if (dob == null) return '--';
+    final now = DateTime.now();
+    int age = now.year - dob.year;
+    if (now.month < dob.month ||
+        (now.month == dob.month && now.day < dob.day)) {
+      age--;
+    }
+    return age.toString();
+  }
+
   Future<void> _submit() async {
     if (!_formKeys[_totalPassengers].currentState!.validate()) return;
     final passengersData = List.generate(_totalPassengers, (i) {
@@ -285,6 +297,7 @@ class _TrainPassengerFormState extends State<TrainPassengerForm> {
         'nationality': p.nationality,
         'documentType': p.documentType,
         'dateOfBirth': p.dateOfBirth?.toIso8601String() ?? '',
+        'age': _calculateAge(p.dateOfBirth),
         'concessionType': p.concessionType,
         'idNumber': travelDocNumber,
         'passportOrId': travelDocNumber,
@@ -672,69 +685,244 @@ class _TrainPassengerFormState extends State<TrainPassengerForm> {
                         const SizedBox(height: 16),
 
                         // First Name + Last Name
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildTextField(
-                                controller: p.firstNameCtrl,
-                                label: 'First Name',
-                                icon: Icons.person_outline,
-                                hint: 'Enter First Name',
-                                capitalization: TextCapitalization.words,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(
-                                      RegExp(r'[a-zA-Z ]'))
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMobile = constraints.maxWidth < 600;
+                            if (isMobile) {
+                              return Column(
+                                children: [
+                                  _buildTextField(
+                                    controller: p.firstNameCtrl,
+                                    label: 'First Name',
+                                    icon: Icons.person_outline,
+                                    hint: 'Enter First Name',
+                                    capitalization: TextCapitalization.words,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(
+                                          RegExp(r'[a-zA-Z ]'))
+                                    ],
+                                    validator: (v) {
+                                      final s = v?.trim() ?? '';
+                                      if (s.isEmpty) {
+                                        return 'First name is required';
+                                      }
+                                      if (s.length < 2) {
+                                        return 'Minimum 2 characters';
+                                      }
+                                      if (!RegExp(r'^[a-zA-Z ]+$').hasMatch(s)) {
+                                        return 'Letters only';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildTextField(
+                                    controller: p.lastNameCtrl,
+                                    label: 'Last Name',
+                                    icon: Icons.person_outline,
+                                    hint: 'Enter Last Name',
+                                    capitalization: TextCapitalization.words,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(
+                                          RegExp(r'[a-zA-Z ]'))
+                                    ],
+                                    validator: (v) {
+                                      final s = v?.trim() ?? '';
+                                      if (s.isEmpty) return 'Last name is required';
+                                      if (s.length < 2) {
+                                        return 'Minimum 2 characters';
+                                      }
+                                      if (!RegExp(r'^[a-zA-Z ]+$').hasMatch(s)) {
+                                        return 'Letters only';
+                                      }
+                                      return null;
+                                    },
+                                  ),
                                 ],
-                                validator: (v) {
-                                  final s = v?.trim() ?? '';
-                                  if (s.isEmpty) {
-                                    return 'First name is required';
-                                  }
-                                  if (s.length < 2) {
-                                    return 'Minimum 2 characters';
-                                  }
-                                  if (!RegExp(r'^[a-zA-Z ]+$').hasMatch(s)) {
-                                    return 'Letters only';
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _buildTextField(
-                                controller: p.lastNameCtrl,
-                                label: 'Last Name',
-                                icon: Icons.person_outline,
-                                hint: 'Enter Last Name',
-                                capitalization: TextCapitalization.words,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(
-                                      RegExp(r'[a-zA-Z ]'))
-                                ],
-                                validator: (v) {
-                                  final s = v?.trim() ?? '';
-                                  if (s.isEmpty) return 'Last name is required';
-                                  if (s.length < 2) {
-                                    return 'Minimum 2 characters';
-                                  }
-                                  if (!RegExp(r'^[a-zA-Z ]+$').hasMatch(s)) {
-                                    return 'Letters only';
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ),
-                          ],
+                              );
+                            }
+                            return Row(
+                              children: [
+                                Expanded(
+                                  child: _buildTextField(
+                                    controller: p.firstNameCtrl,
+                                    label: 'First Name',
+                                    icon: Icons.person_outline,
+                                    hint: 'Enter First Name',
+                                    capitalization: TextCapitalization.words,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(
+                                          RegExp(r'[a-zA-Z ]'))
+                                    ],
+                                    validator: (v) {
+                                      final s = v?.trim() ?? '';
+                                      if (s.isEmpty) {
+                                        return 'First name is required';
+                                      }
+                                      if (s.length < 2) {
+                                        return 'Minimum 2 characters';
+                                      }
+                                      if (!RegExp(r'^[a-zA-Z ]+$').hasMatch(s)) {
+                                        return 'Letters only';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildTextField(
+                                    controller: p.lastNameCtrl,
+                                    label: 'Last Name',
+                                    icon: Icons.person_outline,
+                                    hint: 'Enter Last Name',
+                                    capitalization: TextCapitalization.words,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.allow(
+                                          RegExp(r'[a-zA-Z ]'))
+                                    ],
+                                    validator: (v) {
+                                      final s = v?.trim() ?? '';
+                                      if (s.isEmpty) return 'Last name is required';
+                                      if (s.length < 2) {
+                                        return 'Minimum 2 characters';
+                                      }
+                                      if (!RegExp(r'^[a-zA-Z ]+$').hasMatch(s)) {
+                                        return 'Letters only';
+                                      }
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 16),
 
                         // Date of Birth + CNIC side by side (conditionally show CNIC)
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Builder(
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMobile = constraints.maxWidth < 600;
+                            if (isMobile) {
+                              return Column(
+                                children: [
+                                  Builder(
+                                    builder: (context) {
+                                      // Age-based date range
+                                      final DateTime firstDate;
+                                      final DateTime lastDate;
+                                      final DateTime initialDate;
+                                      final String ageHint;
+
+                                      if (i >= _adults + _children) {
+                                        // Infant: Under 3 years (0-1095 days)
+                                        firstDate = _departureDate
+                                            .subtract(const Duration(days: 1095));
+                                        lastDate = _departureDate;
+                                        initialDate = _departureDate
+                                            .subtract(const Duration(days: 365));
+                                        ageHint =
+                                            'Infant: Under 3 years at travel date';
+                                      } else if (i >= _adults) {
+                                        // Child: 3-11 years (1095-4383 days)
+                                        firstDate = _departureDate
+                                            .subtract(const Duration(days: 4383));
+                                        lastDate = _departureDate
+                                            .subtract(const Duration(days: 1095));
+                                        initialDate = _departureDate
+                                            .subtract(const Duration(days: 2555));
+                                        ageHint =
+                                            'Child: 3-11 years at travel date';
+                                      } else {
+                                        // Adult: 12+ years (4383+ days)
+                                        firstDate = DateTime(1920);
+                                        lastDate = _departureDate
+                                            .subtract(const Duration(days: 4383));
+                                        initialDate = DateTime(1990);
+                                        ageHint = 'Adult: 12+ years at travel date';
+                                      }
+
+                                      return _buildDatePicker(
+                                        label: 'Date of Birth',
+                                        selectedDate: p.dateOfBirth,
+                                        showError:
+                                            p.submitted && p.dateOfBirth == null,
+                                        ageHint: ageHint,
+                                        onTap: () async {
+                                          DateTime safeInitialDate = initialDate;
+                                          if (p.dateOfBirth != null) {
+                                            if (p.dateOfBirth!
+                                                .isBefore(firstDate)) {
+                                              safeInitialDate = firstDate;
+                                            } else if (p.dateOfBirth!
+                                                .isAfter(lastDate)) {
+                                              safeInitialDate = lastDate;
+                                            } else {
+                                              safeInitialDate = p.dateOfBirth!;
+                                            }
+                                          }
+
+                                          final picked = await showDatePicker(
+                                            context: context,
+                                            initialDate: safeInitialDate,
+                                            firstDate: firstDate,
+                                            lastDate: lastDate,
+                                            helpText: ageHint,
+                                            builder: (ctx, child) => Theme(
+                                              data: Theme.of(ctx).copyWith(
+                                                colorScheme:
+                                                    const ColorScheme.light(
+                                                        primary: Color(0xFFD4AF37)),
+                                              ),
+                                              child: child!,
+                                            ),
+                                          );
+                                          if (picked != null) {
+                                            setState(() => p.dateOfBirth = picked);
+                                          }
+                                        },
+                                      );
+                                    },
+                                  ),
+                                  if (i < _adults) ...[
+                                    const SizedBox(height: 16),
+                                    _buildTextField(
+                                      controller: p.cnicCtrl,
+                                      label: 'CNIC',
+                                      icon: Icons.article_outlined,
+                                      hint: 'XXXXX-XXXXXXX-X',
+                                      keyboardType: TextInputType.number,
+                                      maxLength: 15,
+                                      inputFormatters: [_CnicFormatter()],
+                                      validator: (v) {
+                                        if (v == null || v.trim().isEmpty) {
+                                          return 'CNIC is required';
+                                        }
+                                        final clean = v.replaceAll('-', '');
+                                        if (clean.length != 13) {
+                                          return 'Must be 13 digits';
+                                        }
+                                        for (int j = 0; j < _passengers.length; j++) {
+                                          if (j == i) continue;
+                                          final otherCnic =
+                                              _passengers[j].cnicCtrl.text.replaceAll('-', '');
+                                          if (otherCnic.isNotEmpty && otherCnic == clean) {
+                                            return 'CNIC already used for another passenger';
+                                          }
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ],
+                                ],
+                              );
+                            }
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Builder(
                                 builder: (context) {
                                   // Age-based date range
                                   final DateTime firstDate;
@@ -850,10 +1038,12 @@ class _TrainPassengerFormState extends State<TrainPassengerForm> {
                             ],
                             if (i >= _adults) const Expanded(child: SizedBox()),
                           ],
-                        ),
-                        const SizedBox(height: 16),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
 
-                        // Notice section
+                    // Notice section
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -1407,6 +1597,10 @@ class _TrainPassengerFormState extends State<TrainPassengerForm> {
                           hint: 'Enter full name',
                           prefixIcon: Icons.person_outline,
                           textCapitalization: TextCapitalization.words,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'[a-zA-Z ]')),
+                          ],
                           validator: (v) {
                             final s = v?.trim() ?? '';
                             if (s.isEmpty) return 'Full name is required';

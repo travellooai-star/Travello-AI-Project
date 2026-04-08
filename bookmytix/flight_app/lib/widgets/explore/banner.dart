@@ -17,7 +17,6 @@ class BannerExplore extends StatelessWidget {
     final bool isDark = Get.isDarkMode;
 
     return Container(
-        height: 400,
         decoration: BoxDecoration(
             color:
                 isDark ? ThemePalette.primaryDark : ThemePalette.primaryLight),
@@ -37,41 +36,49 @@ class BannerExplore extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
             children: [
               /// TEXT TITLE
               Padding(
                   padding: EdgeInsets.only(
                     left: spacingUnit(2),
                     right: spacingUnit(2),
-                    bottom: spacingUnit(5),
+                    bottom: spacingUnit(2),
                     top: spacingUnit(10),
                   ),
-                  child: Column(children: [
-                    const Text(
-                      'Explore the most beautiful places around Pakistan',
-                      style: ThemeText.title2,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      branding.desc,
-                      style: ThemeText.subtitle.copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                        color: Colors.black,
-                        height: 1.5,
-                        letterSpacing: 0.3,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Explore the most beautiful places around Pakistan',
+                        style: ThemeText.title2,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ])),
+                      const SizedBox(height: 8),
+                      Text(
+                        branding.desc,
+                        style: ThemeText.subtitle.copyWith(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                          color: Colors.black,
+                          height: 1.4,
+                          letterSpacing: 0.2,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  )),
 
               /// BANNER WITH ILLUSTRATION
               Stack(
@@ -86,7 +93,7 @@ class BannerExplore extends StatelessWidget {
                             color: colorScheme(context).surfaceContainerLowest),
                       )),
                   SizedBox(
-                    height: 150,
+                    height: 140,
                     width: double.infinity,
                     child: Padding(
                       padding: const EdgeInsets.all(8.0),
