@@ -1,13 +1,11 @@
 import 'package:flight_app/constants/img_api.dart';
 import 'package:flight_app/ui/themes/theme_breakpoints.dart';
-import 'package:flight_app/widgets/app_button/back_icon_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flight_app/constants/app_const.dart';
 import 'package:flight_app/ui/themes/theme_button.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
-import 'package:flight_app/utils/auth_service.dart';
 import 'package:get/get.dart';
 
 class Welcome extends StatefulWidget {
@@ -18,21 +16,12 @@ class Welcome extends StatefulWidget {
 }
 
 class _WelcomeState extends State<Welcome> {
-  final bool _openAuthOpt = false;
-
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     final isSmallPhone = screenWidth < 380 || screenHeight < 640;
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        leading: BackIconButton(onTap: () {
-          Get.back();
-        }),
-      ),
       body: SingleChildScrollView(
         child: Container(
           height: screenHeight,
@@ -126,37 +115,6 @@ class _WelcomeState extends State<Welcome> {
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
                                     letterSpacing: 1))),
-                      ),
-                      const VSpace(),
-                      SizedBox(
-                        width: double.infinity,
-                        height: isSmallPhone ? 50 : 56,
-                        child: TextButton(
-                            onPressed: () async {
-                              // Enable guest mode
-                              await AuthService.enableGuestMode();
-                              // Navigate to home as guest
-                              Get.offAllNamed('/home');
-                            },
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.person_outline,
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    size: 24),
-                                const SizedBox(width: 8),
-                                Text('Continue as Guest',
-                                    style: ThemeText.title2.copyWith(
-                                        color:
-                                            Colors.white.withValues(alpha: 0.9),
-                                        fontWeight: FontWeight.w400)),
-                              ],
-                            )),
-                      ),
-                      const VSpaceBig(),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        height: _openAuthOpt ? 200 : 0,
                       ),
                     ]),
               ),

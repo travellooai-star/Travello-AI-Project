@@ -19,16 +19,14 @@ class _NotificationsListState extends State<NotificationsList> {
   bool _isClear = false;
 
   void handleFilter(type) {
-    var result = notifList
-      .where((item) => item.type == type)
-      .toList();
-    
+    var result = notifList.where((item) => item.type == type).toList();
+
     setState(() {
       _selectedFilter = type;
-      if(type != 'all') {
+      if (type != 'all') {
         _filteredItems = result;
       } else {
-         _filteredItems = notifList;
+        _filteredItems = notifList;
       }
     });
   }
@@ -61,12 +59,15 @@ class _NotificationsListState extends State<NotificationsList> {
               },
               child: const Row(children: [
                 Icon(Icons.clear_all_outlined, size: 18),
-                SizedBox(width: 4,),
+                SizedBox(
+                  width: 4,
+                ),
                 Text('Clear All')
               ]),
             ),
           ],
         ),
+
         /// FILTER
         Padding(
           padding: EdgeInsets.symmetric(vertical: spacingUnit(2)),
@@ -77,26 +78,26 @@ class _NotificationsListState extends State<NotificationsList> {
         ),
 
         /// NOTIFICATION ITEMS
-        _isClear ? _emptyList(context) : Expanded(
-          child: ListView.builder(
-            shrinkWrap: true,
-            physics: const ClampingScrollPhysics(),
-            itemCount: _filteredItems.length,
-            padding: EdgeInsets.only(bottom: spacingUnit(3)),
-            itemBuilder: ((BuildContext context, int index){
-              NotificationModel item = _filteredItems[index];
-              return NotifItem(
-                type: item.type,
-                title: item.title,
-                subtitle: item.subtitle,
-                date: item.date,
-                image: item.image,
-                isRead: item.isRead,
-                isLast: true
-              );
-            })
-          ),
-        ),
+        _isClear
+            ? _emptyList(context)
+            : Expanded(
+                child: ListView.builder(
+                    shrinkWrap: true,
+                    physics: const ClampingScrollPhysics(),
+                    itemCount: _filteredItems.length,
+                    padding: EdgeInsets.only(bottom: spacingUnit(3)),
+                    itemBuilder: ((BuildContext context, int index) {
+                      NotificationModel item = _filteredItems[index];
+                      return NotifItem(
+                          type: item.type,
+                          title: item.title,
+                          subtitle: item.subtitle,
+                          date: item.date,
+                          image: item.image,
+                          isRead: item.isRead,
+                          isLast: true);
+                    })),
+              ),
       ],
     );
   }
@@ -105,7 +106,7 @@ class _NotificationsListState extends State<NotificationsList> {
     return NoData(
       image: ImgApi.emptyNotification,
       title: 'All Clear Now',
-      desc: 'Nulla condimentum pulvinar arcu a pellentesque.',
+      desc: "You're all caught up! No new notifications at the moment.",
     );
   }
 }

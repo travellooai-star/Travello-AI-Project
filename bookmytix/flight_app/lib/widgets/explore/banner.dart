@@ -52,10 +52,23 @@ class BannerExplore extends StatelessWidget {
                       style: ThemeText.title2,
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Text(
                       branding.desc,
-                      style: ThemeText.paragraph,
+                      style: ThemeText.subtitle.copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                        color: Colors.black,
+                        height: 1.5,
+                        letterSpacing: 0.3,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ])),

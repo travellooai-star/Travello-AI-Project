@@ -14,46 +14,48 @@ class PromoVoucherList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return dataList.isNotEmpty ? ListView.builder(
-      shrinkWrap: true,
-      physics: const ClampingScrollPhysics(),
-      itemCount: dataList.length,
-      padding: EdgeInsets.only(
-        top: spacingUnit(2),
-        left: spacingUnit(2),
-        right: spacingUnit(2),
-        bottom: spacingUnit(10),
-      ),
-      itemBuilder: ((BuildContext context, int index) {
-        Voucher item = dataList[index];
-        return Container(
-          width: double.infinity,
-          height: 100,
-          padding: EdgeInsets.only(bottom: spacingUnit(2)),
-          child: InkWell(
-            onTap: () {
-              Get.toNamed(AppLink.voucherDetail);
-            },
-            child: VoucherCard(
-              title: item.title,
-              desc: item.desc,
-              onSelected: (_) {},
-              isSelected: false,
-              color: item.color,
-              image: item.image ?? item.image,
-              status: VoucherStatus.readonly
+    return dataList.isNotEmpty
+        ? ListView.builder(
+            shrinkWrap: true,
+            physics: const ClampingScrollPhysics(),
+            itemCount: dataList.length,
+            padding: EdgeInsets.only(
+              top: spacingUnit(2),
+              left: spacingUnit(2),
+              right: spacingUnit(2),
+              bottom: spacingUnit(10),
             ),
-          ),
-        );
-      }),
-    ) : _emptyList(context);
+            itemBuilder: ((BuildContext context, int index) {
+              Voucher item = dataList[index];
+              return Container(
+                width: double.infinity,
+                height: 100,
+                padding: EdgeInsets.only(bottom: spacingUnit(2)),
+                child: InkWell(
+                  onTap: () {
+                    Get.toNamed(AppLink.voucherDetail);
+                  },
+                  child: VoucherCard(
+                      title: item.title,
+                      desc: item.desc,
+                      onSelected: (_) {},
+                      isSelected: false,
+                      color: item.color,
+                      image: item.image ?? item.image,
+                      status: VoucherStatus.readonly),
+                ),
+              );
+            }),
+          )
+        : _emptyList(context);
   }
 
   Widget _emptyList(BuildContext context) {
     return NoData(
       image: ImgApi.emptyVoucher,
       title: 'You don\'t any vouchers yet',
-      desc: 'Nulla condimentum pulvinar arcu a pellentesque.',
+      desc:
+          'No vouchers available. Check back later for exclusive travel deals and discounts.',
     );
   }
 }

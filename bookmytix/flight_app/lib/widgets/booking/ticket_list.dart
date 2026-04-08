@@ -97,7 +97,8 @@ class TicketList extends StatelessWidget {
     return NoData(
       image: ImgApi.emptyBooking,
       title: 'You don\'t any booking yet',
-      desc: 'Nulla condimentum pulvinar arcu a pellentesque.',
+      desc:
+          'No bookings found. Book a flight or hotel and your tickets will appear here.',
       primaryAction: () {
         Get.toNamed(AppLink.searchFlight);
       },

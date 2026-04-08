@@ -7,7 +7,21 @@ import 'package:flutter/material.dart';
 import 'package:get/route_manager.dart';
 
 class QuickSearchBar extends StatelessWidget {
-  const QuickSearchBar({super.key});
+  final String service;
+
+  const QuickSearchBar({super.key, this.service = 'flight'});
+
+  String get _searchPlaceholder {
+    switch (service) {
+      case 'train':
+        return 'Search trains, destinations...';
+      case 'hotel':
+        return 'Search hotels, destinations...';
+      case 'flight':
+      default:
+        return 'Search flights, destinations...';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +67,7 @@ class QuickSearchBar extends StatelessWidget {
                 SizedBox(width: spacingUnit(1.5)),
                 Expanded(
                   child: Text(
-                    'Search flights, destinations...',
+                    _searchPlaceholder,
                     style: ThemeText.paragraph.copyWith(
                       color:
                           colorScheme(context).onSurface.withValues(alpha: 0.5),

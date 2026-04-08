@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
+import 'package:flight_app/constants/img_api.dart';
 import 'package:flight_app/ui/themes/theme_palette.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/ui/themes/theme_text.dart';
 import 'package:flight_app/utils/auth_service.dart';
+import 'package:flight_app/utils/no_data.dart';
 import 'package:flight_app/models/airport.dart';
 import 'package:flight_app/app/app_link.dart';
 import 'package:flight_app/utils/format_utils.dart';
@@ -823,27 +825,13 @@ class _FlightResultsScreenState extends State<FlightResultsScreen> {
           // Flight list
           Expanded(
             child: _filteredFlights.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          CupertinoIcons.airplane,
-                          size: 80,
-                          color: Colors.grey.withValues(alpha: 0.5),
-                        ),
-                        SizedBox(height: spacingUnit(2)),
-                        const Text(
-                          'No flights found',
-                          style: ThemeText.title2,
-                        ),
-                        SizedBox(height: spacingUnit(1)),
-                        const Text(
-                          'Try adjusting your filters',
-                          style: ThemeText.caption,
-                        ),
-                      ],
-                    ),
+                ? NoData(
+                    image: ImgApi.emptyNotFound,
+                    title: 'No Flights Found',
+                    desc:
+                        'No flights matched your search. Try different dates, routes, or adjust your filters.',
+                    primaryTxtBtn: 'CHANGE SEARCH',
+                    primaryAction: () => Get.back(),
                   )
                 : ListView.builder(
                     padding: EdgeInsets.all(spacingUnit(2)),

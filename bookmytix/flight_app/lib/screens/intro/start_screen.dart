@@ -19,7 +19,6 @@ class _StartScreenState extends State<StartScreen> {
   final String _key = 'finishedIntro';
   bool _isFinishedIntro = false;
   bool _isLoggedIn = false;
-  bool _isGuestMode = false;
   bool _isLoading = true;
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
@@ -27,12 +26,10 @@ class _StartScreenState extends State<StartScreen> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final finishedIntro = prefs.getBool(_key) ?? false;
     final loggedIn = await AuthService.isLoggedIn();
-    final guestMode = await AuthService.isGuestMode();
 
     setState(() {
       _isFinishedIntro = finishedIntro;
       _isLoggedIn = loggedIn;
-      _isGuestMode = guestMode;
       _isLoading = false;
     });
   }
@@ -40,9 +37,8 @@ class _StartScreenState extends State<StartScreen> {
   _saveIntroStatus() async {
     SharedPreferences pref = await _prefs;
     await pref.setBool(_key, true);
-    // Industry pattern: after intro → home as guest (no forced login)
-    await AuthService.enableGuestMode();
-    Get.offAllNamed('/home-hub');
+    // After intro → mandatory login/signup (no guest mode)
+    Get.offAllNamed(AppLink.welcome);
   }
 
   @override
@@ -62,12 +58,12 @@ class _StartScreenState extends State<StartScreen> {
       );
     }
 
-    // If logged in OR in guest mode, go to unified home
-    if (_isLoggedIn || _isGuestMode) {
+    // If logged in, go to unified home
+    if (_isLoggedIn) {
       return const UnifiedHomeScreen();
     }
 
-    // If finished intro but not logged in, go to welcome
+    // If finished intro but not logged in, go to welcome (login/signup)
     if (_isFinishedIntro) {
       return const GeneralLayout(content: Welcome());
     }

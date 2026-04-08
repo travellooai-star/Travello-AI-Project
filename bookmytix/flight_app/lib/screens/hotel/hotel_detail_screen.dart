@@ -39,14 +39,16 @@ class _HotelDetailScreenState extends State<HotelDetailScreen>
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
 
-    final args = Get.arguments ?? {};
-    hotel = args['hotel'];
-    checkInDate = args['checkInDate'];
-    checkOutDate = args['checkOutDate'];
-    rooms = args['rooms'];
-    guests = args['guests'];
-    finalPriceFromPackage = args['finalPriceFromPackage'] as double?;
-    discountPct = args['discountPct'] as double?;
+    final args = Get.arguments as Map? ?? {};
+    hotel = args['hotel'] as Hotel;
+    checkInDate = args['checkInDate'] as DateTime;
+    checkOutDate = args['checkOutDate'] as DateTime;
+    rooms = args['rooms'] as int;
+    guests = args['guests'] as int;
+    finalPriceFromPackage =
+        (args['finalPriceFromPackage'] as num?)?.toDouble() ??
+            (args['finalPrice'] as num?)?.toDouble();
+    discountPct = (args['discountPct'] as num?)?.toDouble();
 
     _initializeRooms();
   }

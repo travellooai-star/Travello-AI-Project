@@ -1,10 +1,12 @@
 import 'dart:math';
 
 import 'package:flight_app/app/app_link.dart';
+import 'package:flight_app/constants/img_api.dart';
 import 'package:flight_app/models/train_package.dart';
 import 'package:flight_app/ui/themes/theme_spacing.dart';
 import 'package:flight_app/utils/auth_service.dart';
 import 'package:flight_app/utils/location_preference_service.dart';
+import 'package:flight_app/utils/no_data.dart';
 import 'package:flight_app/utils/wishlist_service.dart';
 import 'package:flight_app/widgets/cards/train_package_card.dart';
 import 'package:flutter/material.dart';
@@ -313,19 +315,15 @@ class _TrainPackageDetailState extends State<TrainPackageDetail> {
       Container(width: 1, height: 40, color: const Color(0xFFE5E7EB));
 
   Widget _buildEmpty() {
-    return Center(
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Icon(Icons.train_outlined, size: 64, color: Colors.grey.shade400),
-        SizedBox(height: spacingUnit(2)),
-        Text('No train packages from $_userOriginCityName',
-            style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF6B7280))),
-        SizedBox(height: spacingUnit(1)),
-        const Text('Try updating your home city in Settings',
-            style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF))),
-      ]),
+    return NoData(
+      image: ImgApi.emptyNotFound,
+      title: 'No Train Packages Found',
+      desc:
+          'No train packages available from $_userOriginCityName right now. Try updating your home city in Settings.',
+      primaryTxtBtn: 'GO TO SETTINGS',
+      primaryAction: () => Get.toNamed(AppLink.profile),
+      secondaryTxtBtn: 'BACK TO HOME',
+      secondaryAction: () => Get.toNamed(AppLink.home),
     );
   }
 }
@@ -475,4 +473,3 @@ class _TrainPackageCardItemState extends State<_TrainPackageCardItem>
     );
   }
 }
-

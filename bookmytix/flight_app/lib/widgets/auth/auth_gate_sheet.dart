@@ -101,7 +101,7 @@ class AuthGateSheet extends StatelessWidget {
           SizedBox(height: spacingUnit(2)),
 
           // ── Headline ─────────────────────────────────────────────
-          Text(
+          const Text(
             'Sign In Required',
             style: TextStyle(
               fontSize: 20,

@@ -12,25 +12,25 @@ class NotFound extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Not Found', style: ThemeText.subtitle),
-        leading: BackIconButton(onTap: () {
-          Get.back();
-        }),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-      ),
-      body: Center(
-        child: NoData(
-          image: ImgApi.emptyNotFound,
-          title: 'Page Not Found',
-          desc: 'Nulla condimentum pulvinar arcu a pellentesque.',
-          primaryAction: () {
-            Get.toNamed(AppLink.home);
-          },
-          primaryTxtBtn: 'BACK TO HOME',
+        appBar: AppBar(
+          title: const Text('Not Found', style: ThemeText.subtitle),
+          leading: BackIconButton(onTap: () {
+            Get.back();
+          }),
+          centerTitle: true,
+          backgroundColor: Colors.transparent,
         ),
-      )
-    );
+        body: Center(
+          child: NoData(
+            image: ImgApi.emptyNotFound,
+            title: 'Page Not Found',
+            desc:
+                "The page you're looking for doesn't exist or may have been moved.",
+            primaryAction: () {
+              Get.toNamed(AppLink.home);
+            },
+            primaryTxtBtn: 'BACK TO HOME',
+          ),
+        ));
   }
 }

@@ -12,25 +12,25 @@ class PackageNotFound extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Package', style: ThemeText.subtitle),
-        backgroundColor: Colors.transparent,
-        leading: BackIconButton(onTap: () {
-          Get.back();
-        }),
-        centerTitle: true,
-      ),
-      body: Center(
-        child: NoData(
-          image: ImgApi.emptyPackage,
-          title: 'Package Not Found',
-          desc: 'Nulla condimentum pulvinar arcu a pellentesque.',
-          secondaryAction: () {
-            Get.toNamed(AppLink.home);
-          },
-          secondaryTxtBtn: 'BACK TO HOME',
+        appBar: AppBar(
+          title: const Text('Package', style: ThemeText.subtitle),
+          backgroundColor: Colors.transparent,
+          leading: BackIconButton(onTap: () {
+            Get.back();
+          }),
+          centerTitle: true,
         ),
-      )
-    );
+        body: Center(
+          child: NoData(
+            image: ImgApi.emptyPackage,
+            title: 'Package Not Found',
+            desc:
+                'No packages are available for this route right now. Try exploring a different destination.',
+            secondaryAction: () {
+              Get.toNamed(AppLink.home);
+            },
+            secondaryTxtBtn: 'BACK TO HOME',
+          ),
+        ));
   }
 }

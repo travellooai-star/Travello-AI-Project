@@ -14,34 +14,35 @@ class ChatList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return data.isNotEmpty ? ListView.builder(
-      itemCount: data.length,
-      padding: EdgeInsets.only(bottom: spacingUnit(3)),
-      itemBuilder: ((BuildContext context, int index) {
-        Chat item = data[index];
-        return ChatItem(
-          avatar: item.avatar,
-          name: item.name,
-          message: item.messages[0].message,
-          date: item.messages[0].date,
-          isLast: true,
-          onTap: () {
-            Get.to(() => ChatPage(
-              messageData: item.messages,
-              name: item.name,
-              avatar: item.avatar
-            ));
-          },
-        );
-      })
-    ) : _emptyList(context);
+    return data.isNotEmpty
+        ? ListView.builder(
+            itemCount: data.length,
+            padding: EdgeInsets.only(bottom: spacingUnit(3)),
+            itemBuilder: ((BuildContext context, int index) {
+              Chat item = data[index];
+              return ChatItem(
+                avatar: item.avatar,
+                name: item.name,
+                message: item.messages[0].message,
+                date: item.messages[0].date,
+                isLast: true,
+                onTap: () {
+                  Get.to(() => ChatPage(
+                      messageData: item.messages,
+                      name: item.name,
+                      avatar: item.avatar));
+                },
+              );
+            }))
+        : _emptyList(context);
   }
 
   Widget _emptyList(BuildContext context) {
     return NoData(
       image: ImgApi.emptyMessage,
       title: 'No Message Yet',
-      desc: 'Nulla condimentum pulvinar arcu a pellentesque.',
+      desc:
+          'No messages yet. Your conversations with support will appear here.',
     );
   }
 }

@@ -160,16 +160,19 @@ class _VerificationCodeInputState extends State<VerificationCodeInput> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(spacingUnit(3)),
+          padding: EdgeInsets.symmetric(
+            horizontal: spacingUnit(2.5),
+            vertical: spacingUnit(1.5),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              SizedBox(height: spacingUnit(3)),
+              SizedBox(height: spacingUnit(1)),
 
               // Illustration
               Container(
-                width: 120,
-                height: 120,
+                width: 80,
+                height: 80,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
@@ -184,57 +187,62 @@ class _VerificationCodeInputState extends State<VerificationCodeInput> {
                 child: Center(
                   child: Icon(
                     Icons.email_outlined,
-                    size: 60,
+                    size: 40,
                     color: colorScheme.primary,
                   ),
                 ),
               ),
 
-              SizedBox(height: spacingUnit(4)),
+              SizedBox(height: spacingUnit(2)),
 
               // Title
               Text(
                 'Verify Your Email',
                 style: ThemeText.title.copyWith(
-                  fontSize: 28,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
               ),
 
-              SizedBox(height: spacingUnit(1)),
+              SizedBox(height: spacingUnit(0.75)),
 
               // Subtitle
               Text(
                 'We sent a verification code to',
                 style: ThemeText.paragraph.copyWith(
                   color: colorScheme.onSurfaceVariant,
+                  fontSize: 14,
                 ),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: spacingUnit(0.5)),
+              SizedBox(height: spacingUnit(0.4)),
               Text(
                 widget.email,
                 style: ThemeText.subtitle.copyWith(
                   color: colorScheme.primary,
                   fontWeight: FontWeight.w600,
+                  fontSize: 15,
                 ),
                 textAlign: TextAlign.center,
               ),
 
-              SizedBox(height: spacingUnit(5)),
+              SizedBox(height: spacingUnit(2.5)),
 
               // Code Input Boxes
               LayoutBuilder(
                 builder: (context, constraints) {
                   final availableWidth = constraints.maxWidth;
-                  // 6 boxes + 12 horizontal gaps (spacingUnit(0.5) = 4px each side)
-                  final boxSize = ((availableWidth - 12 * spacingUnit(0.5)) / 6).clamp(36.0, 56.0);
+                  // Calculate box size with tighter spacing for small screens
+                  final spacing = spacingUnit(0.5);
+                  final totalSpacing = spacing * 10; // 5 gaps between 6 boxes
+                  final boxSize =
+                      ((availableWidth - totalSpacing) / 6).clamp(45.0, 58.0);
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(6, (index) {
                       return Padding(
-                        padding: EdgeInsets.symmetric(horizontal: spacingUnit(0.5)),
+                        padding: EdgeInsets.symmetric(horizontal: spacing / 2),
                         child: _CodeInputBox(
                           size: boxSize,
                           controller: _controllers[index],
@@ -258,7 +266,7 @@ class _VerificationCodeInputState extends State<VerificationCodeInput> {
                 },
               ),
 
-              SizedBox(height: spacingUnit(4)),
+              SizedBox(height: spacingUnit(2)),
 
               // Timer and Resend
               _secondsRemaining > 0
@@ -267,35 +275,37 @@ class _VerificationCodeInputState extends State<VerificationCodeInput> {
                       children: [
                         Icon(
                           Icons.schedule,
-                          size: 18,
+                          size: 16,
                           color: colorScheme.onSurfaceVariant,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Text(
                           'Resend code in $_secondsRemaining seconds',
                           style: ThemeText.caption.copyWith(
                             color: colorScheme.onSurfaceVariant,
+                            fontSize: 13,
                           ),
                         ),
                       ],
                     )
                   : TextButton.icon(
                       onPressed: _resendCode,
-                      icon: const Icon(Icons.refresh, size: 20),
+                      icon: const Icon(Icons.refresh, size: 18),
                       label: const Text(
                         'Resend Code',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
                       ),
                     ),
 
-              SizedBox(height: spacingUnit(4)),
+              SizedBox(height: spacingUnit(2)),
 
               // Verify Button
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 48,
                 child: FilledButton(
                   onPressed: _isVerifying ? null : _verifyCode,
                   style: ThemeButton.btnBig.merge(ThemeButton.primary),
@@ -315,14 +325,14 @@ class _VerificationCodeInputState extends State<VerificationCodeInput> {
                 ),
               ),
 
-              SizedBox(height: spacingUnit(3)),
+              SizedBox(height: spacingUnit(1.5)),
 
               // Demo hint
               Container(
-                padding: EdgeInsets.all(spacingUnit(2)),
+                padding: EdgeInsets.all(spacingUnit(1.5)),
                 decoration: BoxDecoration(
                   color: colorScheme.primaryContainer.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: colorScheme.primary.withValues(alpha: 0.2),
                   ),
@@ -332,7 +342,7 @@ class _VerificationCodeInputState extends State<VerificationCodeInput> {
                     Icon(
                       Icons.lightbulb_outline,
                       color: colorScheme.primary,
-                      size: 20,
+                      size: 18,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -340,12 +350,16 @@ class _VerificationCodeInputState extends State<VerificationCodeInput> {
                         'Demo: Use code 123456 to verify',
                         style: ThemeText.caption.copyWith(
                           color: colorScheme.onSurface,
+                          fontSize: 13,
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
+
+              // Bottom padding for safe scrolling
+              SizedBox(height: spacingUnit(2)),
             ],
           ),
         ),
@@ -354,7 +368,7 @@ class _VerificationCodeInputState extends State<VerificationCodeInput> {
   }
 }
 
-class _CodeInputBox extends StatelessWidget {
+class _CodeInputBox extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final ValueChanged<String> onChanged;
@@ -368,41 +382,120 @@ class _CodeInputBox extends StatelessWidget {
   });
 
   @override
+  State<_CodeInputBox> createState() => _CodeInputBoxState();
+}
+
+class _CodeInputBoxState extends State<_CodeInputBox> {
+  @override
+  void initState() {
+    super.initState();
+    widget.focusNode.addListener(_onFocusChange);
+    widget.controller.addListener(_onValueChange);
+  }
+
+  @override
+  void dispose() {
+    widget.focusNode.removeListener(_onFocusChange);
+    widget.controller.removeListener(_onValueChange);
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    setState(() {});
+  }
+
+  void _onValueChange() {
+    setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final hasFocus = widget.focusNode.hasFocus;
+    final hasValue = widget.controller.text.isNotEmpty;
 
     return Container(
-      width: size,
-      height: size * 1.2,
+      width: widget.size,
+      height: widget.size,
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: hasFocus
+            ? colorScheme.primaryContainer.withValues(alpha: 0.2)
+            : colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: focusNode.hasFocus
+          color: hasFocus
               ? colorScheme.primary
-              : colorScheme.outline.withValues(alpha: 0.3),
-          width: focusNode.hasFocus ? 2 : 1,
+              : hasValue
+                  ? colorScheme.primary.withValues(alpha: 0.4)
+                  : colorScheme.outline.withValues(alpha: 0.3),
+          width: hasFocus ? 2.5 : 2,
         ),
-      ),
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        textAlign: TextAlign.center,
-        keyboardType: TextInputType.number,
-        maxLength: 1,
-        style: ThemeText.title.copyWith(
-          fontSize: 24,
-          fontWeight: FontWeight.bold,
-        ),
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
+        boxShadow: [
+          if (hasFocus || hasValue)
+            BoxShadow(
+              color: colorScheme.primary.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
         ],
-        decoration: const InputDecoration(
-          counterText: '',
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
-        ),
-        onChanged: onChanged,
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          TextField(
+            controller: widget.controller,
+            focusNode: widget.focusNode,
+            textAlign: TextAlign.center,
+            keyboardType: TextInputType.number,
+            maxLength: 1,
+            showCursor: false,
+            style: ThemeText.title.copyWith(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurface,
+            ),
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+            ],
+            decoration: InputDecoration(
+              counterText: '',
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              focusedErrorBorder: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+              filled: false,
+              isDense: true,
+            ),
+            onChanged: widget.onChanged,
+          ),
+          // Custom animated cursor
+          if (hasFocus && !hasValue)
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 500),
+              tween: Tween(begin: 0.0, end: 1.0),
+              builder: (context, value, child) {
+                return Opacity(
+                  opacity: value > 0.5 ? 1.0 : 0.3,
+                  child: Container(
+                    width: 2,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary,
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  ),
+                );
+              },
+              onEnd: () {
+                if (mounted && hasFocus && !hasValue) {
+                  setState(() {});
+                }
+              },
+            ),
+        ],
       ),
     );
   }

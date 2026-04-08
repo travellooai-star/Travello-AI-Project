@@ -115,37 +115,114 @@ const List<_PakDestination> _pakDestinations = [
 
   // ── BEACHES ────────────────────────────────────────────────────────────────
   _PakDestination(
-    name: 'Gwadar',
-    province: 'Balochistan',
-    tagline: 'Pearl of the Arabian Sea',
-    imageUrl:
-        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80',
-    category: 'Beaches',
-    accentColor: Color(0xFF006064),
-    flightCode: 'GWD',
-    highlights: ['Hammerhead Beach', 'Ormara Beach', 'China-Pak Port'],
-  ),
-  _PakDestination(
-    name: 'Karachi Beaches',
+    name: 'Clifton Beach',
     province: 'Sindh',
-    tagline: 'Clifton & French Beach',
+    tagline: 'Karachi\'s Most Popular Beach',
     imageUrl:
         'https://images.unsplash.com/photo-1519046904884-53103b34b206?w=800&q=80',
     category: 'Beaches',
     accentColor: Color(0xFF0277BD),
     flightCode: 'KHI',
-    highlights: ['Clifton Beach', 'French Beach', 'Hawks Bay'],
+    highlights: ['Sunset Views', 'Camel Rides', 'Sea View'],
+  ),
+  _PakDestination(
+    name: 'French Beach',
+    province: 'Sindh',
+    tagline: 'Pristine Waters Near Karachi',
+    imageUrl:
+        'https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?w=800&q=80',
+    category: 'Beaches',
+    accentColor: Color(0xFF0288D1),
+    flightCode: 'KHI',
+    highlights: ['Clean Sand', 'Snorkeling', 'Family Picnics'],
+  ),
+  _PakDestination(
+    name: 'Hawke\'s Bay',
+    province: 'Sindh',
+    tagline: 'Turtle Nesting Paradise',
+    imageUrl:
+        'https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=800&q=80',
+    category: 'Beaches',
+    accentColor: Color(0xFF01579B),
+    flightCode: 'KHI',
+    highlights: ['Turtle Watching', 'Wide Beach', 'Water Sports'],
+  ),
+  _PakDestination(
+    name: 'Sandspit Beach',
+    province: 'Sindh',
+    tagline: 'Protected Turtle Sanctuary',
+    imageUrl:
+        'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=800&q=80',
+    category: 'Beaches',
+    accentColor: Color(0xFF006064),
+    flightCode: 'KHI',
+    highlights: ['Green Turtles', 'Nature Reserve', 'Peaceful'],
+  ),
+  _PakDestination(
+    name: 'Manora Island',
+    province: 'Sindh',
+    tagline: 'Historic Beach Island',
+    imageUrl:
+        'https://images.unsplash.com/photo-1532408840957-031d8034aeef?w=800&q=80',
+    category: 'Beaches',
+    accentColor: Color(0xFF00838F),
+    flightCode: 'KHI',
+    highlights: ['Manora Fort', 'Lighthouse', 'Boat Ride'],
+  ),
+  _PakDestination(
+    name: 'Paradise Point',
+    province: 'Sindh',
+    tagline: 'Karachi\'s Hidden Gem',
+    imageUrl:
+        'https://images.unsplash.com/photo-1519046904884-53103b34b206?w=800&q=80',
+    category: 'Beaches',
+    accentColor: Color(0xFF0097A7),
+    flightCode: 'KHI',
+    highlights: ['Rock Formations', 'Coral Reefs', 'Photography'],
+  ),
+  _PakDestination(
+    name: 'Gwadar Beach',
+    province: 'Balochistan',
+    tagline: 'Pearl of the Arabian Sea',
+    imageUrl:
+        'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80',
+    category: 'Beaches',
+    accentColor: Color(0xFF00796B),
+    flightCode: 'GWD',
+    highlights: ['Hammerhead Rock', 'CPEC Port', 'Sunset Point'],
+  ),
+  _PakDestination(
+    name: 'Ormara Beach',
+    province: 'Balochistan',
+    tagline: 'Golden Sands & Clear Waters',
+    imageUrl:
+        'https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?w=800&q=80',
+    category: 'Beaches',
+    accentColor: Color(0xFF00695C),
+    flightCode: 'GWD',
+    highlights: ['Turtle Point', 'Camping', 'Pristine Nature'],
   ),
   _PakDestination(
     name: 'Kund Malir',
     province: 'Balochistan',
-    tagline: 'Pristine Coastal Gem',
+    tagline: 'Desert Meets the Sea',
     imageUrl:
         'https://images.unsplash.com/photo-1506953823976-52e1fdc0149a?w=800&q=80',
     category: 'Beaches',
-    accentColor: Color(0xFF00796B),
+    accentColor: Color(0xFF004D40),
     flightCode: 'KHI',
-    highlights: ['Crystal Water', 'Desert Cliffs', 'Camping'],
+    highlights: ['Crystal Water', 'Desert Cliffs', 'Remote Beauty'],
+  ),
+  _PakDestination(
+    name: 'Pasni Beach',
+    province: 'Balochistan',
+    tagline: 'Coastal Fishing Town',
+    imageUrl:
+        'https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=800&q=80',
+    category: 'Beaches',
+    accentColor: Color(0xFF1B5E20),
+    flightCode: 'GWD',
+    highlights: ['Fresh Seafood', 'Fishing Village', 'Boat Tours'],
   ),
 
   // ── HISTORICAL ─────────────────────────────────────────────────────────────
@@ -457,25 +534,6 @@ class _DestinationCard extends StatelessWidget {
                 ),
               ),
 
-              // Bookmark icon (top-right)
-              Positioned(
-                top: 6,
-                right: 6,
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.35),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    CupertinoIcons.bookmark,
-                    size: 13,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-
               // Bottom content
               Positioned(
                 left: 10,
@@ -549,38 +607,6 @@ class _DestinationCard extends StatelessWidget {
                                 ),
                               ))
                           .toList(),
-                    ),
-                    const SizedBox(height: 8),
-                    // Book Flight button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => Get.toNamed(
-                          AppLink.flightSearchHome,
-                          arguments: {
-                            'toCode': destination.flightCode,
-                            'toCity': destination.name
-                          },
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: ThemePalette.primaryMain,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          elevation: 0,
-                          minimumSize: const Size(0, 30),
-                        ),
-                        icon: const Icon(CupertinoIcons.airplane, size: 12),
-                        label: const Text(
-                          'Book Flight',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
                     ),
                   ],
                 ),

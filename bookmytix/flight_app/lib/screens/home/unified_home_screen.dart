@@ -60,7 +60,6 @@ class _UnifiedHomeScreenState extends State<UnifiedHomeScreen> {
   // User state
   String _userName = 'User';
   String _userAvatar = '';
-  bool _isGuest = true;
 
   @override
   void initState() {
@@ -68,27 +67,19 @@ class _UnifiedHomeScreenState extends State<UnifiedHomeScreen> {
     _loadUserProfile();
   }
 
-  /// Load current user from AuthService
+  /// Load current authenticated user from AuthService
   Future<void> _loadUserProfile() async {
-    final isGuest = await AuthService.isGuestMode();
-    setState(() {
-      _isGuest = isGuest;
-    });
-
-    if (isGuest) {
-      final guestUser = AuthService.getGuestUser();
+    final user = await AuthService.getCurrentUser();
+    if (user != null) {
       setState(() {
-        _userName = guestUser['name'];
-        _userAvatar = '';
+        _userName = user['name'] ?? 'User';
+        _userAvatar = user['avatar'] ?? '';
       });
     } else {
-      final user = await AuthService.getCurrentUser();
-      if (user != null) {
-        setState(() {
-          _userName = user['name'] ?? 'User';
-          _userAvatar = user['avatar'] ?? '';
-        });
-      }
+      // No authenticated user - redirect to login
+      Future.delayed(Duration.zero, () {
+        Get.offAllNamed(AppLink.welcome);
+      });
     }
   }
 
@@ -112,151 +103,226 @@ class _UnifiedHomeScreenState extends State<UnifiedHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 360;
+
     return Scaffold(
       backgroundColor: colorScheme(context).surface,
-      extendBodyBehindAppBar: true,
-      extendBody: true,
       bottomNavigationBar: const BottomNavMenu(),
 
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      // 📱 APP BAR - Transparent with user profile
+      // 📱 PROFESSIONAL STICKY NAVBAR - Wego/Booking.com Standard
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(70),
-        child: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          flexibleSpace: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.grey.shade600.withValues(alpha: 0.3),
-                  Colors.transparent,
+        preferredSize: Size.fromHeight(
+          kToolbarHeight + MediaQuery.of(context).padding.top,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                ThemePalette.primaryMain,
+                ThemePalette.primaryMain.withValues(alpha: 0.95),
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 12.0 : 16.0,
+                vertical: 8.0,
+              ),
+              child: Row(
+                children: [
+                  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                  // 👤 USER AVATAR - Touch-friendly 44x44 target
+                  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                  GestureDetector(
+                    onTap: () => Get.toNamed(AppLink.profile),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.15),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Center(
+                        child: _userAvatar.isNotEmpty
+                            ? ClipOval(
+                                child: Image.network(
+                                  _userAvatar,
+                                  width: 40,
+                                  height: 40,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Icon(
+                                    CupertinoIcons.person_fill,
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    size: 22,
+                                  ),
+                                ),
+                              )
+                            : Icon(
+                                CupertinoIcons.person_fill,
+                                color: Colors.white.withValues(alpha: 0.9),
+                                size: 22,
+                              ),
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(width: isSmallScreen ? 10 : 12),
+
+                  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                  // 📝 USER INFO - Flexible with ellipsis
+                  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Get.toNamed(AppLink.profile),
+                      behavior: HitTestBehavior.opaque,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Welcome back',
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 11 : 12,
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontWeight: FontWeight.w400,
+                              height: 1.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _userName,
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 15 : 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              height: 1.2,
+                              letterSpacing: 0.3,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(width: isSmallScreen ? 4 : 8),
+
+                  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                  // 🔔 NOTIFICATION ICON - 44x44 touch target
+                  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                  Obx(() {
+                    final ctrl = Get.find<NotificationController>();
+                    final unreadCount = ctrl.unreadCount.value;
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => Get.toNamed(
+                          AppLink.notification,
+                          arguments: {'tab': 0},
+                        ),
+                        borderRadius: BorderRadius.circular(22),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Icon(
+                                CupertinoIcons.bell,
+                                color: Colors.white.withValues(alpha: 0.95),
+                                size: 24,
+                              ),
+                              if (unreadCount > 0)
+                                Positioned(
+                                  top: -2,
+                                  right: -2,
+                                  child: Container(
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                    ),
+                                    height: 16,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.shade600,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: ThemePalette.primaryMain,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      unreadCount > 99 ? '99+' : '$unreadCount',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        height: 1.2,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+
+                  SizedBox(width: isSmallScreen ? 2 : 4),
+
+                  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                  // 💬 CHAT ICON - 44x44 touch target
+                  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => Get.toNamed(
+                        AppLink.notification,
+                        arguments: {'tab': 1},
+                      ),
+                      borderRadius: BorderRadius.circular(22),
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        alignment: Alignment.center,
+                        child: Icon(
+                          CupertinoIcons.chat_bubble_text,
+                          color: Colors.white.withValues(alpha: 0.95),
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-          leading: Padding(
-            padding: EdgeInsets.only(left: spacingUnit(2)),
-            child: GestureDetector(
-              onTap: () => Get.toNamed(AppLink.profile),
-              child: CircleAvatar(
-                backgroundColor: Colors.white.withValues(alpha: 0.2),
-                child: _userAvatar.isNotEmpty
-                    ? ClipOval(
-                        child: Image.network(
-                          _userAvatar,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Icon(
-                            CupertinoIcons.person_fill,
-                            color: Colors.white.withValues(alpha: 0.8),
-                          ),
-                        ),
-                      )
-                    : Icon(
-                        CupertinoIcons.person_fill,
-                        color: Colors.white.withValues(alpha: 0.8),
-                      ),
-              ),
-            ),
-          ),
-          title: GestureDetector(
-            onTap: () => Get.toNamed(AppLink.profile),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  _isGuest ? 'Guest Mode' : 'Welcome back',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-                Text(
-                  _userName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            if (_isGuest) ...
-              // ── Guest: Sign In pill in top-right (Booking.com / Expedia style)
-              [
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: GestureDetector(
-                  onTap: () => AuthGateSheet.show(
-                    context,
-                    action: 'to access all features',
-                  ),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: ThemePalette.primaryMain,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              ThemePalette.primaryMain.withValues(alpha: 0.4),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Text(
-                      'Sign In',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ] else ...
-              // ── Logged-in: notification + chat icons
-              [
-              Obx(() {
-                final ctrl = Get.find<NotificationController>();
-                final n = ctrl.unreadCount.value;
-                return Badge.count(
-                  backgroundColor: ThemePalette.primaryMain,
-                  textColor: Colors.black,
-                  count: n,
-                  isLabelVisible: n > 0,
-                  offset: const Offset(0, -1),
-                  child: IconButton(
-                    icon: Icon(
-                      CupertinoIcons.bell,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                    onPressed: () => Get.toNamed(AppLink.notification,
-                        arguments: {'tab': 0}),
-                  ),
-                );
-              }),
-              IconButton(
-                icon: Icon(
-                  CupertinoIcons.chat_bubble_text,
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
-                onPressed: () =>
-                    Get.toNamed(AppLink.notification, arguments: {'tab': 1}),
-              ),
-            ],
-          ],
         ),
       ),
 
@@ -297,7 +363,7 @@ class _UnifiedHomeScreenState extends State<UnifiedHomeScreen> {
             // 🔍 QUICK SEARCH BAR
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             SizedBox(height: spacingUnit(2)),
-            const QuickSearchBar(),
+            QuickSearchBar(service: _selectedService),
 
             // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
             // ⚡ FEATURES SECTION
@@ -560,14 +626,14 @@ class _UnifiedHomeScreenState extends State<UnifiedHomeScreen> {
         _buildHotelPackagesSection(),
         SizedBox(height: spacingUnit(2)),
 
-        // SECTION 2 – BROWSE BY PROPERTY TYPE
+        // SECTION 2 – TOP HOTELS OF PAKISTAN
         Container(
           margin: EdgeInsets.symmetric(
             horizontal: MediaQuery.of(context).size.width > 1200
                 ? spacingUnit(8)
                 : spacingUnit(2),
           ),
-          child: const _HotelPropertyTypeSection(),
+          child: const _TopHotelsOfPakistanSection(),
         ),
         SizedBox(height: spacingUnit(2)),
 
@@ -1230,122 +1296,438 @@ class _HotelWeekendDealCardState extends State<_HotelWeekendDealCard>
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// HOTEL SECTION 2 — BROWSE BY PROPERTY TYPE
+// HOTEL SECTION 2 — TOP HOTELS OF PAKISTAN
 // ═══════════════════════════════════════════════════════════════════════════
-class _HotelPropertyTypeSection extends StatelessWidget {
-  const _HotelPropertyTypeSection();
+class _TopHotelEntry {
+  final String name;
+  final String city;
+  final String category;
+  final double rating;
+  final int reviewCount;
+  final int pricePerNight;
+  final String imageUrl;
+  final List<String> amenities;
+  final Color accentColor;
 
-  static const _types = [
-    {
-      'label': 'Hotels',
-      'image':
-          'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=400'
-    },
-    {
-      'label': 'Apartments',
-      'image': 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400'
-    },
-    {
-      'label': 'Resorts',
-      'image':
-          'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400'
-    },
-    {
-      'label': 'Villas',
-      'image':
-          'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'
-    },
-    {
-      'label': 'Hostels',
-      'image': 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400'
-    },
-  ];
+  const _TopHotelEntry({
+    required this.name,
+    required this.city,
+    required this.category,
+    required this.rating,
+    required this.reviewCount,
+    required this.pricePerNight,
+    required this.imageUrl,
+    required this.amenities,
+    required this.accentColor,
+  });
+}
+
+const List<_TopHotelEntry> _topPakHotels = [
+  _TopHotelEntry(
+    name: 'Pearl Continental Karachi',
+    city: 'Karachi',
+    category: '5-Star',
+    rating: 4.6,
+    reviewCount: 4821,
+    pricePerNight: 42000,
+    imageUrl:
+        'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80',
+    amenities: ['Pool', 'Free WiFi', 'Spa', 'Fine Dining'],
+    accentColor: Color(0xFF1A237E),
+  ),
+  _TopHotelEntry(
+    name: 'Serena Hotel Islamabad',
+    city: 'Islamabad',
+    category: '5-Star',
+    rating: 4.7,
+    reviewCount: 3956,
+    pricePerNight: 38000,
+    imageUrl:
+        'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=600&q=80',
+    amenities: ['Pool', 'Free WiFi', 'Spa', 'Multiple Restaurants'],
+    accentColor: Color(0xFF006064),
+  ),
+  _TopHotelEntry(
+    name: 'Marriott Hotel Islamabad',
+    city: 'Islamabad',
+    category: '5-Star',
+    rating: 4.6,
+    reviewCount: 3104,
+    pricePerNight: 36000,
+    imageUrl:
+        'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&q=80',
+    amenities: ['Pool', 'Free WiFi', 'Rooftop', 'Business Center'],
+    accentColor: Color(0xFF4A148C),
+  ),
+  _TopHotelEntry(
+    name: 'Avari Towers Karachi',
+    city: 'Karachi',
+    category: '5-Star',
+    rating: 4.5,
+    reviewCount: 2874,
+    pricePerNight: 28000,
+    imageUrl:
+        'https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=600&q=80',
+    amenities: ['Pool', 'Free WiFi', 'Gym', 'City View'],
+    accentColor: Color(0xFFBF360C),
+  ),
+  _TopHotelEntry(
+    name: 'Pearl Continental Lahore',
+    city: 'Lahore',
+    category: '5-Star',
+    rating: 4.5,
+    reviewCount: 3312,
+    pricePerNight: 34000,
+    imageUrl:
+        'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=600&q=80',
+    amenities: ['Pool', 'Free WiFi', 'Spa', 'Garden'],
+    accentColor: Color(0xFF880E4F),
+  ),
+  _TopHotelEntry(
+    name: 'Avari Hotel Lahore',
+    city: 'Lahore',
+    category: '5-Star',
+    rating: 4.4,
+    reviewCount: 2648,
+    pricePerNight: 22000,
+    imageUrl:
+        'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=600&q=80',
+    amenities: ['Pool', 'Free WiFi', 'Fine Dining', 'Business Center'],
+    accentColor: Color(0xFF1B5E20),
+  ),
+  _TopHotelEntry(
+    name: 'PC Bhurban Murree',
+    city: 'Murree',
+    category: '5-Star',
+    rating: 4.6,
+    reviewCount: 1892,
+    pricePerNight: 25000,
+    imageUrl:
+        'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=600&q=80',
+    amenities: ['Forest Views', 'Free WiFi', 'Heated Pool', 'Bonfire'],
+    accentColor: Color(0xFF2E7D32),
+  ),
+  _TopHotelEntry(
+    name: 'Hunza Serena Inn',
+    city: 'Hunza',
+    category: '4-Star',
+    rating: 4.7,
+    reviewCount: 1543,
+    pricePerNight: 18000,
+    imageUrl:
+        'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=80',
+    amenities: ['Mountain Views', 'Free WiFi', 'Garden', 'Local Cuisine'],
+    accentColor: Color(0xFF1565C0),
+  ),
+  _TopHotelEntry(
+    name: 'Shangrila Resort Skardu',
+    city: 'Skardu',
+    category: '4-Star',
+    rating: 4.6,
+    reviewCount: 2108,
+    pricePerNight: 15000,
+    imageUrl:
+        'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=600&q=80',
+    amenities: ['Lake View', 'Free WiFi', 'Orchard', 'Boat Rides'],
+    accentColor: Color(0xFF006064),
+  ),
+  _TopHotelEntry(
+    name: 'Swat Serena Hotel',
+    city: 'Swat',
+    category: '4-Star',
+    rating: 4.4,
+    reviewCount: 1276,
+    pricePerNight: 14000,
+    imageUrl:
+        'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=600&q=80',
+    amenities: ['Valley Views', 'Free WiFi', 'Restaurant', 'Garden'],
+    accentColor: Color(0xFF37474F),
+  ),
+];
+
+class _TopHotelsOfPakistanSection extends StatelessWidget {
+  const _TopHotelsOfPakistanSection();
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Explore by accommodation type',
-                style: ThemeText.title2.copyWith(
-                  color: colorScheme(context).onSurface,
-                  fontWeight: FontWeight.bold,
-                )),
-            SizedBox(height: spacingUnit(0.5)),
-            Text('Find the perfect property for every type of traveller',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: colorScheme(context).onSurface.withValues(alpha: 0.6),
-                )),
-          ],
+        Text(
+          'Top Hotels of Pakistan',
+          style: ThemeText.title2.copyWith(
+            color: colorScheme(context).onSurface,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        SizedBox(height: spacingUnit(1.5)),
+        SizedBox(height: spacingUnit(0.5)),
+        Text(
+          'Handpicked luxury & premium stays across Pakistan',
+          style: TextStyle(
+            fontSize: 14,
+            color: colorScheme(context).onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+        SizedBox(height: spacingUnit(2)),
         SizedBox(
-          height: 186,
+          height: 295,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            itemCount: _types.length,
-            separatorBuilder: (_, __) => SizedBox(width: spacingUnit(1.5)),
+            padding: const EdgeInsets.only(bottom: 4),
+            itemCount: _topPakHotels.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
             itemBuilder: (context, i) {
-              final t = _types[i];
+              final h = _topPakHotels[i];
               return GestureDetector(
-                onTap: () => Get.toNamed('/hotel-search'),
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.22),
-                              blurRadius: 18,
-                              spreadRadius: 2,
-                              offset: const Offset(0, 6),
-                            ),
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 6,
-                              spreadRadius: 0,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.network(
-                            t['image']!,
-                            width: 190,
-                            height: 135,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              width: 190,
-                              height: 135,
-                              color: Colors.grey.shade200,
-                              child: const Icon(Icons.apartment,
-                                  color: Colors.grey),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(t['label']!,
-                          style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600)),
-                    ],
-                  ),
+                onTap: () => Get.toNamed(
+                  AppLink.hotelSearch,
+                  arguments: {'city': h.city},
                 ),
+                child: _TopHotelCard(hotel: h),
               );
             },
           ),
         ),
       ],
+    );
+  }
+}
+
+class _TopHotelCard extends StatelessWidget {
+  final _TopHotelEntry hotel;
+  const _TopHotelCard({required this.hotel});
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: Container(
+        width: 210,
+        decoration: BoxDecoration(
+          color: colorScheme(context).surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 16,
+              spreadRadius: 0,
+              offset: const Offset(0, 4),
+            ),
+            BoxShadow(
+              color: hotel.accentColor.withValues(alpha: 0.08),
+              blurRadius: 10,
+              spreadRadius: 0,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Image
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+              child: Stack(
+                children: [
+                  Image.network(
+                    hotel.imageUrl,
+                    width: 210,
+                    height: 140,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 210,
+                      height: 140,
+                      color: hotel.accentColor.withValues(alpha: 0.2),
+                      child:
+                          Icon(Icons.hotel, color: hotel.accentColor, size: 40),
+                    ),
+                    loadingBuilder: (_, child, progress) {
+                      if (progress == null) return child;
+                      return Container(
+                        width: 210,
+                        height: 140,
+                        color: Colors.grey.shade100,
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    },
+                  ),
+                  // Category badge
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: ThemePalette.primaryMain,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                ThemePalette.primaryDark.withValues(alpha: 0.4),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        hotel.category,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF3B2A00),
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Rating badge
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1400).withValues(alpha: 0.80),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color:
+                              ThemePalette.primaryMain.withValues(alpha: 0.5),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.star_rounded,
+                              color: ThemePalette.primaryMain, size: 13),
+                          const SizedBox(width: 3),
+                          Text(
+                            hotel.rating.toStringAsFixed(1),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: ThemePalette.primaryLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Content
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hotel.name,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on_rounded,
+                          size: 12,
+                          color: colorScheme(context)
+                              .onSurface
+                              .withValues(alpha: 0.5)),
+                      const SizedBox(width: 2),
+                      Text(
+                        hotel.city,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: colorScheme(context)
+                              .onSurface
+                              .withValues(alpha: 0.55),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '(${hotel.reviewCount >= 1000 ? '${(hotel.reviewCount / 1000).toStringAsFixed(1)}k' : hotel.reviewCount} reviews)',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: colorScheme(context)
+                              .onSurface
+                              .withValues(alpha: 0.4),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: hotel.amenities
+                        .take(3)
+                        .map((a) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: ThemePalette.primaryMain
+                                    .withValues(alpha: 0.10),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: ThemePalette.primaryDark
+                                      .withValues(alpha: 0.35),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Text(
+                                a,
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                  color: ThemePalette.primaryDark,
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'PKR ${hotel.pricePerNight >= 1000 ? '${(hotel.pricePerNight / 1000).toStringAsFixed(0)}k' : hotel.pricePerNight}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: ThemePalette.primaryDark,
+                        ),
+                      ),
+                      Text(
+                        '/night',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: colorScheme(context)
+                              .onSurface
+                              .withValues(alpha: 0.45),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -11,7 +11,6 @@ import 'package:flutter/material.dart';
 import 'package:get/route_manager.dart';
 import 'package:flight_app/utils/auth_service.dart';
 import 'package:flight_app/utils/location_preference_service.dart';
-import 'package:flight_app/widgets/auth/auth_gate_sheet.dart';
 
 class PackageListSlider extends StatefulWidget {
   const PackageListSlider({super.key});

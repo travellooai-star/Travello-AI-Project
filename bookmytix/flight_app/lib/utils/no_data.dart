@@ -30,55 +30,140 @@ class NoData extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Container(
-        constraints: BoxConstraints(
-          maxWidth: ThemeSize.sm
+        constraints: BoxConstraints(maxWidth: ThemeSize.sm),
+        padding: EdgeInsets.symmetric(
+          horizontal: spacingUnit(3),
+          vertical: spacingUnit(4),
         ),
-        padding: EdgeInsets.all(spacingUnit(3)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            /// ILLUSTRATION IMAGE
+            /// ILLUSTRATION
             Container(
-              width: 150,
-              height: 150,
-              alignment: Alignment.bottomCenter,
+              width: 160,
+              height: 160,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: colorScheme(context).secondaryContainer
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    ThemePalette.primaryMain.withValues(alpha: 0.15),
+                    ThemePalette.primaryLight.withValues(alpha: 0.30),
+                  ],
+                ),
+                border: Border.all(
+                  color: ThemePalette.primaryMain.withValues(alpha: 0.20),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: ThemePalette.primaryMain.withValues(alpha: 0.12),
+                    blurRadius: 24,
+                    spreadRadius: 4,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-              child: SvgPicture.asset(image, height: 126, fit: BoxFit.contain),
+              child: Center(
+                child:
+                    SvgPicture.asset(image, height: 110, fit: BoxFit.contain),
+              ),
             ),
 
-            /// TEXT
-            const VSpaceShort(),
-            Text(title, textAlign: TextAlign.center, style: ThemeText.title),
-            Text(desc, textAlign: TextAlign.center, style: ThemeText.headline),
+            SizedBox(height: spacingUnit(3)),
 
-            /// BUTTON ACTION
-            const VSpace(),
-            primaryTxtBtn != null ? SizedBox(
-              height: 50,
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: primaryAction,
-                style: ThemeButton.tonalPrimary(context),
-                child: Text(primaryTxtBtn!, style: ThemeText.subtitle2),
-              )
-            ) : Container(),
-            const VSpaceShort(),
-            secondaryTxtBtn != null ? SizedBox(
-              height: 50,
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: secondaryAction,
-                style: ThemeButton.outlinedSecondary(context),
-                child: Text(secondaryTxtBtn!, style: ThemeText.subtitle2,),
-              )
-            ) : Container(),
+            /// TITLE
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: ThemeText.title.copyWith(
+                fontWeight: FontWeight.w800,
+                fontSize: 22,
+                color: colorScheme(context).onSurface,
+                height: 1.2,
+              ),
+            ),
+
+            SizedBox(height: spacingUnit(1)),
+
+            /// DESCRIPTION
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: spacingUnit(1)),
+              child: Text(
+                desc,
+                textAlign: TextAlign.center,
+                style: ThemeText.headline.copyWith(
+                  color: colorScheme(context).onSurface.withValues(alpha: 0.55),
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+            ),
+
+            SizedBox(height: spacingUnit(3.5)),
+
+            /// PRIMARY BUTTON
+            if (primaryTxtBtn != null)
+              SizedBox(
+                height: 52,
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: primaryAction,
+                  style: ThemeButton.tonalPrimary(context).copyWith(
+                    shape: WidgetStateProperty.all(
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    elevation: WidgetStateProperty.all(0),
+                  ),
+                  child: Text(
+                    primaryTxtBtn!,
+                    style: ThemeText.subtitle2.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+
+            if (primaryTxtBtn != null && secondaryTxtBtn != null)
+              SizedBox(height: spacingUnit(1.5)),
+
+            /// SECONDARY BUTTON
+            if (secondaryTxtBtn != null)
+              SizedBox(
+                height: 52,
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: secondaryAction,
+                  style: ThemeButton.outlinedSecondary(context).copyWith(
+                    shape: WidgetStateProperty.all(
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    side: WidgetStateProperty.all(
+                      BorderSide(
+                        color: ThemePalette.primaryMain.withValues(alpha: 0.45),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                  child: Text(
+                    secondaryTxtBtn!,
+                    style: ThemeText.subtitle2.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
-      )
+      ),
     );
   }
 }

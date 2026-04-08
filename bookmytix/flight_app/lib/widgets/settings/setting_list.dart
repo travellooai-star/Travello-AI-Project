@@ -429,41 +429,6 @@ class _SettingListState extends State<SettingList> {
                   ]))),
           const VSpace(),
 
-          /// PROMO
-          const TitleBasicSmall(title: 'Promo'),
-          PaperCard(
-              content: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(children: [
-                    ListTile(
-                      leading: const Icon(Icons.campaign),
-                      title: const Text('Promo'),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 12),
-                      onTap: () {
-                        Get.toNamed(AppLink.promo);
-                      },
-                    ),
-                    const LineList(),
-                    ListTile(
-                      leading: const Icon(Icons.campaign_outlined),
-                      title: const Text('Promo Detail'),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 12),
-                      onTap: () {
-                        Get.toNamed(AppLink.promoDetail);
-                      },
-                    ),
-                    const LineList(),
-                    ListTile(
-                      leading: const Icon(Icons.discount),
-                      title: const Text('Voucher Detail'),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 12),
-                      onTap: () {
-                        Get.toNamed(AppLink.voucherDetail);
-                      },
-                    ),
-                  ]))),
-          const VSpace(),
-
           /// UI LIST
           const TitleBasicSmall(title: 'UI List'),
           PaperCard(

@@ -402,7 +402,7 @@ class _LoginFormState extends State<LoginForm> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'john@example.com or 0123456789',
+                        'Username: John Doe | Password: 0123456789',
                         style: ThemeText.caption.copyWith(
                           color: colorScheme.onSurface.withValues(alpha: 0.7),
                           fontSize: 13,
@@ -1034,94 +1034,6 @@ class _LoginFormState extends State<LoginForm> {
           ),
           const VSpaceBig(),
 
-          /// QUICK ACCESS BUTTONS
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              InkWell(
-                onTap: () {
-                  Get.toNamed(AppLink.contact);
-                },
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: ThemePalette.primaryLight,
-                            radius: 22,
-                          ),
-                          Icon(Icons.question_answer_outlined,
-                              size: 32, color: ThemePalette.primaryDark),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      const Text('Help & Support', style: ThemeText.caption)
-                    ]),
-              ),
-              InkWell(
-                onTap: () async {
-                  // Enable guest mode
-                  await AuthService.enableGuestMode();
-                  // Show guest mode message
-                  Get.snackbar(
-                    '👋 Welcome Guest!',
-                    'You are browsing as a guest. Login for full access.',
-                    backgroundColor: Colors.purple.shade600,
-                    colorText: Colors.white,
-                    snackPosition: SnackPosition.TOP,
-                    duration: const Duration(seconds: 2),
-                    icon: const Icon(Icons.person_outline, color: Colors.white),
-                    borderRadius: 10,
-                    margin: const EdgeInsets.all(10),
-                  );
-
-                  // Check if user has set their origin city
-                  final hasCity =
-                      await LocationPreferenceService.hasOriginCity();
-
-                  if (!hasCity && mounted) {
-                    // Show city selection for guest users too
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      isDismissible: false,
-                      enableDrag: false,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => CitySelectionSheet(
-                        onComplete: () {
-                          Get.offAllNamed(AppLink.home);
-                        },
-                      ),
-                    );
-                  } else {
-                    // Already has city preference, go directly to home
-                    Get.offAllNamed(AppLink.home);
-                  }
-                },
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: ThemePalette.tertiaryLight,
-                            radius: 22,
-                          ),
-                          Icon(Icons.person_outline,
-                              size: 32, color: ThemePalette.tertiaryDark),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      const Text('Guest Mode', style: ThemeText.caption)
-                    ]),
-              ),
-            ],
-          ),
-          const VSpace(),
-
           /// SIGN UP LINK
           Center(
             child: TextButton(
@@ -1131,11 +1043,12 @@ class _LoginFormState extends State<LoginForm> {
               child: Text.rich(
                 TextSpan(
                   text: 'Don\'t have an account? ',
-                  style: ThemeText.caption,
+                  style: ThemeText.caption.copyWith(fontSize: 15),
                   children: [
                     TextSpan(
                       text: 'Sign Up Now',
                       style: ThemeText.caption.copyWith(
+                        fontSize: 15,
                         color: colorScheme.primary,
                         fontWeight: FontWeight.bold,
                         decoration: TextDecoration.underline,
